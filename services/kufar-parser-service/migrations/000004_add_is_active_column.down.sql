@@ -1,0 +1,1 @@
+ALTER TABLE general_properties DROP COLUMN IF EXISTS is_active;

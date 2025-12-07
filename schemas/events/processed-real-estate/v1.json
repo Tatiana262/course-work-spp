@@ -1,0 +1,135 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "ProcessedRealEstateEvent",
+    "version": "1.0.0",
+    "description": "Событие об успешном парсинге объекта недвижимости",
+    "type": "object",
+    "properties": {
+      "general": {
+        "description": "Общая информация об объекте",
+        "type": "object",
+        "properties": {
+          "source": { "type": "string" },
+          "sourceAdId": { "type": "integer" },
+          "adLink": { "type": "string" },
+          "saleType": { "type": "string" }, 
+          "currency": { "type": "string" },
+          "images": {
+            "type": ["array", "null"],
+            "items": {
+              "type": "string"
+            }
+          },
+          "listTime": { "type": "string", "format": "date-time" },
+          "description": {"type": "string"},
+          "title": { "type": "string" },
+          "dealType": { "type": "string" },
+          "latitude": { "type": "number" },
+          "longitude": { "type": "number" },
+          "cityOrDistrict": { "type": "string" },
+          "region": { "type": "string" },
+          "priceBYN": { "type": "number" },
+          "priceUSD": { "type": "number" },
+          "priceEUR": { "type": "number" },
+          "address": { "type": "string" },
+          
+          "isAgency": { "type": "boolean" },  
+          "sellerName": { "type": "string" }, 
+          "sellerDetails": { "type": ["object", "null"] },
+
+          "status": { "type": "string" }
+          
+        },
+        "required": ["source", "sourceAdId", "adLink", "saleType",  "currency", "images", "listTime", "description", "title", 
+        "dealType",  "latitude", "longitude", "cityOrDistrict", "region", "priceBYN", "priceUSD", "address", "isAgency", "sellerName", "status"]
+      },
+      "details_type": {
+        "description": "Тип объекта, определяет структуру поля details",
+        "type": "string",
+        "enum": [
+          "apartment",
+          "house",
+          "commercial",
+          "room",
+          "garage_and_parking",
+          "plot",
+          "new_building",
+          ""
+        ]
+      },
+      "details": {
+        "description": "Детализированная информация, структура зависит от details_type"
+      },
+      "task_id": {
+        "type": "string",
+        "format": "uuid"
+      }
+    },
+    "required": ["general", "details_type", "details", "task_id"],
+
+    "allOf": [
+      {
+        "if": {
+          "properties": { "details_type": { "const": "apartment" } }
+        },
+        "then": {
+          "properties": { "details": { "$ref": "#/$defs/apartmentDetailsSchema" } },
+          "required": ["details"]
+        }
+      },
+      {
+        "if": {
+          "properties": { "details_type": { "const": "house" } }
+        },
+        "then": {
+          "properties": { "details": { "$ref": "#/$defs/houseDetailsSchema" } },
+          "required": ["details"]
+        }
+      }  
+    ],
+
+    "$defs": {
+      "apartmentDetailsSchema": {
+        "type": "object",
+        "properties": {
+          "roomsAmount": { "type": ["integer", "null"] },
+          "floorNumber": { "type": ["integer", "null"] },
+          "buildingFloors": { "type": ["integer", "null"] },
+          "totalArea": { "type": ["number", "null"] },
+          "livingSpaceArea": { "type": ["number", "null"] },
+          "kitchenArea": { "type": ["number", "null"] },
+          "yearBuilt": { "type": ["integer", "null"] },
+          "wallMaterial": { "type": ["string", "null"] },
+          "repairState": { "type": ["string", "null"] },
+          "bathroomType": { "type": ["string", "null"] },
+          "balconyType": { "type": ["string", "null"] },
+          "pricePerSquareMeter": { "type": ["number", "null"] },
+          "parameters": { "type": "object", "default": {} }
+        },
+        "additionalProperties": false
+      },
+      "houseDetailsSchema": {
+        "type": "object",
+        "properties": {
+          "totalArea": { "type": ["number", "null"] },
+          "plotArea": { "type": ["number", "null"] },
+          "wallMaterial": { "type": ["string", "null"] },
+          "yearBuilt": { "type": ["integer", "null"] },
+          "livingSpaceArea": { "type": ["number", "null"] },
+          "buildingFloors": { "type": ["integer", "null"] },
+          "roomsAmount": { "type": ["integer", "null"] },
+          "kitchenArea": { "type": ["number", "null"] },
+          "electricity": { "type": ["string", "null"] },
+          "water": { "type": ["string", "null"] },
+          "heating": { "type": ["string", "null"] },
+          "sewage": { "type": ["string", "null"] },
+          "gaz": { "type": ["string", "null"] },
+          "roofMaterial": { "type": ["string", "null"] },
+          "houseType": { "type": ["string", "null"] },
+          "completionPercent": { "type": ["integer", "null"] },
+          "parameters": { "type": "object", "default": {} }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
