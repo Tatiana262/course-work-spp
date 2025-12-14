@@ -43,21 +43,26 @@ func (c *Client) doRequest(ctx context.Context, method, url string, body io.Read
 }
 
 // CreateTask создает новую задачу и возвращает ее ID.
-func (c *Client) CreateTask(ctx context.Context, name, taskType string, userID uuid.UUID) (uuid.UUID, error) {
+func (c *Client) CreateTask(ctx context.Context, name, taskType string, userID uuid.UUID, params ...any) (uuid.UUID, error) {
 	logger := contextkeys.LoggerFromContext(ctx)
 	clientLogger := logger.WithFields(port.Fields{
 		"component": "TaskApiClient",
 		"method":    "CreateTask",
 	})
 
-	reqBody, _ := json.Marshal(createTaskRequest{
+	req := createTaskRequest{
 		Name:            name,
 		Type:            taskType,
 		CreatedByUserID: userID.String(),
-	})
+	}
+	if len(params) > 0 {
+		req.ObjectID = params[0].(string)
+	}
+
+	reqBody, _ := json.Marshal(req)
 
 	url := c.baseURL + "/api/v1/tasks"
-	clientLogger.Info("Sending request to create task", port.Fields{"url": url, "task_name": name})
+	clientLogger.Info("Sending request to create task", port.Fields{"url": url, "task_name": name, "task_request": req})
 
 	resp, err := c.doRequest(ctx, http.MethodPost, url, bytes.NewBuffer(reqBody))
 	if err != nil {

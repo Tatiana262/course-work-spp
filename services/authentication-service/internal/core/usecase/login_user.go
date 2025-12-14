@@ -44,7 +44,7 @@ func (uc *LoginUserUseCase) Execute(ctx context.Context, email, password string)
 		return nil, "", domain.ErrUserNotFound
 	}
 
-	ucLogger = ucLogger.WithFields(port.Fields{"user_id": user.ID})
+	ucLogger = ucLogger.WithFields(port.Fields{"user_id": user.ID.String()})
 
 	// Проверяем пароль
 	if !user.CheckPassword(password) {

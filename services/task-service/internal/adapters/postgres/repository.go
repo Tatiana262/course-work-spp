@@ -34,6 +34,7 @@ func (r *PostgresTaskRepository) Create(ctx context.Context, task *domain.Task) 
 		"component": "PostgresTaskRepository",
 		"method":    "Create",
 		"task_id":   task.ID.String(),
+		"task": *task,
 	})
 	
 	repoLogger.Info("Creating new task in DB", nil)
@@ -43,7 +44,7 @@ func (r *PostgresTaskRepository) Create(ctx context.Context, task *domain.Task) 
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`
 	// Инициализируем result_summary пустым JSON-объектом '{}'
-	summaryJSON, _ := json.Marshal(map[string]interface{}{})
+	summaryJSON, _ := json.Marshal(task.ResultSummary)
 
 	_, err := r.pool.Exec(ctx, query,
 		task.ID,

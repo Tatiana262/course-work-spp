@@ -44,27 +44,35 @@ func CreateProxy(targetURL, pathPrefix string) http.Handler {
 }
 
 
-// func createStorageProxy(targetURL string) http.Handler {
-// 	target, _ := url.Parse(targetURL)
-// 	proxy := httputil.NewSingleHostReverseProxy(target)
+func CreateSSEProxy(targetURL, pathPrefix string) http.Handler {
+	target, err := url.Parse(targetURL)
+	if err != nil {
+		log.Fatalf("Invalid target URL: %v", err)
+	}
 
-// 	proxy.Director = func(req *http.Request) {
-// 		req.URL.Scheme = target.Scheme
-// 		req.URL.Host = target.Host
-// 		req.Host = target.Host
+	proxy := httputil.NewSingleHostReverseProxy(target)
+
+	// ДЛЯ SSE
+	// -1 означает: сбрасывать данные клиенту МГНОВЕННО после получения от бэкенда.
+	// Не ждать накопления буфера.
+	proxy.FlushInterval = -1 
+
+	proxy.Director = func(req *http.Request) {
+		req.URL.Scheme = target.Scheme
+		req.URL.Host = target.Host
+		req.Host = target.Host
+		req.URL.Path = pathPrefix + req.URL.Path
+
+		traceID := contextkeys.TraceIDFromContext(req.Context())
+		if traceID != "" {
+			req.Header.Set("X-Trace-ID", traceID)
+		}
 		
-//         // ---- Вся магия здесь ----
-//         // Исходный путь: /api/objects/some/path?query=1
-//         // Мы хотим превратить его в: /api/v1/objects/some/path?query=1
-        
-//         // 1. Убираем префикс, который "съел" Mount
-//         // chi.RouteContext(req.Context()).RoutePath вернет "/api/objects/*"
-//         // Нам нужно отрезать статическую часть "/api/objects"
-//         trimmedPath := strings.TrimPrefix(req.URL.Path, "/api/objects")
-        
-//         // 2. Добавляем новый префикс целевого сервиса
-//         req.URL.Path = "/api/v1/objects" + trimmedPath
-// 	}
+		// Для SSE важно, чтобы Connection не закрывался
+		req.Header.Set("Connection", "keep-alive")
+		req.Header.Set("Accept", "text/event-stream")
+		req.Header.Set("Cache-Control", "no-cache")
+	}
 
-// 	return proxy
-// }
+	return proxy
+}

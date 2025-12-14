@@ -77,16 +77,13 @@ func (a *PostgresStorageAdapter) BatchSave(ctx context.Context, records []domain
 
 		// 3. Формируем SQL-запрос БЕЗ типов в AS vals(...)
 		sql := `
-			WITH updated AS (
-				UPDATE general_properties
-				SET status = 'archived', updated_at = NOW()
-				FROM (VALUES %s) AS vals(source, source_ad_id)
-				WHERE general_properties.source = vals.source 
-				  AND general_properties.source_ad_id = vals.source_ad_id
-				  AND general_properties.status != 'archived' -- Обновляем только если статус действительно меняется
-				RETURNING 1
-			)
-			SELECT count(*) FROM updated;
+			UPDATE general_properties gp
+			SET status = 'archived', updated_at = NOW()
+			FROM (VALUES %s) AS vals(source, source_ad_id)
+			WHERE gp.source = vals.source 
+			AND gp.source_ad_id = vals.source_ad_id
+			AND gp.status != 'archived'
+			RETURNING gp.master_object_id, gp.source, gp.deal_type, gp.is_source_duplicate;
 		`
 
 		columnTypes := []string{"TEXT", "BIGINT"}
@@ -96,15 +93,90 @@ func (a *PostgresStorageAdapter) BatchSave(ctx context.Context, records []domain
 		flatArgs := flatten(keys)
 
 		repoLogger.Info("Executing batch archive.", nil)
-		var archivedCount int
-		err := tx.QueryRow(ctx, formattedSQL, flatArgs...).Scan(&archivedCount)
+		
+		rows, err := tx.Query(ctx, formattedSQL, flatArgs...)
 		if err != nil {
+			rows.Close()
 			repoLogger.Error("Failed to batch archive properties", err, port.Fields{"query": formattedSQL})
 			return nil, fmt.Errorf("failed to batch archive properties and count results: %w", err)
 		}
 		
 		// Добавляем к общей статистике
-		stats.Archived += archivedCount		
+		// Собираем информацию о "свергнутых чемпионах"
+		demotedChampions := make(map[string]bool) // Ключ: "master_id|source|deal_type"
+		var archivedCount int
+
+		for rows.Next() {
+			var masterID uuid.UUID
+			var source, dealType string
+			var wasSourceDuplicate bool
+			if err := rows.Scan(&masterID, &source, &dealType, &wasSourceDuplicate); err != nil { 
+				repoLogger.Error("Failed to scan", err, port.Fields{"query": formattedSQL})
+				return nil, fmt.Errorf("failed to scan: %w", err)
+			}
+			
+			archivedCount++
+			// Если мы заархивировали "хороший" дубликат, запоминаем его группу.
+			if !wasSourceDuplicate {
+				key := fmt.Sprintf("%s|%s|%s", masterID, source, dealType)
+				demotedChampions[key] = true
+			}
+		}
+		rows.Close()
+		stats.Archived = archivedCount
+		
+		// Если были "свергнутые чемпионы", ищем им замену.
+		if len(demotedChampions) > 0 {
+			repoLogger.Info("Demoted champions found, electing new ones.", port.Fields{"count": len(demotedChampions)})
+             // Собираем уникальные master_id для поиска.
+            // Используем map[uuid.UUID]struct{} для автоматического обеспечения уникальности.
+            masterIDSet := make(map[uuid.UUID]struct{})
+            for key := range demotedChampions {
+                // Разбираем ключ "master_id|source|deal_type"
+                parts := strings.Split(key, "|")
+                if len(parts) > 0 {
+                    // Парсим первую часть ключа как UUID
+                    masterID, err := uuid.Parse(parts[0])
+                    if err == nil {
+                        masterIDSet[masterID] = struct{}{}
+                    }
+                }
+            }
+
+            // Преобразуем set в срез для передачи в SQL-запрос.
+            masterIDsToReElect := make([]uuid.UUID, 0, len(masterIDSet))
+            for id := range masterIDSet {
+                masterIDsToReElect = append(masterIDsToReElect, id)
+            }
+
+			// Одним мощным UPDATE находим для каждой группы самого свежего
+			// активного "плохого" дубликаблика и делаем его "хорошим".
+			updateNewChampionsSQL := `
+				WITH new_champions AS (
+					SELECT
+						id,
+						ROW_NUMBER() OVER(
+							PARTITION BY master_object_id, source, deal_type 
+							ORDER BY updated_at DESC
+						) as rn
+					FROM general_properties
+					WHERE master_object_id = ANY($1)
+					  AND is_source_duplicate = true -- Ищем среди "плохих"
+					  AND status = 'active'
+				)
+				UPDATE general_properties gp
+				SET is_source_duplicate = false, updated_at = NOW()
+				FROM new_champions nc
+				WHERE gp.id = nc.id AND nc.rn = 1;
+			`
+			// Выполняем этот запрос
+			cmdTag, err := tx.Exec(ctx, updateNewChampionsSQL, masterIDsToReElect)
+			if err != nil {
+				repoLogger.Error("Failed to elect new champions", err, nil)
+				return nil, fmt.Errorf("failed to elect new source duplicates: %w", err)
+			}
+            repoLogger.Info("Successfully elected new champions.", port.Fields{"elected_count": cmdTag.RowsAffected()})
+		}
 		repoLogger.Info("Batch archive complete", port.Fields{"archived_count": archivedCount})
 	}
 
@@ -174,9 +246,11 @@ func (a *PostgresStorageAdapter) BatchSave(ctx context.Context, records []domain
 		}
 
 		existingSourceDuplicates := make(map[string]struct{}) // Ключ: "master_id|source|deal_type"
+		existingSourceKeys := make(map[string]struct{}) // Ключ: "source|source_ad_id"
+		
 		if len(masterIDs) > 0 {
 			rows, err = tx.Query(ctx,
-				`SELECT master_object_id, source, deal_type FROM general_properties
+				`SELECT master_object_id, source, deal_type, source_ad_id FROM general_properties
 				WHERE master_object_id = ANY($1) AND is_source_duplicate = false AND status = 'active'`,
 				masterIDs,
 			)
@@ -187,12 +261,16 @@ func (a *PostgresStorageAdapter) BatchSave(ctx context.Context, records []domain
 			for rows.Next() {
 				var masterID uuid.UUID
 				var source, dealType string
-				if err := rows.Scan(&masterID, &source, &dealType); err != nil {
+				var sourceAdID int64
+				if err := rows.Scan(&masterID, &source, &dealType, &sourceAdID); err != nil {
 					rows.Close()
 					return nil, fmt.Errorf("failed to scan source duplicate: %w", err)
 				}
 				key := fmt.Sprintf("%s|%s|%s", masterID, source, dealType)
 				existingSourceDuplicates[key] = struct{}{}
+
+				sourceKey := fmt.Sprintf("%s|%d", source, sourceAdID)
+        		existingSourceKeys[sourceKey] = struct{}{}
 			}
 			rows.Close()
 		}
@@ -218,7 +296,11 @@ func (a *PostgresStorageAdapter) BatchSave(ctx context.Context, records []domain
 			// Проверяем, видели ли мы уже объект из этого источника для этой "папки"
 			// 1. Проверяем в объектах, которые уже есть в БД
 			if _, exists := existingSourceDuplicates[key]; exists {
-				isSourceDuplicate = true
+				currentSourceKey := fmt.Sprintf("%s|%d", dbGeneral.Source, dbGeneral.SourceAdID)
+				if _, isOurself := existingSourceKeys[currentSourceKey]; !isOurself {
+					// "Хороший" дубликат в базе есть, и это НЕ мы. Значит, МЫ - "плохой" дубликат.
+					isSourceDuplicate = true
+				}
 			}
 			// 2. Проверяем в объектах, которые мы обработали ранее в ЭТОМ ЖЕ пакете
 			if _, seen := batchSourcesSeen[key]; seen {

@@ -30,7 +30,7 @@ func (uc *ValidateTokenUseCase) Execute(ctx context.Context, tokenString string)
 	}
 	
 	ucLogger.Info("Use case finished: token validated successfully", port.Fields{
-		"user_id": claims.UserID,
+		"user_id": claims.UserID.String(),
 		"role":    claims.Role,
 	})
 	return claims, nil

@@ -125,7 +125,7 @@ func (h *ActualiztionObjectsHandler) GetArchivedObjects(w http.ResponseWriter, r
 
 
 
-func (h *ActualiztionObjectsHandler) GetObjectByID(w http.ResponseWriter, r *http.Request) {
+func (h *ActualiztionObjectsHandler) GetObjectsByMasterID(w http.ResponseWriter, r *http.Request) {
 
 	logger := contextkeys.LoggerFromContext(r.Context())
 
@@ -143,19 +143,25 @@ func (h *ActualiztionObjectsHandler) GetObjectByID(w http.ResponseWriter, r *htt
 	})
 	handlerLogger.Info("Processing request", nil)
 
-    property, err := h.getObjectByIDUC.FindObjectByIDForActualization(r.Context(), idStr)
+    properties, err := h.getObjectByIDUC.FindObjectsByIDForActualization(r.Context(), idStr)
     if err != nil {
 		handlerLogger.Error("Use case failed", err, nil)
-		WriteJSONError(w, http.StatusInternalServerError, fmt.Sprintf("ObjectByIDHandler: failed to find object for actualization: %v", err))
+		WriteJSONError(w, http.StatusInternalServerError, fmt.Sprintf("GetObjectsByMasterIDHandler: failed to find objects for actualization: %v", err))
         return
     }
 
-	propertyInfoResponse := PropertyInfoResponse{
-		AdID:      property.AdID,
-        AdLink:    property.Link,
-        Source:    property.Source,
-	}
-    
-	handlerLogger.Info("Successfully found object", nil)
-	RespondWithJSON(w, http.StatusOK, propertyInfoResponse) // Используем хелпер для отправки
+
+	response := make([]PropertyInfoResponse, len(properties))
+    for i, p := range properties {
+        response[i] = PropertyInfoResponse{
+            // ID:        p.ID.String(),
+            AdID:      p.AdID,
+            AdLink: 	   p.Link,
+            Source:    p.Source,
+            // UpdatedAt: p.UpdatedAt,
+        }
+    }
+
+	handlerLogger.Info("Successfully found objects", port.Fields{"count": len(response)})
+	RespondWithJSON(w, http.StatusOK, response) // Используем хелпер для отправки
 }

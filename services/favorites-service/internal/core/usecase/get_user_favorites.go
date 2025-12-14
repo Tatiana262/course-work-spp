@@ -74,14 +74,14 @@ func (uc *GetUserFavoritesUseCase) Execute(ctx context.Context, userID uuid.UUID
     // в том порядке, в котором пользователь его добавлял (или в обратном).
     // Мы знаем правильный порядок из `paginatedIDs.MasterObjectIDs`.
     
-    objectMap := make(map[uuid.UUID]domain.ObjectCard, len(objects))
+    objectMap := make(map[string]domain.ObjectCard, len(objects))
     for _, obj := range objects {
         objectMap[obj.MasterObjectID] = obj
     }
     
     sortedObjects := make([]domain.ObjectCard, 0, len(paginatedIDs.MasterObjectIDs))
     for _, id := range paginatedIDs.MasterObjectIDs {
-        if obj, ok := objectMap[id]; ok {
+        if obj, ok := objectMap[id.String()]; ok {
             sortedObjects = append(sortedObjects, obj)
         }
     }

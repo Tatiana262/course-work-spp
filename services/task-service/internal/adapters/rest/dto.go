@@ -10,6 +10,7 @@ type CreateTaskRequest struct {
 	Name            string `json:"name"`
 	Type            string `json:"type"`
 	CreatedByUserID string `json:"created_by_user_id"`
+	ObjectID		string `json:"object_id,omitempty"`
 }
 
 type UpdateTaskRequest struct {

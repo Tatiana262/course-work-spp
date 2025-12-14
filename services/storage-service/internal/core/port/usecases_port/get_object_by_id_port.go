@@ -7,5 +7,5 @@ import (
 )
 
 type GetObjectByIDUseCase interface {
-	FindObjectByIDForActualization(ctx context.Context, id string) (*domain.PropertyBasicInfo, error)
+	FindObjectsByIDForActualization(ctx context.Context, id string) ([]domain.PropertyBasicInfo, error)
 }

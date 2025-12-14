@@ -85,6 +85,39 @@ func (r *PostgresFavoritesRepository) Remove(ctx context.Context, userID, master
 	return nil
 }
 
+func (r *PostgresFavoritesRepository) FindFavoritesIdsByUser(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
+	logger := contextkeys.LoggerFromContext(ctx)
+	repoLogger := logger.WithFields(port.Fields{
+		"component": "PostgresFavoritesRepository",
+		"method":    "FindFavoritesIdsByUser",
+		"user_id":   userID,
+	})
+
+	dataQuery := "SELECT master_object_id FROM user_favorites WHERE user_id = $1"
+	rows, err := r.pool.Query(ctx, dataQuery, userID)
+	if err != nil {
+		repoLogger.Error("Failed to query favorite IDs", err, port.Fields{"query": dataQuery})
+		return nil, fmt.Errorf("failed to query favorite IDs: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			repoLogger.Error("Failed to scan favorite ID row", err, nil)
+			return nil, fmt.Errorf("failed to scan favorite ID: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		repoLogger.Error("Error during favorite IDs iteration", err, nil)
+		return nil, fmt.Errorf("error during favorite IDs iteration: %w", err)
+	}
+
+	return ids, nil
+}
+
 // FindPaginatedByUser находит ID избранных объектов с пагинацией.
 func (r *PostgresFavoritesRepository) FindPaginatedByUser(ctx context.Context, userID uuid.UUID, limit, offset int) (*domain.PaginatedFavoriteIDs, error) {
 	logger := contextkeys.LoggerFromContext(ctx)

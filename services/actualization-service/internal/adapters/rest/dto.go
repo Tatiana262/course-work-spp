@@ -7,7 +7,7 @@ type ActualizeRequestDTO struct {
 }
 
 type ActualizeObjectDTO struct {
-	Id string `json:"id"`
+	Id string `json:"master_object_id"`
 }
 
 

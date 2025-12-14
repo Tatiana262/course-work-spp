@@ -2,9 +2,11 @@ package rest
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
+	"net/url"
 	"strconv"
-
+	"strings"
 )
 
 // writeJSONError отправляет JSON-ответ с полем "error" и заданным статусом
@@ -54,4 +56,70 @@ func GetOffsetOrDefault(r *http.Request) (*int, error) {
 		}
 	}
     return &offset, nil;
+}
+
+
+
+
+// parseString извлекает строковый параметр.
+func parseString(q url.Values, key string) string {
+	return q.Get(key)
+}
+
+// parseFloat извлекает float64 параметр.
+func parseFloat(q url.Values, key string) *float64 {
+	strVal := q.Get(key)
+	if strVal == "" {
+		return nil
+	}
+	if val, err := strconv.ParseFloat(strVal, 64); err == nil {
+		return &val
+	}
+	return nil
+}
+
+// parseInt извлекает int параметр.
+func parseInt(q url.Values, key string) *int {
+	strVal := q.Get(key)
+	if strVal == "" {
+		return nil
+	}
+	if val, err := strconv.Atoi(strVal); err == nil {
+		return &val
+	}
+	return nil
+}
+
+// parseIntSlice извлекает срез int, разделенных запятыми (например, "1,2,5").
+func parseIntSlice(q url.Values, key string) []int {
+	strVal := q.Get(key)
+	if strVal == "" {
+		return nil
+	}
+	parts := strings.Split(strVal, ",")
+	result := make([]int, 0, len(parts))
+	for _, part := range parts {
+		if val, err := strconv.Atoi(strings.TrimSpace(part)); err == nil {
+			result = append(result, val)
+		}
+	}
+	return result
+}
+
+// parseStringSlice извлекает срез строк, разделенных запятыми.
+func parseStringSlice(q url.Values, key string) []string {
+	strVal := q.Get(key)
+	if strVal == "" {
+		return nil
+	}
+	log.Println(strVal)
+	parts := strings.Split(strVal, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
 }

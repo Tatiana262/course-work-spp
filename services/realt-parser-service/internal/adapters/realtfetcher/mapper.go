@@ -265,9 +265,9 @@ func toDomainRecord(jsonData string, url string, source string, logger port.Logg
 		}
 
 		if general.Currency == "BYN" {
-			apt.PricePerSquareMeter = &obj.PriceRates.BYN
+			apt.PricePerSquareMeter = &obj.PriceRatesPerM2.BYN
 		} else {
-			apt.PricePerSquareMeter = &obj.PriceRates.USD
+			apt.PricePerSquareMeter = &obj.PriceRatesPerM2.USD
 		}
 
 		details = apt

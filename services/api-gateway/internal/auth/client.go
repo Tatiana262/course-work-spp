@@ -2,7 +2,7 @@ package auth
 
 import (
 	"api-gateway/internal/contextkeys"
-	"bytes"
+	// "bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -40,18 +40,19 @@ func NewClient(baseURL string) *Client {
 // ValidateToken отправляет токен в authentication-service и возвращает claims.
 func (c *Client) ValidateToken(ctx context.Context, token string) (*Claims, error) {
 	// 1. Формируем тело запроса
-	reqBody, err := json.Marshal(validateTokenRequest{Token: token})
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal validation request: %w", err)
-	}
+	// reqBody, err := json.Marshal(validateTokenRequest{Token: token})
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to marshal validation request: %w", err)
+	// }
 
 	// 2. Создаем HTTP POST-запрос
 	url := c.baseURL + "/api/v1/auth/validate"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(reqBody))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create validation request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 
 	traceID := contextkeys.TraceIDFromContext(ctx)
 	if traceID != "" {

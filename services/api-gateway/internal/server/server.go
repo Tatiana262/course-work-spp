@@ -6,7 +6,7 @@ import (
 	"api-gateway/internal/port"
 	// "log"
 	"net/http"
-	"time"
+	// "time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -19,7 +19,7 @@ func NewServer(cfg *configs.Config, authClient *auth.Client, baseLogger port.Log
 
 	// Стандартные middleware
 	r.Use(middleware.RealIP, LoggerMiddleware(baseLogger), middleware.Recoverer)
-	r.Use(middleware.Timeout(60 * time.Second))
+	// r.Use(middleware.Timeout(60 * time.Second))
 	
 	r.Use(cors.Handler(cors.Options{
         // AllowedOrigins - список доменов, с которых разрешены запросы
@@ -51,6 +51,8 @@ func NewServer(cfg *configs.Config, authClient *auth.Client, baseLogger port.Log
 
 		// /objects/* -> storage-service/api/v1/objects/*
 		r.Mount("/objects", CreateProxy(cfg.StorageServiceURL, internalApiPrefix))
+		r.Mount("/filters/options", CreateProxy(cfg.StorageServiceURL, internalApiPrefix))
+		r.Mount("/dictionaries", CreateProxy(cfg.StorageServiceURL, internalApiPrefix))
 	})
 
 	// --- Приватные маршруты (для всех авторизованных) ---
@@ -63,6 +65,7 @@ func NewServer(cfg *configs.Config, authClient *auth.Client, baseLogger port.Log
 		// /actualize/object/* -> actualization-service/api/v1/actualize/object/*
 		//Сначала более специфичный
 		r.Mount("/actualize/object", CreateProxy(cfg.ActualizationServiceURL, internalApiPrefix))
+		r.Mount("/tasks/subscribe", CreateSSEProxy(cfg.TasksServiceURL, internalApiPrefix))
 	})
 
 	// --- Приватные маршруты (только для админов) ---
@@ -75,6 +78,7 @@ func NewServer(cfg *configs.Config, authClient *auth.Client, baseLogger port.Log
 		// /actualize/* -> actualization-service/api/v1/actualize/*
 		// после более специфичного /actualize/object
 		r.Mount("/actualize", CreateProxy(cfg.ActualizationServiceURL, internalApiPrefix))
+		r.Mount("/tasks", CreateProxy(cfg.TasksServiceURL, internalApiPrefix))
 	})
 
 

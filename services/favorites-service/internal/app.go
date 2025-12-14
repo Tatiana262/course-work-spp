@@ -114,10 +114,11 @@ func NewApp() (*App, error) {
 	addToFavoritesUseCase := usecase.NewAddToFavoritesUseCase(postgresStorageAdapter)
 	removeFromFavoritesUseCase := usecase.NewRemoveFromFavoritesUseCase(postgresStorageAdapter)
 	getUserFavoritesUseCase := usecase.NewGetUserFavoritesUseCase(postgresStorageAdapter, storageClient)
+	getUserFavoritesIdsUseCase := usecase.NewGetUserFavoritesIdsUseCase(postgresStorageAdapter)
 	appLogger.Info("REST API server configured.", nil)
 
 	// REST API Server
-	apiHandlers := rest.NewFavoritesHandler(addToFavoritesUseCase, removeFromFavoritesUseCase, getUserFavoritesUseCase)
+	apiHandlers := rest.NewFavoritesHandler(addToFavoritesUseCase, removeFromFavoritesUseCase, getUserFavoritesUseCase, getUserFavoritesIdsUseCase)
 	apiServer := rest.NewServer(appConfig.Rest.PORT, apiHandlers, baseLogger)
 
 	// 5. Собираем приложение

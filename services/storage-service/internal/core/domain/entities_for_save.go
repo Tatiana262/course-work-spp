@@ -19,167 +19,167 @@ type RealEstateRecord struct {
 // dbGeneralProperty - это структура для *хранения*, а не для домена.
 // Она является точным отражением таблицы `general_properties`.
 type GeneralProperty struct {
-	ID           uuid.UUID 			`db:"id"`
-	Source       string    			`db:"source"`
-	SourceAdID   int64     			`db:"source_ad_id"`
-	CreatedAt    time.Time 			`db:"created_at"`
-	UpdatedAt    time.Time 			`db:"updated_at"`
+	ID           uuid.UUID 			
+	Source       string    			
+	SourceAdID   int64     			
+	CreatedAt    time.Time 			
+	UpdatedAt    time.Time 			
 
-	Category         string     	`db:"category"`
-	AdLink           string     	`db:"ad_link"`
-	SaleType 		 string    		`db:"sale_type"`
-	Currency         string     	`db:"currency"`
-	Images           []string   	`db:"images"`
-	ListTime         time.Time  	`db:"list_time"`
-	Description     string     		`db:"description"`
-	Title          	string     		`db:"title"`
-	DealType         string     	`db:"deal_type"`
-	Coordinates      string	 		`db:"coordinates"` 
-	CityOrDistrict   string    		`db:"city_or_district"`
-	Region           string    		`db:"region"`
-	PriceBYN         float64   		`db:"price_byn"`
-	PriceUSD         float64   		`db:"price_usd"`
-	PriceEUR         *float64   	`db:"price_eur"`
-	Address        	string 			`db:"address"`
+	Category         string     	
+	AdLink           string     	
+	SaleType 		 string    		
+	Currency         string     	
+	Images           []string   	
+	ListTime         time.Time  	
+	Description     string     		
+	Title          	string     		
+	DealType         string     	
+	Coordinates      string	 		
+	CityOrDistrict   string    		
+	Region           string    		
+	PriceBYN         float64   		
+	PriceUSD         float64   		
+	PriceEUR         *float64   	
+	Address        	string 			
 
-	IsAgency        bool       		`db:"is_agency"`
-	SellerName     string 			`db:"seller_name"`
+	IsAgency        bool       		
+	SellerName     string 			
 	
-	SellerDetails   json.RawMessage `db:"parameters"`
+	SellerDetails   json.RawMessage 
 
-	Status 			string			`db:"status"`
+	Status 			string			
 
-	Latitude    float64 `db:"-"`
-	Longitude   float64 `db:"-"`
+	Latitude    float64 
+	Longitude   float64 
 }
 
 // dbApartment - структура для таблицы `apartments`
 type Apartment struct {
-	PropertyID            uuid.UUID       `db:"property_id"`
-	RoomsAmount           *int8          `db:"rooms_amount"`
-	FloorNumber           *int8          `db:"floor_number"`
-	BuildingFloors        *int8          `db:"building_floors"`
-	TotalArea             *float64        `db:"total_area"`
-	LivingSpaceArea       *float64        `db:"living_space_area"`
-	KitchenArea           *float64        `db:"kitchen_area"`
-	YearBuilt             *int16          `db:"year_built"`
-	WallMaterial          *string         `db:"wall_material"`
-	RepairState           *string         `db:"repair_state"`
-	BathroomType          *string         `db:"bathroom_type"`
-	BalconyType           *string         `db:"balcony_type"`
-	PricePerSquareMeter   *float64        `db:"price_per_square_meter"`
+	PropertyID            uuid.UUID       `json:"-"`
+	RoomsAmount           *int8          `json:"rooms_amount"`
+	FloorNumber           *int8          `json:"floor_number"`
+	BuildingFloors        *int8          `json:"building_floors"`
+	TotalArea             *float64        `json:"total_area"`
+	LivingSpaceArea       *float64        `json:"living_space_area"`
+	KitchenArea           *float64        `json:"kitchen_area"`
+	YearBuilt             *int16          `json:"year_built"`
+	WallMaterial          *string         `json:"wall_material"`
+	RepairState           *string         `json:"repair_state"`
+	BathroomType          *string         `json:"bathroom_type"`
+	BalconyType           *string         `json:"balcony_type"`
+	PricePerSquareMeter   *float64        `json:"price_per_square_meter"`
 	
-	Parameters            json.RawMessage `db:"parameters"`
+	Parameters            json.RawMessage `json:"parameters"`
 }
 
 type House struct {
-	PropertyID            uuid.UUID       			`db:"property_id"`
-	TotalArea             *float64					`db:"total_area"`
-	PlotArea              *float64					`db:"plot_area"` 
-	WallMaterial          *string 					`db:"wall_material"` 
-	YearBuilt             *int16       				`db:"year_built"`  
-	LivingSpaceArea       *float64     				`db:"living_space_area"`
-	BuildingFloors        *int8      				`db:"building_floors"`  
-	RoomsAmount           *int8						`db:"rooms_amount"`
-	KitchenArea           *float64    				`db:"kitchen_size"`	  
-	Electricity           *string					`db:"electricity"`  
-	Water                 *string   				`db:"water"`
-	Heating               *string   				`db:"heating"`	      
-	Sewage                *string    				`db:"sewage"` 	    
-	Gaz                   *string   				`db:"gaz"`    
-	RoofMaterial          *string   				`db:"roof_material"` 	
-	HouseType             *string  					`db:"house_type"`
+	PropertyID            uuid.UUID       			`json:"-"`
+	TotalArea             *float64					`json:"total_area"`
+	PlotArea              *float64					`json:"plot_area"` 
+	WallMaterial          *string 					`json:"wall_material"` 
+	YearBuilt             *int16       				`json:"year_built"`  
+	LivingSpaceArea       *float64     				`json:"living_space_area"`
+	BuildingFloors        *int8      				`json:"building_floors"`  
+	RoomsAmount           *int8						`json:"rooms_amount"`
+	KitchenArea           *float64    				`json:"kitchen_area"`	  
+	Electricity           *string					`json:"electricity"`  
+	Water                 *string   				`json:"water"`
+	Heating               *string   				`json:"heating"`	      
+	Sewage                *string    				`json:"sewage"` 	    
+	Gaz                   *string   				`json:"gaz"`    
+	RoofMaterial          *string   				`json:"roof_material"` 	
+	HouseType             *string  					`json:"house_type"`
 	
-	CompletionPercent 	  *int8						`db:"completion_percent"`
+	CompletionPercent 	  *int8						`json:"completion_percent"`
 
 	// Condition             *string    				`db:"condition"`     
 	// InGardeningCommunity  *bool  					`db:"in_gardening_community"`		         
 	//ContractNumberAndDate *string  					`db:"contract_number_and_date"`  	     
-	Parameters            json.RawMessage 	`db:"parameters"`
+	Parameters            json.RawMessage 	`json:"parameters"`
 }
 
 type GarageAndParking struct {
-	PropertyID          uuid.UUID				`db:"property_id"`
-	PropertyType        *string					`db:"property_type"`  	 			    
-	ParkingPlacesAmount *int16 		        	`db:"parking_places_amount"`
-	TotalArea           *float64 	       		`db:"total_area"`
-	Improvements        []string	      		`db:"improvements"`  
-	Heating             *string 	      		`db:"heating"`  
-	ParkingType         *string 	     		`db:"parking_type"`   
-	Parameters          json.RawMessage 	`db:"parameters"`
+	PropertyID          uuid.UUID				`json:"-"`
+	PropertyType        *string					`json:"property_type"`  	 			    
+	ParkingPlacesAmount *int16 		        	`json:"parking_places_amount"`
+	TotalArea           *float64 	       		`json:"total_area"`
+	Improvements        []string	      		`json:"improvements"`  
+	Heating             *string 	      		`json:"heating"`  
+	ParkingType         *string 	     		`json:"parking_type"`   
+	Parameters          json.RawMessage 	`json:"parameters"`
 }
 
 type Room struct {
-	PropertyID          	  uuid.UUID				`db:"property_id"`
-	Condition                 *string				`db:"condition"`
-	Bathroom                  *string				`db:"bathroom"`
-	SuggestedRoomsAmount      *int16          		`db:"suggested_rooms_amount"`
-	RoomsAmount               *int16            	`db:"rooms_amount"`
-	FloorNumber               *int16            	`db:"floor_number"`
-	BuildingFloors            *int16          		`db:"building_floors"`
-	TotalArea                 *float64        		`db:"total_area"`
-	IsBalcony                 *bool           		`db:"is_balcony"`
-	RentalType                *string         		`db:"rental_type"`
-	LivingSpaceArea           *float64        		`db:"living_space_area"`
-	FlatRepair                *string         		`db:"flat_repair"`
-	IsFurniture               *bool           		`db:"is_furniture"`
-	KitchenSize               *float64        		`db:"kitchen_size"`
-	KitchenItems              []string        		`db:"kitchen_items"`
-	BathItems                 []string        		`db:"bath_items"`
-	FlatRentForWhom           []string        		`db:"flat_rent_for_whom"`
-	FlatWindowsSide           []string        		`db:"flat_windows_side"`
-	YearBuilt                 *int16          		`db:"year_built"`
-	WallMaterial              *string         		`db:"wall_material"`
-	FlatImprovement           []string        		`db:"flat_improvement"`
-	RoomType                  *string         		`db:"room_type"`
-	ContractNumberAndDate     *string         		`db:"contract_number_and_date"`
-	FlatBuildingImprovements  []string        		`db:"flat_building_improvements"`
-	Parameters                json.RawMessage `db:"parameters"`
+	PropertyID          	  uuid.UUID				`json:"-"`
+	Condition                 *string				`json:"condition"`
+	Bathroom                  *string				`json:"bathroom"`
+	SuggestedRoomsAmount      *int16          		`json:"suggested_rooms_amount"`
+	RoomsAmount               *int16            	`json:"rooms_amount"`
+	FloorNumber               *int16            	`json:"floor_number"`
+	BuildingFloors            *int16          		`json:"building_floors"`
+	TotalArea                 *float64        		`json:"total_area"`
+	IsBalcony                 *bool           		`json:"is_balcony"`
+	RentalType                *string         		`json:"rental_type"`
+	LivingSpaceArea           *float64        		`json:"living_space_area"`
+	FlatRepair                *string         		`json:"flat_repair"`
+	IsFurniture               *bool           		`json:"is_furniture"`
+	KitchenSize               *float64        		`json:"kitchen_size"`
+	KitchenItems              []string        		`json:"kitchen_items"`
+	BathItems                 []string        		`json:"bath_items"`
+	FlatRentForWhom           []string        		`json:"flat_rent_for_whom"`
+	FlatWindowsSide           []string        		`json:"flat_windows_side"`
+	YearBuilt                 *int16          		`json:"year_built"`
+	WallMaterial              *string         		`json:"wall_material"`
+	FlatImprovement           []string        		`json:"flat_improvement"`
+	RoomType                  *string         		`json:"room_type"`
+	ContractNumberAndDate     *string         		`json:"contract_number_and_date"`
+	FlatBuildingImprovements  []string        		`json:"flat_building_improvements"`
+	Parameters                json.RawMessage `json:"parameters"`
 }
 
 type Commercial struct {
-	PropertyID          	  uuid.UUID					`db:"property_id"`
-	Condition                  *string         			`db:"condition"`
-	PropertyType               *string         			`db:"property_type"`
-	FloorNumber                *int16          			`db:"floor_number"`
-	BuildingFloors             *int16          			`db:"building_floors"`
-	TotalArea                  *float64        			`db:"total_area"`
-	CommercialImprovements     []string        			`db:"commercial_improvements"`
-	CommercialRepair           *string         			`db:"commercial_repair"`
-	IsPartlySellOrRent         *bool         			`db:"partly_sell"`
-	PricePerSquareMeter        *float64        			`db:"price_per_square_meter"`
-	ContractNumberAndDate      *string         			`db:"contract_number_and_date"`
-	RoomsAmount                *int16          			`db:"rooms_amount"`
-	CommercialBuildingLocation *string         			`db:"commercial_building_location"`
-	CommercialRentType		   *string		   			`db:"commercial_rent_type"`
-	Parameters                 json.RawMessage	`db:"parameters"`		 
+	PropertyID          	  uuid.UUID					`json:"-"`
+	Condition                  *string         			`json:"condition"`
+	PropertyType               *string         			`json:"property_type"`
+	FloorNumber                *int16          			`json:"floor_number"`
+	BuildingFloors             *int16          			`json:"building_floors"`
+	TotalArea                  *float64        			`json:"total_area"`
+	CommercialImprovements     []string        			`json:"commercial_improvements"`
+	CommercialRepair           *string         			`json:"commercial_repair"`
+	IsPartlySellOrRent         *bool         			`json:"partly_sell"`
+	PricePerSquareMeter        *float64        			`json:"price_per_square_meter"`
+	ContractNumberAndDate      *string         			`json:"contract_number_and_date"`
+	RoomsAmount                *int16          			`json:"rooms_amount"`
+	CommercialBuildingLocation *string         			`json:"commercial_building_location"`
+	CommercialRentType		   *string		   			`json:"commercial_rent_type"`
+	Parameters                 json.RawMessage	`json:"parameters"`		 
 }
 
 type Plot struct {
-	PropertyID            uuid.UUID					`db:"property_id"`
-	PlotArea              *float64  				`db:"plot_area"`      
-	InGardeningCommunity  *bool     				`db:"in_gardening_community"`      
-	PropertyRights        *string   				`db:"property_rights"`      
-	Electricity           *string 					`db:"electricity"`        
-	Water                 *string 					`db:"water"`        
-	Gaz                   *string 					`db:"gaz"`        
-	Sewage                *string  					`db:"sewage"`       
-	IsOutbuildings        *bool    					`db:"is_outbuildings"`       
-	OutbuildingsType      []string 					`db:"outbuildings_type"`       
-	ContractNumberAndDate *string      				`db:"contract_number_and_date"`   
-	Parameters            json.RawMessage	`db:"parameters"`	
+	PropertyID            uuid.UUID					`json:"-"`
+	PlotArea              *float64  				`json:"plot_area"`      
+	InGardeningCommunity  *bool     				`json:"in_gardening_community"`      
+	PropertyRights        *string   				`json:"property_rights"`      
+	Electricity           *string 					`json:"electricity"`        
+	Water                 *string 					`json:"water"`        
+	Gaz                   *string 					`json:"gaz"`        
+	Sewage                *string  					`json:"sewage"`       
+	IsOutbuildings        *bool    					`json:"is_outbuildings"`       
+	OutbuildingsType      []string 					`json:"outbuildings_type"`       
+	ContractNumberAndDate *string      				`json:"contract_number_and_date"`   
+	Parameters            json.RawMessage	`json:"parameters"`	
 }
 
 type NewBuilding struct {
-	PropertyID          uuid.UUID				`db:"property_id"`
-	Deadline            *string         		`db:"deadline"`
-	RoomOptions         []int16         		`db:"room_options"`
-	Builder             *string         		`db:"builder"`
-	ShareParticipation  *bool           		`db:"share_participation"`
-	FloorOptions        []int16         		`db:"floor_options"`
-	WallMaterial        *string         		`db:"wall_material"`
-	CeilingHeight       *string         		`db:"flat_ceiling_height"`
-	LayoutOptions       []string        		`db:"layout_options"`
-	WithFinishing       *bool           		`db:"with_finishing"`
-	Parameters          json.RawMessage	`db:"parameters"`
+	PropertyID          uuid.UUID				`json:"-"`
+	Deadline            *string         		`json:"deadline"`
+	RoomOptions         []int16         		`json:"room_options"`
+	Builder             *string         		`json:"builder"`
+	ShareParticipation  *bool           		`json:"share_participation"`
+	FloorOptions        []int16         		`json:"floor_options"`
+	WallMaterial        *string         		`json:"wall_material"`
+	CeilingHeight       *string         		`json:"flat_ceiling_height"`
+	LayoutOptions       []string        		`json:"layout_options"`
+	WithFinishing       *bool           		`json:"with_finishing"`
+	Parameters          json.RawMessage	`json:"parameters"`
 }

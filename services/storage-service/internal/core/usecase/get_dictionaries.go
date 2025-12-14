@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	// "log"
 	"storage-service/internal/contextkeys"
 	"storage-service/internal/core/domain"
 	"storage-service/internal/core/port"
@@ -58,6 +59,7 @@ func (uc *GetDictionariesUseCase) Execute(ctx context.Context, names []string) (
 	// Если запрошены типы сделок или все справочники
 	if namesMap["deal_types"] || len(namesMap) == 0 {
 		dealTypes, err := uc.repo.GetUniqueDealTypes(ctx)
+		// log.Println("!!!!!", dealTypes, "!!!!!!!")
 		if err != nil {
 			ucLogger.Error("Storage returned an error while getting unique deal types", err, nil)
 		} else {

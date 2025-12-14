@@ -7,7 +7,7 @@ import (
 
 // TaskEvent - событие, которое мы отправляем подписчикам.
 type TaskEvent struct {
-    Type string      `json:"type"` // "task_updated", "task_created"
+    Type string      `json:"type"` 
     Data domain.Task `json:"data"`
 }
 

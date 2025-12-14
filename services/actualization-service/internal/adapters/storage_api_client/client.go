@@ -165,7 +165,7 @@ func (c *Client) GetArchivedObjects(ctx context.Context, category string, limit 
 
 }
 
-func (c *Client) GetObjectByID(ctx context.Context, id string) (*domain.PropertyInfo, error) {
+func (c *Client) GetObjectsByMasterID(ctx context.Context, master_id string) ([]domain.PropertyInfo, error) {
 
 	logger := contextkeys.LoggerFromContext(ctx)
 	clientLogger := logger.WithFields(port.Fields{
@@ -173,7 +173,7 @@ func (c *Client) GetObjectByID(ctx context.Context, id string) (*domain.Property
 		"method":    "GetObjectByID",
 	})
 
-	url := fmt.Sprintf("%s/api/v1/object?id=%s", c.baseURL, id)
+	url := fmt.Sprintf("%s/api/v1/object?id=%s", c.baseURL, master_id)
 	clientLogger.Info("Sending request to storage-service", port.Fields{"url": url})
 
 	// Используем наш новый хелпер
@@ -199,19 +199,24 @@ func (c *Client) GetObjectByID(ctx context.Context, id string) (*domain.Property
 		return nil, err
 	}
 
-	var object PropertyInfoResponse
-	if err := json.NewDecoder(resp.Body).Decode(&object); err != nil {
+	var objects []PropertyInfoResponse
+	if err := json.NewDecoder(resp.Body).Decode(&objects); err != nil {
 		clientLogger.Error("Failed to decode response from storage-service", err, nil)
 		return nil, err
 	}
 
-	clientLogger.Info("Successfully received and decoded response", port.Fields{"objects_id": object})
+	clientLogger.Info("Successfully received and decoded response", port.Fields{"objects_count": len(objects)})
 
-	result := domain.PropertyInfo{
-		Source: object.Source,
-		AdID:   object.AdID,
-		Link:   object.AdLink,
+	// 6. Маппим DTO ответа в нашу доменную модель
+	// Это важный шаг, который изолирует наше ядро от деталей API другого сервиса.
+	result := make([]domain.PropertyInfo, len(objects))
+	for i, dto := range objects {
+		result[i] = domain.PropertyInfo{
+			Source: dto.Source,
+			AdID:   dto.AdID,
+			Link:   dto.AdLink,
+		}
 	}
 
-	return &result, nil
+	return result, nil
 }

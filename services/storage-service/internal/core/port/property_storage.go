@@ -16,7 +16,7 @@ type PropertyStoragePort interface {
 
 	GetActiveIDsForActualization(ctx context.Context, category string, limit int) ([]domain.PropertyBasicInfo, error)
 	GetArchivedIDsForActualization(ctx context.Context, category string, limit int) ([]domain.PropertyBasicInfo, error)
-	GetObjectByIDForActualization(ctx context.Context, id string) (*domain.PropertyBasicInfo, error)
+	GetObjectsByIDForActualization(ctx context.Context, masterObjectID string) ([]domain.PropertyBasicInfo, error)
 	
 	FindWithFilters(ctx context.Context, filters domain.FindObjectsFilters, limit, offset int) (*domain.PaginatedResult, error)
     GetPropertyDetails(ctx context.Context, propertyID uuid.UUID) (*domain.PropertyDetailsView, error)

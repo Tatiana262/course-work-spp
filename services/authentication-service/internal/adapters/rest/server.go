@@ -32,7 +32,7 @@ func NewServer(port string, handlers *AuthHandlers, baseLogger core_port.LoggerP
 	r.Route("/api/v1/auth", func(r chi.Router) {
 		r.Post("/register", handlers.Register)
 		r.Post("/login", handlers.Login)
-		r.Post("/validate", handlers.ValidateToken) // Эндпоинт для проверки токена
+		r.Get("/validate", handlers.ValidateToken) // Эндпоинт для проверки токена
 	})
 
 	srv := &http.Server{

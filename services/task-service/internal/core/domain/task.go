@@ -22,15 +22,16 @@ type ResultSummary map[string]interface{}
 
 // Task - основная доменная сущность.
 type Task struct {
-	ID               uuid.UUID
-	Name             string
-	Type             string
-	Status           TaskStatus
-	ResultSummary    ResultSummary
-	CreatedAt        time.Time
-	StartedAt        *time.Time // Указатель, т.к. может быть nil
-	FinishedAt       *time.Time // Указатель, т.к. может быть nil
-	CreatedByUserID  uuid.UUID
+	ID               uuid.UUID		`json:"id"`
+	Name             string			`json:"name"`
+	Type             string			`json:"type"`
+	Status           TaskStatus		`json:"status"`
+	ResultSummary    ResultSummary	`json:"result_summary"`
+	CreatedAt        time.Time		`json:"created_at"`
+	StartedAt        *time.Time 	`json:"started_at"`
+	FinishedAt       *time.Time 	`json:"finished_at"`
+	CreatedByUserID  uuid.UUID		`json:"created_by_user_id"`
+	TargetObjectID 	 *uuid.UUID 	`json:"target_object_id,omitempty"` 
 }
 
 // NewTask - конструктор для создания новой задачи.
@@ -42,5 +43,6 @@ func NewTask(name, taskType string, createdByUserID uuid.UUID) *Task {
 		Status:          StatusPending, // Начальный статус
 		CreatedAt:       time.Now().UTC(),
 		CreatedByUserID: createdByUserID,
+		ResultSummary: make(ResultSummary),
 	}
 }

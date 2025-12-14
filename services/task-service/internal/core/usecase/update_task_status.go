@@ -42,9 +42,9 @@ func (uc *UpdateTaskStatusUseCase) Execute(ctx context.Context, taskID uuid.UUID
 	if status == domain.StatusCompleted || status == domain.StatusFailed {
 		task.FinishedAt = &now
 	}
-	if summary != nil && *summary != nil {
-		task.ResultSummary = *summary
-	}
+	// if summary != nil && *summary != nil {
+	// 	task.ResultSummary = *summary
+	// }
 
 	if err := uc.repo.Update(ctx, task); err != nil {
 		ucLogger.Error("Repository failed to update task", err, nil)

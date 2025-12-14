@@ -50,7 +50,7 @@ func (uc *RegisterUserUseCase) Execute(ctx context.Context, email, password stri
 		return nil, "", err
 	}
 
-	ucLogger = ucLogger.WithFields(port.Fields{"user_id": user.ID}) 
+	ucLogger = ucLogger.WithFields(port.Fields{"user_id": user.ID.String()}) 
 
 	// Сохраняем пользователя в репозиторий
 	if err := uc.userRepo.Create(ctx, user); err != nil {

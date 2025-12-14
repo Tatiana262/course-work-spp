@@ -153,38 +153,38 @@ type SearchTaskTemplate struct {
 }
 
 var RegionToRealtMap = map[string]string{
-	"Минск":       CityMinskUUID, 
-	"Брест":       CityBrestUUID,     
-	"Витебск":     CityVitebskUUID,
-	"Гомель":      CityGomelUUID,
-	"Гродно":      CityGrodnoUUID,
-	"Могилёв":     CityMogilevUUID,
+	"Минская область":       CityMinskUUID, 
+	"Брестская область":       CityBrestUUID,     
+	"Витебская область":     CityVitebskUUID,
+	"Гомельская область":      CityGomelUUID,
+	"Гродненская область":      CityGrodnoUUID,
+	"Могилёвская область":     CityMogilevUUID,
 }
 
 var BusinessCategoryToTemplatesMap = map[string][]SearchTaskTemplate{
-	"Квартиры": {
+	"apartment": {
 		{Name: "Продажа_Квартиры", Category: ApartmentSaleCategory},
 		{Name: "Аренда_Квартиры", Category: ApartmentRentCategory},
 		{Name: "АрендаНаСутки_Квартиры", Category: ApartmentRentForDayCategory},
 	},
-	"Новостройки": {
+	"new_building": {
 		{Name: "Продажа_Новостройки", Category: NewBuildingSaleCategory, ObjectCategory: []int{1}},
 	},
-	"Дома": {
+	"house": {
 		{Name: "Продажа_Коттеджи", Category: CountryEstateSaleCategory},
 		{Name: "Продажа_Дачи", Category: DachaSaleCategory},
 		{Name: "Аренда_Коттеджи", Category: CountryEstateRentCategory},
 		{Name: "АрендаНаСутки_Коттеджи", Category: CountryEstateRentForDayCategory},
 	},
-    "Участки": {
+    "plot": {
         {Name: "Продажа_Участки", Category: PlotSaleCategory},
     },
-	"Комнаты": {
+	"room": {
 		{Name: "Продажа_Комнаты", Category: RoomSaleCategory},
 		{Name: "Аренда_Комнаты", Category: RoomRentCategory},
 		{Name: "АрендаНаСутки_Комнаты", Category: RoomRentForDayCategory},
 	},
-	"Коммерция": {
+	"commercial": {
 		// Каждая подкатегория коммерческой недвижимости - это отдельный шаблон
 		{Name: "Продажа_Офисы", Category: OfficeSaleCategory},
 		{Name: "Аренда_Офисы", Category: OfficeRentCategory},
@@ -212,7 +212,7 @@ var BusinessCategoryToTemplatesMap = map[string][]SearchTaskTemplate{
         {Name: "Аренда_Производство", Category: ProizvodstvoRentCategory},
 
 	},
-	"Гаражи": {
+	"garage_parking": {
 		{Name: "Продажа_ГаражМашиноместо", Category: GarageSaleCategory, ObjectType: []int{13, 14}},
 		{Name: "Аренда_ГаражМашиноместо", Category: GarageRentCategory, ObjectType: []int{13, 14}},
 	},

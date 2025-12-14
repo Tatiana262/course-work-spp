@@ -33,7 +33,7 @@ func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
 	repoLogger := logger.WithFields(port.Fields{
 		"component": "UserRepository",
 		"method":    "Create",
-		"user_id":   user.ID,
+		"user_id":   user.ID.String(),
 		"email":     user.Email,
 	})
 	
@@ -85,7 +85,7 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*domain
 		return nil, fmt.Errorf("failed to find user by email: %w", err)
 	}
 
-	repoLogger.Info("User found by email.", port.Fields{"user_id": user.ID})
+	repoLogger.Info("User found by email.", port.Fields{"user_id": user.ID.String()})
 	return &user, nil
 }
 
@@ -95,7 +95,7 @@ func (r *UserRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.Us
 	repoLogger := logger.WithFields(port.Fields{
 		"component": "UserRepository",
 		"method":    "FindByID",
-		"user_id":   id,
+		"user_id":   id.String(),
 	})
 
 	query := `SELECT id, email, password_hash, role, created_at FROM users WHERE id = $1`

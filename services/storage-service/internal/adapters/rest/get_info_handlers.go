@@ -9,7 +9,7 @@ import (
 	"storage-service/internal/core/port"
 	"storage-service/internal/core/port/usecases_port"
 	"strconv"
-	"strings"
+	// "strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -41,49 +41,62 @@ func (h *GetInfoHandler) FindObjects(w http.ResponseWriter, r *http.Request) {
 	// --- Шаг 1: Парсим query-параметры ---
 	query := r.URL.Query()
 
-	// Пагинация с значениями по умолчанию
+	// --- Шаг 1: Парсим пагинацию ---
 	page, _ := strconv.Atoi(query.Get("page"))
 	if page < 1 {
 		page = 1
 	}
 	perPage, _ := strconv.Atoi(query.Get("perPage"))
-	if perPage < 1 || perPage > 100 { // Ограничиваем максимальное количество
+	if perPage < 1 || perPage > 100 {
 		perPage = 20
 	}
 	limit := perPage
 	offset := (page - 1) * perPage
 
-	// --- Шаг 2: Собираем фильтры ---
+	// --- Шаг 2: Собираем фильтры с помощью наших хелперов ---
 	filters := domain.FindObjectsFilters{
-		Category: query.Get("category"),
-		Region:   query.Get("region"),
-		DealType: query.Get("dealType"),
-	}
+		// Основные
+		Category:       parseString(query, "category"),
+		DealType:       parseString(query, "dealType"),
+		PriceCurrency:  parseString(query, "priceCurrency"),
+		PriceMin:       parseFloat(query, "priceMin"),
+		PriceMax:       parseFloat(query, "priceMax"),
+		Region:         parseString(query, "region"),
+		CityOrDistrict: parseString(query, "cityOrDistrict"),
+		Street:         parseString(query, "street"),
 
-	// Парсим цену
-	if priceMinStr := query.Get("priceMin"); priceMinStr != "" {
-		if priceMin, err := strconv.ParseFloat(priceMinStr, 64); err == nil {
-			filters.PriceMin = &priceMin
-		}
-	}
-	if priceMaxStr := query.Get("priceMax"); priceMaxStr != "" {
-		if priceMax, err := strconv.ParseFloat(priceMaxStr, 64); err == nil {
-			filters.PriceMax = &priceMax
-		}
-	}
-    
-    // Парсим комнаты (например, ?rooms=1,2,3)
-	if roomsStr := query.Get("rooms"); roomsStr != "" {
-		roomsParts := strings.Split(roomsStr, ",")
-		rooms := make([]int, 0, len(roomsParts))
-		for _, part := range roomsParts {
-			if room, err := strconv.Atoi(strings.TrimSpace(part)); err == nil {
-				rooms = append(rooms, room)
-			}
-		}
-		if len(rooms) > 0 {
-			filters.Rooms = rooms
-		}
+		// Общие для деталей
+		Rooms:           parseIntSlice(query, "rooms"),
+		TotalAreaMin:    parseFloat(query, "totalAreaMin"),
+		TotalAreaMax:    parseFloat(query, "totalAreaMax"),
+		LivingSpaceAreaMin: parseFloat(query, "livingSpaceAreaMin"),
+		LivingSpaceAreaMax: parseFloat(query, "livingSpaceAreaMax"),
+		KitchenAreaMin:  parseFloat(query, "kitchenAreaMin"),
+		KitchenAreaMax:  parseFloat(query, "kitchenAreaMax"),
+		YearBuiltMin:    parseInt(query, "yearBuiltMin"),
+		YearBuiltMax:    parseInt(query, "yearBuiltMax"),
+		WallMaterials:   parseStringSlice(query, "wallMaterials"),
+
+		// Только для квартир
+		FloorMin:         parseInt(query, "floorMin"),
+		FloorMax:         parseInt(query, "floorMax"),
+		FloorBuildingMin: parseInt(query, "floorBuildingMin"),
+		FloorBuildingMax: parseInt(query, "floorBuildingMax"),
+		RepairState:      parseStringSlice(query, "repairState"),
+		BathroomType:     parseStringSlice(query, "bathroomType"),
+		BalconyType:      parseStringSlice(query, "balconyType"),
+
+		// Только для домов
+		HouseTypes:        parseStringSlice(query, "houseTypes"),
+		PlotAreaMin:       parseFloat(query, "plotAreaMin"),
+		PlotAreaMax:       parseFloat(query, "plotAreaMax"),
+		TotalFloors:       parseStringSlice(query, "totalFloors"),
+		RoofMaterials:     parseStringSlice(query, "roofMaterials"),
+		WaterConditions:   parseStringSlice(query, "waterConditions"),
+		HeatingConditions: parseStringSlice(query, "heatingConditions"),
+		ElectricityConditions: parseStringSlice(query, "electricityConditions"),
+		SewageConditions:  parseStringSlice(query, "sewageConditions"),
+		GazConditions:     parseStringSlice(query, "gazConditions"),
 	}
 
 	handlerLogger := logger.WithFields(port.Fields{
@@ -120,10 +133,13 @@ func (h *GetInfoHandler) FindObjects(w http.ResponseWriter, r *http.Request) {
 			ID:       obj.ID.String(),
 			Title:  obj.Title, // Предполагаем, что у вас есть поле Title
 			PriceUSD: obj.PriceUSD,
+			PriceBYN: obj.PriceBYN,
 			Images:   obj.Images,
 			Address:  obj.Address,
 			Status:   obj.Status,
 			MasterObjectID: obj.MasterObjectID,
+			Category: obj.Category,
+			DealType: obj.DealType,
 		}
 	}
 
@@ -160,14 +176,32 @@ func (h *GetInfoHandler) GetObjectDetails(w http.ResponseWriter, r *http.Request
 
 	// --- Шаг 4: Маппим результат в DTO для ответа ---
 	// Маппим основную информацию
-	generalResponse := ObjectCardResponse{
+	generalResponse := ObjectGeneralInfoResponse{
+		MasterObjectID: detailsView.MainProperty.MasterObjectID,		
 		ID:       detailsView.MainProperty.ID.String(),
-		Title:  detailsView.MainProperty.Title,
-		PriceUSD: detailsView.MainProperty.PriceUSD,
+		Source: detailsView.MainProperty.Source,
+		SourceAdID: detailsView.MainProperty.SourceAdID,
+		CreatedAt: detailsView.MainProperty.CreatedAt,
+		UpdatedAt: detailsView.MainProperty.UpdatedAt,
+		Category: detailsView.MainProperty.Category,
+		AdLink: detailsView.MainProperty.AdLink,
+		SaleType: detailsView.MainProperty.SaleType,
+		Currency: detailsView.MainProperty.Currency,
 		Images:   detailsView.MainProperty.Images,
+		ListTime: detailsView.MainProperty.ListTime,
+		Description: detailsView.MainProperty.Description,
+		Title:  detailsView.MainProperty.Title,
+		DealType: detailsView.MainProperty.DealType,
+		CityOrDistrict: detailsView.MainProperty.CityOrDistrict,
+		Region: detailsView.MainProperty.Region,
+		PriceUSD: detailsView.MainProperty.PriceUSD,
+		PriceBYN: detailsView.MainProperty.PriceBYN,
+		PriceEUR: detailsView.MainProperty.PriceEUR,
 		Address:  detailsView.MainProperty.Address,
-		Status:   detailsView.MainProperty.Status,
-		MasterObjectID: detailsView.MainProperty.MasterObjectID,
+		IsAgency: detailsView.MainProperty.IsAgency,
+		SellerName: detailsView.MainProperty.SellerName,
+		SellerDetails: detailsView.MainProperty.SellerDetails,
+		Status:   detailsView.MainProperty.Status,		
 	}
 
 	// Маппим детали и связанные предложения
@@ -231,10 +265,13 @@ func (h *GetInfoHandler) GetBestByMasterIDs(w http.ResponseWriter, r *http.Reque
 			ID:       obj.ID.String(),
 			Title:  obj.Title, // Предполагаем, что у вас есть поле Title
 			PriceUSD: obj.PriceUSD,
+			PriceBYN: obj.PriceBYN,
 			Images:   obj.Images,
 			Address:  obj.Address,
 			Status:   obj.Status,
 			MasterObjectID: obj.MasterObjectID,
+			Category: obj.Category,
+			DealType: obj.DealType,
 		}
 	}
 

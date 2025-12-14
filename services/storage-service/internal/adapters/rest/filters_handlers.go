@@ -21,40 +21,86 @@ func NewFilterHandler(getFilterOptionsUC usecases_port.GetFilterOptionsUseCase,
 }
 
 func (h *FilterHandler) GetFilterOptions(w http.ResponseWriter, r *http.Request) {
-    // 1. Извлекаем query-параметры
-    category := r.URL.Query().Get("category")
+
+    // Извлекаем query-параметры
+    query := r.URL.Query()
+
+    category := query.Get("category")
     if category == "" {
         WriteJSONError(w, http.StatusBadRequest, "Category is required")
         return
     }
 
-    // 2. Собираем DTO для Use Case
-    req := domain.FilterOptions{
-        Category: category,
-        Region:   r.URL.Query().Get("region"),
-        DealType: r.URL.Query().Get("deal_type"),
-    }
+    filters := domain.FindObjectsFilters{
+		// Основные
+		Category:       category,
+		DealType:       parseString(query, "dealType"),
+		PriceCurrency:  parseString(query, "priceCurrency"),
+		PriceMin:       parseFloat(query, "priceMin"),
+		PriceMax:       parseFloat(query, "priceMax"),
+		Region:         parseString(query, "region"),
+		CityOrDistrict: parseString(query, "cityOrDistrict"),
+		Street:         parseString(query, "street"),
+
+		// Общие для деталей
+		Rooms:           parseIntSlice(query, "rooms"),
+		TotalAreaMin:    parseFloat(query, "totalAreaMin"),
+		TotalAreaMax:    parseFloat(query, "totalAreaMax"),
+		LivingSpaceAreaMin: parseFloat(query, "livingSpaceAreaMin"),
+		LivingSpaceAreaMax: parseFloat(query, "livingSpaceAreaMax"),
+		KitchenAreaMin:  parseFloat(query, "kitchenAreaMin"),
+		KitchenAreaMax:  parseFloat(query, "kitchenAreaMax"),
+		YearBuiltMin:    parseInt(query, "yearBuiltMin"),
+		YearBuiltMax:    parseInt(query, "yearBuiltMax"),
+		WallMaterials:   parseStringSlice(query, "wallMaterials"),
+
+		// Только для квартир
+		FloorMin:         parseInt(query, "floorMin"),
+		FloorMax:         parseInt(query, "floorMax"),
+		FloorBuildingMin: parseInt(query, "floorBuildingMin"),
+		FloorBuildingMax: parseInt(query, "floorBuildingMax"),
+		RepairState:      parseStringSlice(query, "repairState"),
+		BathroomType:     parseStringSlice(query, "bathroomType"),
+		BalconyType:      parseStringSlice(query, "balconyType"),
+
+		// Только для домов
+		HouseTypes:        parseStringSlice(query, "houseTypes"),
+		PlotAreaMin:       parseFloat(query, "plotAreaMin"),
+		PlotAreaMax:       parseFloat(query, "plotAreaMax"),
+		TotalFloors:       parseStringSlice(query, "totalFloors"),
+		RoofMaterials:     parseStringSlice(query, "roofMaterials"),
+		WaterConditions:   parseStringSlice(query, "waterConditions"),
+		HeatingConditions: parseStringSlice(query, "heatingConditions"),
+		ElectricityConditions: parseStringSlice(query, "electricityConditions"),
+		SewageConditions:  parseStringSlice(query, "sewageConditions"),
+		GazConditions:     parseStringSlice(query, "gazConditions"),
+	}
     
-    // 3. Вызываем Use Case
-    options, err := h.getFilterOptionsUC.Execute(r.Context(), req)
+    // log.Println(filters.WallMaterials)
+    // Вызываем Use Case
+    result, err := h.getFilterOptionsUC.Execute(r.Context(), filters)
     if err != nil {
         WriteJSONError(w, http.StatusInternalServerError, "Failed to get filter options")
         return
     }
 
-    response := make(FilterOptionsResponse)
+    responseFilters := make(map[string]FilterOptionResponse)
 
-    for key, value := range options {
-        response[key] = FilterOptionResponse{
-            Type: value.Type,
+    for key, value := range result.Options {
+        responseFilters[key] = FilterOptionResponse{
+            // Type: value.Type,
             Options: value.Options,
             Min: value.Min,
             Max: value.Max,
         }
     }
 
-    // 4. Отправляем ответ
-    RespondWithJSON(w, http.StatusOK, response)
+    filterResponse := FilterResponse{
+        Filters: responseFilters,
+        Count: result.Count,
+    }
+    
+    RespondWithJSON(w, http.StatusOK, filterResponse)
 }
 
 

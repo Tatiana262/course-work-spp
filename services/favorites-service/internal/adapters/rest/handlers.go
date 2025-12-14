@@ -17,18 +17,47 @@ import (
 type FavoritesHandler struct {
 	addUC    usecases_port.AddToFavoritesUseCasePort
 	removeUC usecases_port.RemoveFromFavoritesUseCasePort
-	getUC    usecases_port.GetUserFavoritesUseCasePort
+	getObjectsUC    usecases_port.GetUserFavoritesUseCasePort
+	getIdsUC 		usecases_port.GetUserFavoritesIdsUseCasePort
 }
 
 // NewFavoritesHandler - конструктор.
 func NewFavoritesHandler(addUC usecases_port.AddToFavoritesUseCasePort, 
 	removeUC usecases_port.RemoveFromFavoritesUseCasePort, 
-	getUC usecases_port.GetUserFavoritesUseCasePort) *FavoritesHandler {
+	getObjectsUC usecases_port.GetUserFavoritesUseCasePort,
+	getIdsUC usecases_port.GetUserFavoritesIdsUseCasePort) *FavoritesHandler {
 	return &FavoritesHandler{
 		addUC:    addUC,
 		removeUC: removeUC,
-		getUC:    getUC,
+		getObjectsUC:    getObjectsUC,
+		getIdsUC: getIdsUC,
 	}
+}
+
+func (h *FavoritesHandler) GetUserFavoritesIds(w http.ResponseWriter, r *http.Request) {
+	logger := contextkeys.LoggerFromContext(r.Context()).WithFields(port.Fields{"handler": "GetUserFavoritesIds"})
+	
+	// Извлекаем userID из контекста, который был добавлен middleware
+	userID, ok := r.Context().Value(userIDKey).(uuid.UUID)
+	if !ok {
+		logger.Error("Invalid or missing user ID in context", nil, nil) 
+		WriteJSONError(w, http.StatusUnauthorized, "Invalid user ID in context")
+		return
+	}
+
+	handlerLogger := logger.WithFields(port.Fields{
+		"user_id": userID,
+	})
+	handlerLogger.Info("Processing request to get user favorites ids", nil)
+
+	ids, err := h.getIdsUC.Execute(r.Context(), userID)
+	if err != nil {
+		handlerLogger.Error("Get user favorites ids use case failed", err, nil)
+		WriteJSONError(w, http.StatusInternalServerError, "Failed to retrieve favorites")
+		return
+	}
+
+	RespondWithJSON(w, http.StatusOK, ids)
 }
 
 // GetUserFavorites обрабатывает GET /api/v1/favorites
@@ -61,7 +90,7 @@ func (h *FavoritesHandler) GetUserFavorites(w http.ResponseWriter, r *http.Reque
 	handlerLogger.Info("Processing request to get user favorites", nil)
 	
 	// Вызываем Use Case
-	paginatedResult, err := h.getUC.Execute(r.Context(), userID, limit, offset)
+	paginatedResult, err := h.getObjectsUC.Execute(r.Context(), userID, limit, offset)
 	if err != nil {
 		handlerLogger.Error("Get user favorites use case failed", err, nil)
 		WriteJSONError(w, http.StatusInternalServerError, "Failed to retrieve favorites")
@@ -77,13 +106,16 @@ func (h *FavoritesHandler) GetUserFavorites(w http.ResponseWriter, r *http.Reque
 	}
 	for i, obj := range paginatedResult.Objects {
 		response.Data[i] = ObjectCardResponse{
-			ID:             obj.ID.String(),
-			MasterObjectID: obj.MasterObjectID.String(),
-			Title:          obj.Title,
-			PriceUSD:       obj.PriceUSD,
-			Images:         obj.Images,
-			Address:        obj.Address,
-			Status:         obj.Status,
+			ID:       obj.ID,
+			Title:  obj.Title, // Предполагаем, что у вас есть поле Title
+			PriceUSD: obj.PriceUSD,
+			PriceBYN: obj.PriceBYN,
+			Images:   obj.Images,
+			Address:  obj.Address,
+			Status:   obj.Status,
+			MasterObjectID: obj.MasterObjectID,
+			Category: obj.Category,
+			DealType: obj.DealType,
 		}
 	}
 

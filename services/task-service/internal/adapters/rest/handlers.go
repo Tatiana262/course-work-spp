@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
+
 	// "log"
 	"net/http"
 	"strconv"
@@ -52,11 +54,17 @@ func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 	logger := contextkeys.LoggerFromContext(r.Context()).WithFields(port.Fields{"handler":  "CreateTask"})
 	
 	var req CreateTaskRequest
+	
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		logger.Warn("Failed to decode create task request body", port.Fields{"error": err.Error()})
 		WriteJSONError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
+
+	logger.Info("CREATE TASK", port.Fields{
+		"CreateTaskRequest": req,
+	})
+
 	if req.Name == "" || req.Type == "" || req.CreatedByUserID == "" {
 		logger.Warn("Fields 'name', 'type', and 'created_by_user_id' are required", nil)
 		WriteJSONError(w, http.StatusBadRequest, "Fields 'name', 'type', and 'created_by_user_id' are required")
@@ -76,7 +84,13 @@ func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 	})
 	handlerLogger.Info("Processing request to create task", nil)
 
-	task, err := h.createTaskUC.Execute(r.Context(), req.Name, req.Type, userID)
+	var task *domain.Task
+	if req.Type == "ACTUALIZE_BY_ID" {
+		task, err = h.createTaskUC.Execute(r.Context(), req.Name, req.Type, userID, req.ObjectID)
+	} else {
+		task, err = h.createTaskUC.Execute(r.Context(), req.Name, req.Type, userID)
+	}
+	
 	if err != nil {
 		handlerLogger.Error("CreateTask use case failed", err, nil)
 		WriteJSONError(w, http.StatusInternalServerError, "Failed to create task")
@@ -149,10 +163,18 @@ func (h *TaskHandler) GetTasksList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
-	if limit <= 0 { limit = 20 }
-	if offset < 0 { offset = 0 }
+	query := r.URL.Query()
+
+	page, _ := strconv.Atoi(query.Get("page"))
+	if page < 1 {
+		page = 1
+	}
+	perPage, _ := strconv.Atoi(query.Get("perPage"))
+	if perPage < 1 || perPage > 100 {
+		perPage = 20
+	}
+	limit := perPage
+	offset := (page - 1) * perPage
 
 	handlerLogger := logger.WithFields(port.Fields{
 		"user_id": userID,
@@ -254,6 +276,10 @@ func (h *TaskHandler) SubscribeToTasks(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "event: connected\ndata: {}\n\n")
 	if f, ok := w.(http.Flusher); ok { f.Flush() }
 
+	// Отправляем пустой комментарий каждые 30 секунд
+	ticker := time.NewTicker(30 * time.Second)
+    defer ticker.Stop()
+
 	for {
 		select {
 		case data := <-clientChan:
@@ -265,6 +291,17 @@ func (h *TaskHandler) SubscribeToTasks(w http.ResponseWriter, r *http.Request) {
 				f.Flush()
 			}
 			handlerLogger.Debug("Sent SSE event to client", nil)
+
+		case <-ticker.C:
+            // PING
+            // В спецификации SSE строки, начинающиеся с двоеточия (:), считаются комментариями.
+            // Браузер их получает, канал остается активным, но JS-код (onmessage) их игнорирует.
+            if _, err := fmt.Fprintf(w, ": keep-alive\n\n"); err != nil {
+                return
+            }
+            if f, ok := w.(http.Flusher); ok { f.Flush() }
+            // handlerLogger.Debug("Sent keep-alive ping", nil) //  для отладки
+
 		case <-r.Context().Done():
 			handlerLogger.Info("SSE client disconnected.", nil)
 			return

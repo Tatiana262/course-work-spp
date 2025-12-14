@@ -11,14 +11,14 @@ type GetObjectByIDUseCase struct {
     storage port.PropertyStoragePort
 }
 
-func NewGetObjectByIDUseCase(storage port.PropertyStoragePort) *GetObjectByIDUseCase {
+func NewGetObjectsByIDUseCase(storage port.PropertyStoragePort) *GetObjectByIDUseCase {
     return &GetObjectByIDUseCase{storage: storage}
 }
 
 // FindIDsForActualization - пример метода, который вернет ID для актуализации.
 // Вы можете добавить сюда параметры: лимит, оффсет, фильтры и т.д.
 //TODO: попробовать заменить на uuid
-func (uc *GetObjectByIDUseCase) FindObjectByIDForActualization(ctx context.Context, id string) (*domain.PropertyBasicInfo, error) {
+func (uc *GetObjectByIDUseCase) FindObjectsByIDForActualization(ctx context.Context, id string) ([]domain.PropertyBasicInfo, error) {
 	logger := contextkeys.LoggerFromContext(ctx)
     ucLogger := logger.WithFields(port.Fields{
         "use_case": "FindObjectByIDForActualization",
@@ -27,7 +27,7 @@ func (uc *GetObjectByIDUseCase) FindObjectByIDForActualization(ctx context.Conte
 
     ucLogger.Info("Use case started", nil)
 
-	result, err := uc.storage.GetObjectByIDForActualization(ctx, id)
+	result, err := uc.storage.GetObjectsByIDForActualization(ctx, id)
     if err != nil {
         ucLogger.Error("Storage returned an error", err, nil)
         return nil, err

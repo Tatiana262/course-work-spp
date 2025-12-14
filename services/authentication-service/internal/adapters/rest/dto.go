@@ -8,8 +8,8 @@ type RegisterRequest struct {
 
 type AuthResponse struct {
 	Token string `json:"token"`
-	UserID string `json:"user_id"`
-	Role   string `json:"role"` 
+	// UserID string `json:"user_id"`
+	// Role   string `json:"role"` 
 }
 
 // LoginRequest - тело запроса для входа.

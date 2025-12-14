@@ -164,7 +164,7 @@ func NewApp() (*App, error) {
 	savePropertyUseCase := usecase.NewSavePropertyUseCase(postgresStorageAdapter, tasksResultsQueueAdapter)
 	getActiveObjectsUseCase := usecase.NewGetActiveObjectsUseCase(postgresStorageAdapter)
 	getArchivedObjectsUseCase := usecase.NewGetArchivedObjectsUseCase(postgresStorageAdapter)
-	getObjectByIDUseCase := usecase.NewGetObjectByIDUseCase(postgresStorageAdapter)
+	getObjectByIDUseCase := usecase.NewGetObjectsByIDUseCase(postgresStorageAdapter)
 
 	findObjectsUseCase := usecase.NewFindObjectsUseCase(postgresStorageAdapter)
 	getObjectDetailsUseCase := usecase.NewGetObjectDetailsUseCase(postgresStorageAdapter)

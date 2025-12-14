@@ -6,5 +6,5 @@ import (
 )
 
 type GetFilterOptionsUseCase interface {
-	Execute(ctx context.Context, req domain.FilterOptions) (map[string]domain.FilterOption, error)
+	Execute(ctx context.Context, req domain.FindObjectsFilters) (*domain.FilterOptionsResult, error)
 }

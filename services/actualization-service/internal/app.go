@@ -129,7 +129,7 @@ func NewApp() (*App, error) {
 	// ИНИЦИАЛИЗАЦИЯ USE CASES (ядра бизнес-логики)
 	actualizeActiveObjectsUseCase := usecase.NewActualizeActiveObjectsUseCase(storageClient, tasksQueueAdapter, userTasksClient, tasksResultsAdapter)
 	actualizeArchivedObjectsUseCase := usecase.NewActualizeArchivedObjectsUseCase(storageClient, tasksQueueAdapter, userTasksClient, tasksResultsAdapter)
-	actualizeObjectByIdUseCase := usecase.NewActualizeObjectByIdUseCase(storageClient, tasksQueueAdapter, userTasksClient, tasksResultsAdapter)
+	actualizeObjectByIdUseCase := usecase.NewActualizeObjectsByIdUseCase(storageClient, tasksQueueAdapter, userTasksClient, tasksResultsAdapter)
 	findNewObjectsUseCase := usecase.NewFindNewObjectsUseCase(linksSearchQueueAdapter, userTasksClient, tasksResultsAdapter)
 	// findNewObjectsUseCase := usecase.NewFindNewObjectsUseCase(storageClient, tasksQueueAdapter)
 

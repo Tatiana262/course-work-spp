@@ -42,7 +42,7 @@ func (s *TokenService) GenerateToken(ctx context.Context, user *domain.User, ttl
 	serviceLogger := logger.WithFields(port.Fields{
 		"component": "TokenService",
 		"method":    "GenerateToken",
-		"user_id":   user.ID,
+		"user_id":   user.ID.String(),
 	})
 	
 	serviceLogger.Info("Generating new token.", port.Fields{"ttl": ttl.String()})
@@ -97,7 +97,7 @@ func (s *TokenService) ValidateToken(ctx context.Context, tokenString string) (*
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			// Здесь token.Valid будет false, но claims можно прочитать
 			if claims, ok := token.Claims.(*jwtCustomClaims); ok {
-				 serviceLogger.Warn("Token has expired", port.Fields{"user_id": claims.UserID, "email": claims.Email})
+				 serviceLogger.Warn("Token has expired", port.Fields{"user_id": claims.UserID.String(), "email": claims.Email})
 			}  else {
 				serviceLogger.Warn("An expired token could not be parsed to claims", nil)
 			}	
@@ -111,7 +111,7 @@ func (s *TokenService) ValidateToken(ctx context.Context, tokenString string) (*
 	// проверка token.Valid только если отключить стандартную валидацию
 	if claims, ok := token.Claims.(*jwtCustomClaims); ok && token.Valid {
 		serviceLogger.Info("Token validated successfully.", port.Fields{
-			"user_id": claims.UserID,
+			"user_id": claims.UserID.String(),
 			"email":   claims.Email,
 			"role":    claims.Role,
 		})

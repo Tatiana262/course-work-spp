@@ -21,7 +21,7 @@ func NewCreateTaskUseCase(repo port.TaskRepositoryPort, notifier port.NotifierPo
 	}
 }
 
-func (uc *CreateTaskUseCase) Execute(ctx context.Context, name, taskType string, userID uuid.UUID) (*domain.Task, error) {
+func (uc *CreateTaskUseCase) Execute(ctx context.Context, name, taskType string, userID uuid.UUID, params... any) (*domain.Task, error) {
 	logger := contextkeys.LoggerFromContext(ctx)
 	ucLogger := logger.WithFields(port.Fields{
 		"use_case": "CreateTask",
@@ -33,6 +33,15 @@ func (uc *CreateTaskUseCase) Execute(ctx context.Context, name, taskType string,
 	ucLogger.Info("Use case started", nil)
 	
 	task := domain.NewTask(name, taskType, userID)
+	if len(params) > 0 {
+		task.ResultSummary["id"] = params[0]
+	}
+
+
+	ucLogger.Info("CREATE TASK USE CASE", port.Fields{
+		"task": *task,
+	})
+
 	if err := uc.repo.Create(ctx, task); err != nil {
 		ucLogger.Error("Repository failed to create task", err, nil)
 		return nil, err

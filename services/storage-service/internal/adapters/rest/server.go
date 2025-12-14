@@ -29,7 +29,7 @@ func NewServer(port string,
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/active-objects", actualiztion_handlers.GetActiveObjects)
         r.Get("/archived-objects", actualiztion_handlers.GetArchivedObjects)
-        r.Get("/object", actualiztion_handlers.GetObjectByID)
+        r.Get("/object", actualiztion_handlers.GetObjectsByMasterID)
 
         r.Post("/objects/best-by-master-ids", get_info_handlers.GetBestByMasterIDs)
 

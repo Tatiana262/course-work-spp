@@ -18,6 +18,7 @@ type Config struct {
 	StorageServiceURL       string
 	FavoritesServiceURL     string
 	ActualizationServiceURL string
+	TasksServiceURL  		string
 
 	FluentBit	FluentBitConfig
 	StdoutLogger StdoutLogConfig
@@ -57,6 +58,7 @@ func LoadConfig(envPath ...string) (*Config, error) {
 		StorageServiceURL:       getEnv("STORAGE_SERVICE_URL", "http://localhost:8082"),
 		FavoritesServiceURL:     getEnv("FAVORITES_SERVICE_URL", "http://localhost:8083"),
 		ActualizationServiceURL: getEnv("ACTUALIZATION_SERVICE_URL", "http://localhost:8084"),
+		TasksServiceURL:         getEnv("TASKS_SERVICE_URL", "http://localhost:8084"),
 		AppName: 				 getEnv("APP_NAME", "api-gateway"),
 	}
 

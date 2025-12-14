@@ -41,6 +41,7 @@ func NewServer(port string, handlers *FavoritesHandler, baseLogger core_port.Log
 		r.Use(AuthMiddleware)
 
 		r.Get("/", handlers.GetUserFavorites)
+		r.Get("/ids", handlers.GetUserFavoritesIds)
 		r.Post("/", handlers.AddToFavorites)
 		r.Delete("/{masterObjectID}", handlers.RemoveFromFavorites)
 	})

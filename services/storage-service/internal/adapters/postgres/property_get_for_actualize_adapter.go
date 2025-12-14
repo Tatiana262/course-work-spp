@@ -113,48 +113,76 @@ func (a *PostgresStorageAdapter) GetArchivedIDsForActualization(ctx context.Cont
     return objectsInfo, nil 
 }
 
-func (a *PostgresStorageAdapter) GetObjectByIDForActualization(ctx context.Context, id string) (*domain.PropertyBasicInfo, error) {
+
+func (a *PostgresStorageAdapter) GetObjectsByIDForActualization(ctx context.Context, masterObjectID string) ([]domain.PropertyBasicInfo, error) {
 	logger := contextkeys.LoggerFromContext(ctx)
 	repoLogger := logger.WithFields(port.Fields{
 		"component": "PostgresStorageAdapter",
 		"method":    "GetObjectByIDForActualization",
-		"id":  id,
+		"master_object_id":  masterObjectID,
 	})
 
 	// Здесь будет ваш SQL-запрос. Например, выбрать самые старые активные объекты.
-    query := `SELECT id, ad_link, source_ad_id, source, updated_at FROM general_properties 
-               WHERE id = $1`
+    query := `
+		SELECT id, ad_link, source_ad_id, source, updated_at 
+        FROM general_properties 
+        WHERE master_object_id = $1 AND status = 'active'
+		ORDER BY updated_at DESC
+	`
     
-	var objectInfo domain.PropertyBasicInfo
-	err := a.pool.QueryRow(ctx, query, id).Scan(
-		&objectInfo.ID, 
-		&objectInfo.Link, 
-		&objectInfo.AdID, 
-		&objectInfo.Source, 
-		&objectInfo.UpdatedAt,
-	);
-	if err != nil {
-		// if errors.Is(err, pgx.ErrNoRows) {
-		// 	return nil, nil 
-		// }
-		repoLogger.Error("Failed to query object", err, port.Fields{"query": query})
-		return nil, fmt.Errorf("PostgresStorageAdapter: failed to find object with id %s: %w", id, err)
-	}
+	rows, err := a.pool.Query(ctx, query, masterObjectID)
+    if err != nil {
+        repoLogger.Error("Failed to query active duplicates", err, nil)
+        return nil, fmt.Errorf("failed to find active duplicates for master_id %s: %w", masterObjectID, err)
+    }
+    defer rows.Close()
 
-	repoLogger.Info("Successfully found object", nil)
+	var objectsInfo []domain.PropertyBasicInfo
+    for rows.Next() {
+        var info domain.PropertyBasicInfo
+        if err := rows.Scan(&info.ID, &info.Link, &info.AdID, &info.Source, &info.UpdatedAt); err != nil {
+            return nil, fmt.Errorf("failed to scan active duplicate: %w", err)
+        }
+        objectsInfo = append(objectsInfo, info)
+    }
 
-	// defer rows.Close()
+    if err := rows.Err(); err != nil {
+        return nil, err
+    }
 
-	// if rows.Next() {				
-	// 	if err := rows.Scan(&objectInfo.ID, &objectInfo.Link, &objectInfo.AdID, &objectInfo.Source, &objectInfo.UpdatedAt); err != nil {
-	// 		return nil, fmt.Errorf("PostgresStorageAdapter: failed to scan object with id %s: %w", id, err)
-	// 	}		
-	// }
-	
-	//  // Проверяем на ошибки, которые могли возникнуть во время итерации
-	// if err = rows.Err(); err != nil {
-    //     return nil, fmt.Errorf("PostgresStorageAdapter: error during rows iteration for object id = %s: %w", id, err)
-    // }
-
-    return &objectInfo, nil
+    repoLogger.Info("Successfully found active duplicates", port.Fields{"count": len(objectsInfo)})
+    return objectsInfo, nil
 }
+
+// func (a *PostgresStorageAdapter) GetObjectByIDForActualization(ctx context.Context, id string) (*domain.PropertyBasicInfo, error) {
+// 	logger := contextkeys.LoggerFromContext(ctx)
+// 	repoLogger := logger.WithFields(port.Fields{
+// 		"component": "PostgresStorageAdapter",
+// 		"method":    "GetObjectByIDForActualization",
+// 		"id":  id,
+// 	})
+
+// 	// Здесь будет ваш SQL-запрос. Например, выбрать самые старые активные объекты.
+//     query := `SELECT id, ad_link, source_ad_id, source, updated_at FROM general_properties 
+//                WHERE id = $1`
+    
+// 	var objectInfo domain.PropertyBasicInfo
+// 	err := a.pool.QueryRow(ctx, query, id).Scan(
+// 		&objectInfo.ID, 
+// 		&objectInfo.Link, 
+// 		&objectInfo.AdID, 
+// 		&objectInfo.Source, 
+// 		&objectInfo.UpdatedAt,
+// 	);
+// 	if err != nil {
+// 		// if errors.Is(err, pgx.ErrNoRows) {
+// 		// 	return nil, nil 
+// 		// }
+// 		repoLogger.Error("Failed to query object", err, port.Fields{"query": query})
+// 		return nil, fmt.Errorf("PostgresStorageAdapter: failed to find object with id %s: %w", id, err)
+// 	}
+
+// 	repoLogger.Info("Successfully found object", nil)
+
+//     return &objectInfo, nil
+// }

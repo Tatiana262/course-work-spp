@@ -8,12 +8,59 @@ import (
 
 // FindObjectsFilters - структура для передачи всех возможных фильтров.
 type FindObjectsFilters struct {
-    Category     string
-    Region       string
-	DealType     string   
-    Rooms        []int
-    PriceMin     *float64
-    PriceMax     *float64
+	Category string
+    DealType string
+    PriceCurrency string
+    PriceMin *float64
+	PriceMax *float64
+    Region          string    // "Брестская область"
+    CityOrDistrict  string    // "Брест", "Пинск"
+    Street          string    // "Васнецова", "Московская"
+
+    // Дополнительно  
+    Rooms          []int 
+
+    TotalAreaMin   *float64
+    TotalAreaMax   *float64
+
+    LivingSpaceAreaMin *float64
+    LivingSpaceAreaMax *float64
+
+    KitchenAreaMin *float64
+    KitchenAreaMax *float64
+
+    YearBuiltMin   *int     
+	YearBuiltMax   *int
+
+    WallMaterials  []string 
+
+    // Только для квартир
+	FloorMin       *int     
+	FloorMax       *int
+
+    FloorBuildingMin       *int     
+	FloorBuildingMax       *int    
+   
+    RepairState    []string
+    BathroomType   []string
+    BalconyType    []string
+
+    // PricePerSquareMeterMin *float64 
+	// PricePerSquareMeterMax *float64		
+
+    // Только для домов
+    HouseTypes   []string
+
+    PlotAreaMin *float64
+    PlotAreaMax *float64
+
+    TotalFloors  []string
+    RoofMaterials  []string 
+    WaterConditions []string
+    HeatingConditions []string
+    ElectricityConditions []string
+    SewageConditions []string
+    GazConditions []string
 }
 
 // PaginatedResult - стандартная структура для ответа с пагинацией.
@@ -27,28 +74,36 @@ type PaginatedResult struct {
 
 // TODO
 type GeneralPropertyInfo struct {
+    MasterObjectID	string	
 	ID           uuid.UUID 			
 	Source       string    			
 	SourceAdID   int64     			
-	UpdatedAt    time.Time 			
-	Category         string    
-	DealType         string     	
-	AdLink           string     	
-	Title          	string     		
-	Address        	string 			
+	UpdatedAt    time.Time 	
+    CreatedAt  time.Time		
+	Category         string
+    AdLink     string    
+    SaleType   string
+    Currency   string
+    Images           []string  
+    ListTime  time.Time 
+    Description string
+    Title       string
+	DealType         string 
+    CityOrDistrict string  
+    Region      string  	
 	
 	PriceBYN         float64   		
 	PriceUSD         float64   		
 	PriceEUR         *float64   	
-	Currency         string     	
 	
-	Images           []string   	
+	Address  string
+    IsAgency bool
+    SellerName string
+    Status   string 
 
-	OffersCount  int // <--- НОВОЕ ПОЛЕ
-	Status    		string
-
-	MasterObjectID	string		
+    SellerDetails interface{}
 }
+
 
 type DuplicatesInfo struct {
 	ID           uuid.UUID 			

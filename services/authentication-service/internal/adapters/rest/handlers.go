@@ -7,6 +7,8 @@ import (
 	"authentication-service/internal/core/port/usecases_port"
 	"encoding/json"
 	"errors"
+	"strings"
+
 	// "log"
 	"net/http"
 )
@@ -70,8 +72,8 @@ func (h *AuthHandlers) Register(w http.ResponseWriter, r *http.Request) {
 
 	response := AuthResponse{
 		Token:  token,
-		UserID: user.ID.String(),
-		Role:   user.Role,
+		// UserID: user.ID.String(),
+		// Role:   user.Role,
 	}
 	RespondWithJSON(w, http.StatusCreated, response)
 }
@@ -108,26 +110,71 @@ func (h *AuthHandlers) Login(w http.ResponseWriter, r *http.Request) {
 
 	RespondWithJSON(w, http.StatusOK, AuthResponse{
 		Token: token,
-		UserID: user.ID.String(),
-		Role:   user.Role,
+		// UserID: user.ID.String(),
+		// Role:   user.Role,
 	})
 }
 
-// ValidateToken обрабатывает POST /validate
+// // ValidateToken обрабатывает POST /validate
+// func (h *AuthHandlers) ValidateToken(w http.ResponseWriter, r *http.Request) {
+// 	logger := contextkeys.LoggerFromContext(r.Context())
+
+// 	handlerLogger := logger.WithFields(port.Fields{"handler": "ValidateToken"})
+// 	handlerLogger.Info("Processing token validation request", nil)
+
+// 	var req ValidateTokenRequest
+// 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+// 		handlerLogger.Warn("Failed to decode validation request body", port.Fields{"error": err.Error()})
+// 		WriteJSONError(w, http.StatusBadRequest, "Invalid request body")
+// 		return
+// 	}
+
+// 	claims, err := h.validateUC.Execute(r.Context(), req.Token)
+// 	if err != nil {
+// 		handlerLogger.Warn("Token validation failed", port.Fields{"error": err.Error()})
+// 		WriteJSONError(w, http.StatusUnauthorized, "Invalid or expired token")
+// 		return
+// 	}
+
+// 	handlerLogger.Info("Token validated successfully", port.Fields{
+// 		"user_id": claims.UserID,
+// 		"role":    claims.Role,
+// 	})
+
+// 	RespondWithJSON(w, http.StatusOK, ValidateTokenResponse{
+// 		UserID: claims.UserID.String(),
+// 		Email:  claims.Email,
+// 		Role:   claims.Role,
+// 	})
+// }
+
 func (h *AuthHandlers) ValidateToken(w http.ResponseWriter, r *http.Request) {
 	logger := contextkeys.LoggerFromContext(r.Context())
-
 	handlerLogger := logger.WithFields(port.Fields{"handler": "ValidateToken"})
 	handlerLogger.Info("Processing token validation request", nil)
 
-	var req ValidateTokenRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		handlerLogger.Warn("Failed to decode validation request body", port.Fields{"error": err.Error()})
-		WriteJSONError(w, http.StatusBadRequest, "Invalid request body")
+	// 1. Достаем заголовок Authorization
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		handlerLogger.Warn("Missing Authorization header", nil)
+		WriteJSONError(w, http.StatusUnauthorized, "Missing Authorization header")
 		return
 	}
 
-	claims, err := h.validateUC.Execute(r.Context(), req.Token)
+	// 2. Убираем префикс "Bearer "
+	// Обычно заголовок выглядит как "Bearer eyJhbGci..."
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	if tokenString == authHeader { // Если префикса не было
+		handlerLogger.Warn("Invalid Authorization header format", nil)
+		WriteJSONError(w, http.StatusUnauthorized, "Invalid token format")
+		return
+	}
+	
+	// Очищаем от лишних пробелов на всякий случай
+	tokenString = strings.TrimSpace(tokenString)
+
+	// 3. Передаем токен в UseCase
+	claims, err := h.validateUC.Execute(r.Context(), tokenString)
 	if err != nil {
 		handlerLogger.Warn("Token validation failed", port.Fields{"error": err.Error()})
 		WriteJSONError(w, http.StatusUnauthorized, "Invalid or expired token")
@@ -135,10 +182,11 @@ func (h *AuthHandlers) ValidateToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	handlerLogger.Info("Token validated successfully", port.Fields{
-		"user_id": claims.UserID,
+		"user_id": claims.UserID.String(),
 		"role":    claims.Role,
 	})
 
+	// Возвращаем данные пользователя. Фронтенд (TS) ждет именно структуру IUser.
 	RespondWithJSON(w, http.StatusOK, ValidateTokenResponse{
 		UserID: claims.UserID.String(),
 		Email:  claims.Email,

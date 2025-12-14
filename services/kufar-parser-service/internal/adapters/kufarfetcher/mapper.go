@@ -168,7 +168,7 @@ func toDomainRecord(jsonData []byte, source string, logger port.LoggerPort) (*do
 		}
 		// Собираем оставшиеся параметры в map
 		apt.Parameters = getRemainingParams(adParams, "coordinates", "remuneration_type", "area", "region",
-			"category", "rooms", "condition", "re_number_floors", "size", "year_built", "floor", "square_meter",
+			"category", "rooms", "re_number_floors", "size", "year_built", "floor", "square_meter",
 			"size_living_space", "size_kitchen", "house_type", "balcony", "bathroom", "flat_repair")
 		details = apt
 
@@ -220,9 +220,9 @@ func toDomainRecord(jsonData []byte, source string, logger port.LoggerPort) (*do
 		}
 
 		house.Parameters = getRemainingParams(adParams, "coordinates", "remuneration_type", "area", "region",
-			"category", "size", "size_area", "wall_material", "condition", "year_built",
+			"category", "size", "size_area", "wall_material", "year_built",
 			"size_living_space", "house_number_floors", "size_kitchen", "electricity", "re_water", "re_heating", "re_sewage",
-			"house_gaz", "house_roof_material", "re_contract", "gaz", "rooms", "house_rent_rooms", "re_garden_community",
+			"house_gaz", "house_roof_material", "gaz", "rooms", "house_rent_rooms", "re_garden_community",
 			"house_type_for_sell", "house_type_for_rent", "house_readiness")
 		details = house
 
@@ -561,7 +561,7 @@ func getRemainingParams(params map[string]parameterValues, usedKeys ...string) m
 		case "flat_ceiling_height", "flat_rent_prepayment", "new_buildings_apartment_complex",
 			"re_property_rights", "house_roof_material_type", "house_readiness",
 			"commercial_pavilions_type", "commercial_services_type",
-			"re_special_purpose":
+			"re_special_purpose", "condition":
 			remaining[key], _ = values.ParamAltValue.(string)
 
 		case "trademark", "content_video", "re_contract":

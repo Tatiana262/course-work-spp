@@ -8,5 +8,5 @@ import (
 )
 
 type CreateTaskUseCasePort interface {
-	Execute(ctx context.Context, name, taskType string, userID uuid.UUID) (*domain.Task, error)
+	Execute(ctx context.Context, name, taskType string, userID uuid.UUID, params... any) (*domain.Task, error)
 }

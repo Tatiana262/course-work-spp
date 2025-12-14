@@ -10,13 +10,17 @@ type getByMasterIDsRequest struct {
 // DTO для ответа от storage-service
 // Эта структура должна в точности совпадать с `ObjectCardResponse` из storage-service
 type objectCardResponse struct {
-	ID             uuid.UUID `json:"id"`
-	MasterObjectID uuid.UUID `json:"master_object_id"`
-	Title          string    `json:"title"`
-	PriceUSD       float64   `json:"priceUSD"`
-	Images         []string  `json:"images"`
-	Address        string    `json:"address"`
-	Status         string    `json:"status"`
+	ID       string    `json:"id"`
+    Title  string    `json:"title"`
+    PriceUSD float64   `json:"price_usd"`
+    PriceBYN float64   `json:"price_byn"`
+    Images   []string  `json:"images"`
+    Address  string    `json:"address"`
+    Status   string    `json:"status"`
+    Category string    `json:"category"`
+    DealType string    `json:"deal_type"`
+
+    MasterObjectID	string    `json:"master_object_id"`
 }
 
 type getByMasterIDsResponse struct {

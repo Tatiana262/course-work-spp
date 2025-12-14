@@ -76,7 +76,7 @@ func (n *SSENotifier) dispatcher() {
 		eventLogger.Info("Processing new event.", nil)
 
 		// Маршалим событие в JSON один раз для всех получателей
-		eventBytes, err := json.Marshal(event)
+		eventBytes, err := json.Marshal(event.Data)
 		if err != nil {
 			eventLogger.Error("Failed to marshal event", err, nil)
 			continue

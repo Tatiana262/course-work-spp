@@ -131,9 +131,12 @@ func (c *StorageServiceAPIClient) GetBestObjectsByMasterIDs(ctx context.Context,
 			MasterObjectID: dto.MasterObjectID,
 			Title:          dto.Title,
 			PriceUSD:       dto.PriceUSD,
+			PriceBYN:		dto.PriceBYN,
 			Images:         dto.Images,
 			Address:        dto.Address,
 			Status:         dto.Status,
+			Category:		dto.Category,
+			DealType:		dto.DealType,
 		}
 	}
 

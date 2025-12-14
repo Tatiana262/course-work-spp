@@ -50,23 +50,23 @@ type PredefinedSearch struct {
 // BusinessCategoryToKufarMap - наш главный "словарь-переводчик" для Kufar.
 // Ключ - бизнес-категория, значение - технический ID категории на Kufar.
 var BusinessCategoryToKufarMap = map[string]string{
-	"Квартиры":    ApartmentCategory,
-	"Дома":        HouseCategory,
-	"Гаражи":      GarageAndParkingCategory,
-	"Комнаты":     RoomCategory,
-	"Коммерция":   CommercialCategory,
-	"Участки":     PlotCategory,
-	"Новостройки": NewBuildingCategory,
+	"apartment":    ApartmentCategory,
+	"house":        HouseCategory,
+	"garage_parking": GarageAndParkingCategory,
+	"room":         RoomCategory,
+	"commercial":   CommercialCategory,
+	"plot":     PlotCategory,
+	"new_building": NewBuildingCategory,
 }
 
 // RegionToKufarMap - теперь сопоставляет бизнес-регион со СРЕЗОМ технических локаций Kufar
 var RegionToKufarMap = map[string][]string{
-	"Минск":       {Minsk, MinskRegion}, 
-	"Брест":       {BrestRegion},     
-	"Витебск":     {VitebskRegion},
-	"Гомель":      {GomelRegion},
-	"Гродно":      {GrodnoRegion},
-	"Могилёв":     {MogilevRegion},
+	"Минская область":       {Minsk, MinskRegion}, 
+	"Брестская область":       {BrestRegion},     
+	"Витебская область":     {VitebskRegion},
+	"Гомельская область":      {GomelRegion},
+	"Гродненская область":      {GrodnoRegion},
+	"Могилёвская область":     {MogilevRegion},
 	"Вся Беларусь": {Belarus},
 }
 
