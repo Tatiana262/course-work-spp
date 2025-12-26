@@ -18,7 +18,7 @@ type PublisherConfig struct {
 	DurableExchange    bool       // Долговечность обменника
 	AutoDeleteExchange bool       // Автоудаление обменника
 	InternalExchange   bool       // Внутренний ли обменник
-	ExchangeArgs       amqp.Table // Дополнительные аргументы для обменника (например, alternate-exchange)
+	ExchangeArgs       amqp.Table // Дополнительные аргументы для обменника
 
 	// Флаг, указывающий, нужно ли пытаться объявить обменник (если false, производитель будет полагаться на то, что обменник уже существует)
 	DeclareExchangeIfMissing bool
@@ -78,14 +78,12 @@ func NewPublisher(cfg PublisherConfig, connManager *rabbitmq_common.ConnectionMa
 	}
 	p.connection = conn // Сохраняем ссылку для NotifyClose
 	p.channel = ch
-	p.Logger.Info("Channel obtained from ConnectionManager")
+	p.Logger.Debug("Channel obtained from ConnectionManager")
 
 	// Объявляем обменник, если это указано в конфигурации
 	if p.config.DeclareExchangeIfMissing {
-		// log.Printf("Producer: Declaring exchange '%s' (type: %s, durable: %v, autoDelete: %v, internal: %v)\n",
-		// 	p.config.ExchangeName, p.config.ExchangeType, p.config.DurableExchange, p.config.AutoDeleteExchange, p.config.InternalExchange)
-
-		p.Logger.Info("Declaring exchange",
+		
+		p.Logger.Debug("Declaring exchange",
 			"name", p.config.ExchangeName,
 			"type", p.config.ExchangeType,
 		)
@@ -104,12 +102,12 @@ func NewPublisher(cfg PublisherConfig, connManager *rabbitmq_common.ConnectionMa
 			return nil, fmt.Errorf("producer: failed to declare exchange '%s': %w", p.config.ExchangeName, err)
 		}
 	} else if p.config.ExchangeName != "" {
-		p.Logger.Info("Assuming exchange already exists (DeclareExchangeIfMissing is false or type not specified)",
+		p.Logger.Debug("Assuming exchange already exists (DeclareExchangeIfMissing is false or type not specified)",
 			"name", p.config.ExchangeName,
 		)
 	}
 
-	p.Logger.Info("Successfully connected and channel opened")
+	p.Logger.Debug("Successfully connected and channel opened")
 	return p, nil
 }
 
@@ -133,9 +131,9 @@ func (p *Publisher) Publish(ctx context.Context, routingKey string, msg amqp.Pub
 	return nil
 }
 
-// Close закрывает соединение производителя
+// Close закрывает канал производителя
 func (p *Publisher) Close() error {
-	p.Logger.Info("Producer: Closing...")
+	p.Logger.Debug("Producer: Closing...")
 	var firstErr error
 
 	if p.channel != nil {

@@ -5,33 +5,29 @@ import (
 	"fmt"
 	"log"
 	"strings"
-
-	// "log"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
 	logger_adapter "api-gateway/internal/adapter/logger"
 	"api-gateway/internal/auth"
 	"api-gateway/internal/configs"
 	"api-gateway/internal/port"
 	"api-gateway/internal/server"
 	fluentlogger "real-estate-system/pkg/fluent_logger"
-
 	"github.com/fluent/fluent-logger-golang/fluent"
 )
 
-// App - основная структура приложения.
+// App - основная структура приложения
 type App struct {
 	httpServer   *http.Server
 	logger       port.LoggerPort
 	fluentClient *fluent.Fluent
 }
 
-// NewApp создает и настраивает все компоненты приложения.
+// NewApp создает и настраивает все компоненты приложения
 func NewApp() (*App, error) {
 
 	appConfig, err := configs.LoadConfig()
@@ -39,7 +35,7 @@ func NewApp() (*App, error) {
 		return nil, fmt.Errorf("error loading application configuration: %w", err)
 	}
 
-	// --- 1. ИНИЦИАЛИЗАЦИЯ ЛОГГЕРОВ ---
+	// инициализация логеров
 	var activeLoggers []port.LoggerPort
 
 	slogCfg := logger_adapter.SlogConfig{
@@ -51,7 +47,6 @@ func NewApp() (*App, error) {
 	activeLoggers = append(activeLoggers, stdoutLogger)
 
 	// Добавляем Fluent Bit логгер, если он включен в конфигурации
-	// (предположим, что в appConfig.FluentBit есть поле Enabled bool)
 	var fluentClient *fluent.Fluent
 	if appConfig.FluentBit.Enabled {
 		fluentClient, err = fluentlogger.NewClient(fluentlogger.Config{
@@ -79,23 +74,23 @@ func NewApp() (*App, error) {
 		return nil, fmt.Errorf("failed to create multi-logger: %w", err)
 	}
 
-	// --- 2. СОЗДАЕМ БАЗОВЫЙ ЛОГГЕР ПРИЛОЖЕНИЯ С КОНТЕКСТОМ ---
+	// базовый логер приложения с контекстом
 	baseLogger := multiLogger.WithFields(port.Fields{
 		"service_name": appConfig.AppName,
 		// "service_version": "1.0.0",
 	})
 
 	appLogger := baseLogger.WithFields(port.Fields{"component": "app"})
-	appLogger.Info("Logger system initialized", port.Fields{
+	appLogger.Debug("Logger system initialized", port.Fields{
 		"active_loggers": len(activeLoggers), "fluent_enabled": appConfig.FluentBit.Enabled,
 	})
 
-	// 1. Инициализация исходящих адаптеров (клиентов)
+	// Инициализация исходящих адаптеров (клиентов)
 	authClient := auth.NewClient(appConfig.AuthServiceURL)
-	appLogger.Info("Auth client initialized", port.Fields{"target_url": appConfig.AuthServiceURL})
+	appLogger.Debug("Auth client initialized", port.Fields{"target_url": appConfig.AuthServiceURL})
 
-	// 2. Инициализация входящего адаптера (веб-сервера)
-	// Передаем ему конфигурацию и созданного клиента.
+	// Инициализация входящего адаптера (веб-сервера)
+	// Передаем ему конфигурацию и созданного клиента
 	httpServer := server.NewServer(appConfig, authClient, baseLogger)
 
 	return &App{
@@ -105,7 +100,7 @@ func NewApp() (*App, error) {
 	}, nil
 }
 
-// Run запускает приложение и управляет его жизненным циклом.
+// Run запускает приложение и управляет его жизненным циклом
 func (a *App) Run() error {
 	// Запускаем HTTP-сервер в отдельной горутине
 	go func() {
@@ -121,7 +116,7 @@ func (a *App) Run() error {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	sig := <-quit
-	a.logger.Info("API Gateway is shutting down...", port.Fields{"signal": sig.String()})
+	a.logger.Debug("API Gateway is shutting down...", port.Fields{"signal": sig.String()})
 
 	// Создаем контекст с таймаутом для завершения
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

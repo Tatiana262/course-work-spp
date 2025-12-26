@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { Container, Row, Col, Carousel, Card, Badge, Table, Spinner, Button, Alert, ListGroup } from 'react-bootstrap';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchObjectWithDeatils } from '../http/objectsAPI';
-import type { IObjectDetailsResponse, IApartmentDetails, IHouseDetails, IRelatedOffer } from '../types/realEstateObjects';
+import type { IObjectDetailsResponse, IApartmentDetails, IHouseDetails, IRelatedOffer, ICommercialDetails } from '../types/realEstateObjects';
 import FavoriteButton from '../components/FavoriteButton';
 import ActualizeButton from '../components/ActualizeButton';
 import { Context } from '../main';
@@ -63,11 +63,17 @@ const ObjectPage = observer(() => {
     const descriptionLength = general.description?.length || 0;
     const isLongDescription = descriptionLength > 500;
 
-    // --- ЛОГИКА ОПРЕДЕЛЕНИЯ ТИПА ---
-    const isApartment = general.category === 'apartment';
-    // Приводим типы для удобства, хотя TS позволяет проверять наличие полей через 'in'
+
+    const category = general.category; // 'apartment', 'house', 'commercial'
+
+    const isApartment = category === 'apartment';
+    const isHouse = category === 'house';
+    const isCommercial = category === 'commercial';
+
+    // Приведение типов (Casting)
     const aptDetails = isApartment ? (details as IApartmentDetails) : null;
-    const houseDetails = !isApartment ? (details as IHouseDetails) : null;
+    const houseDetails = isHouse ? (details as IHouseDetails) : null;
+    const commDetails = isCommercial ? (details as ICommercialDetails) : null;
 
     // --- ЛОГИКА ГРУППИРОВКИ ДУБЛИКАТОВ ---
     // Группируем массив related_offers по полю source
@@ -94,6 +100,25 @@ const ObjectPage = observer(() => {
             <tr key={label}>
                 <td className="text-muted w-50">{label}</td>
                 <td>{displayValue} {suffix}</td>
+            </tr>
+        );
+    };
+
+    const renderRoomsRange = (label: string, range?: number[]) => {
+        if (!range || range.length === 0) return null;
+        
+        let value = '';
+        if (range.length === 1) {
+            value = `${range[0]}`;
+        } else {
+            // Если два числа - выводим через тире
+            value = range.join(' - ');
+        }
+        
+        return (
+            <tr key={label}>
+                <td className="text-muted w-50">{label}</td>
+                <td>{value}</td>
             </tr>
         );
     };
@@ -180,29 +205,39 @@ const ObjectPage = observer(() => {
                         <Table striped bordered hover size="sm">
                             <tbody>
                                 {/* Общие */}
-                                {renderRow("Категория", translateCategory(general.category))}
-                                {renderRow("Год постройки", details.year_built)}
-                                {renderRow("Материал стен", details.wall_material)}
-                                
-                                {/* Площади */}
-                                {renderRow("Общая площадь", details.total_area, "м²")}
-                                {renderRow("Жилая площадь", details.living_space_area, "м²")}
-                                {renderRow("Кухня", details.kitchen_area, "м²")}
-                                
+                               
+                              
                                 {/* ДЛЯ КВАРТИР */}
                                 {isApartment && aptDetails && (
                                     <>
+                                        {renderRow("Категория", translateCategory(general.category))}
+                                        {renderRow("Год постройки", aptDetails.year_built)}
+                                        {renderRow("Материал стен", aptDetails.wall_material)}
+                                        
+                                        {renderRow("Общая площадь", aptDetails.total_area, "м²")}
+                                        {renderRow("Жилая площадь", aptDetails.living_space_area, "м²")}
+                                        {renderRow("Кухня", aptDetails.kitchen_area, "м²")}
+                                        
                                         {renderRow("Этаж", `${aptDetails.floor_number || '?'} из ${aptDetails.building_floors || '?'}`)}
                                         {renderRow("Комнат", aptDetails.rooms_amount)}
                                         {renderRow("Санузел", aptDetails.bathroom_type)}
                                         {renderRow("Балкон", aptDetails.balcony_type)}
                                         {renderRow("Ремонт", aptDetails.repair_state)}
+                                        {renderRow("Состояние новое", aptDetails.is_new_condition)}
                                     </>
                                 )}
 
                                 {/* ДЛЯ ДОМОВ */}
-                                {!isApartment && houseDetails && (
+                                {isHouse && houseDetails && (
                                     <>
+                                        {renderRow("Категория", translateCategory(general.category))}
+                                        {renderRow("Год постройки", houseDetails.year_built)}
+                                        {renderRow("Материал стен", houseDetails.wall_material)}
+                                        
+                                        {renderRow("Общая площадь", houseDetails.total_area, "м²")}
+                                        {renderRow("Жилая площадь", houseDetails.living_space_area, "м²")}
+                                        {renderRow("Кухня", houseDetails.kitchen_area, "м²")}
+
                                         {renderRow("Тип объекта", houseDetails.house_type)}
                                         {renderRow("Участок", houseDetails.plot_area, "сот.")}
                                         {renderRow("Этажность", houseDetails.building_floors)}
@@ -215,6 +250,33 @@ const ObjectPage = observer(() => {
                                         {renderRow("Электричество", houseDetails.electricity)}
                                         {renderRow("Крыша", houseDetails.roof_material)}
                                         {renderRow("Готовность", houseDetails.completion_percent, "%")}
+                                        {renderRow("Состояние новое", houseDetails.is_new_condition)}
+                                    </>
+                                )}
+
+                                {isCommercial && commDetails && (
+                                    <>
+                                        {renderRow("Категория", "Коммерческая недвижимость")}
+                                        {renderRow("Вид объекта", commDetails.property_type)}
+                                        {renderRow("Расположение", commDetails.commercial_building_location)}
+                                                                                
+                                        {renderRow("Общая площадь", commDetails.total_area, "м²")}
+                                        
+                                        {renderRow("Этаж", commDetails.building_floors 
+                                            ? `${commDetails.floor_number || '?'} из ${commDetails.building_floors}` 
+                                            : commDetails.floor_number
+                                        )}
+
+                                        {/* Вывод диапазона комнат (1 или 2-5) */}
+                                        {renderRoomsRange("Кол-во помещений", commDetails.rooms_range)}
+
+                                        {renderRow("Тип аренды", commDetails.commercial_rent_type)}
+                                        {renderRow("Ремонт", commDetails.commercial_repair)}
+                                        {renderRow("Состояние новое", commDetails.is_new_condition)}
+
+                                        {commDetails.commercial_improvements && commDetails.commercial_improvements.length > 0 && (
+                                            renderRow("Удобства", commDetails.commercial_improvements.join(', '))
+                                        )}
                                     </>
                                 )}
                             </tbody>
@@ -253,7 +315,7 @@ const ObjectPage = observer(() => {
                                                     {/* Можно добавить дату или цену, если они отличаются */}
                                                     {offer.is_source_duplicate && (
                                                         <Badge bg="warning" text="dark" className="me-2" style={{fontSize: '0.7em'}}>
-                                                            Дубль источника
+                                                            Дубликат источника
                                                         </Badge>
                                                     )}
                                                     <span className="text-dark small">
@@ -284,17 +346,23 @@ const ObjectPage = observer(() => {
                         {/* КАРТОЧКА ЦЕНЫ */}
                         <Card className="shadow-sm p-4 mb-3 border-0">
                             <h2 className="text-primary fw-bold">
-                                {general.price_byn?.toLocaleString('ru-RU')} BYN
+                                {general.price_byn > 0 
+                                    ? `${general.price_byn.toLocaleString('ru-RU')} BYN` 
+                                    : "Договорная"
+                                }
                             </h2>
-                            <div className="d-flex gap-3 text-muted mb-3">
-                                <span>≈ {general.price_usd?.toLocaleString('ru-RU')} $</span>
-                                {general.price_eur && <span>≈ {general.price_eur?.toLocaleString('ru-RU')} €</span>}
-                            </div>
+                            {general.price_byn > 0 && (
+                                <div className="d-flex gap-3 text-muted mb-3">
+                                    <span>≈ {general.price_usd?.toLocaleString('ru-RU')} $</span>
+                                    {general.price_eur && <span>≈ {general.price_eur?.toLocaleString('ru-RU')} €</span>}
+                                </div>
+                            )}
                             
                             {/* Цена за квадрат */}
-                            {(isApartment && aptDetails?.price_per_square_meter) ? (
+                            {(isApartment && aptDetails?.price_per_square_meter) || 
+                            (isCommercial && commDetails?.price_per_square_meter) ? (
                                 <div className="mb-3 badge bg-light text-dark border p-2 fw-normal">
-                                    {aptDetails.price_per_square_meter} {currencySymbol} / м²
+                                    {aptDetails?.price_per_square_meter || commDetails?.price_per_square_meter} {currencySymbol} / м²
                                 </div>
                             ) : null}
 
@@ -375,6 +443,9 @@ const ObjectPage = observer(() => {
                                         <div className="text-muted small">
                                             Размещено: {new Date(general.list_time).toLocaleDateString()}
                                         </div>
+                                        <div className="text-muted small">
+                                            Обновлено: {new Date(general.updated_at).toLocaleDateString()}
+                                        </div>
                                         
                                         {/* Вставляем кнопку */}
                                         <ActualizeButton master_object_id={general.master_object_id} />
@@ -403,18 +474,97 @@ function translateCategory(cat: string) {
 
 function translateParameter(key: string) {
     const map: Record<string, string> = {
-        'flat_ceiling_height': 'Высота потолков',
-        'condition': 'Состояние',
-        're_contract': 'Договор',
-        'has_bath': 'Баня / Сауна',
-        'has_garage': 'Гараж',
-        'has_furniture': 'Мебель',
-        'is_price_haggle': 'Возможен торг',
+        // --- Общие и финансовые ---
+       
+        'flat_new_building': 'Новостройка',
+        're_contract': 'Номер договора',
         'contract': 'Номер договора',
         'agency_contract': 'Договор с агентством',
+        'is_price_haggle': 'Возможен торг',
+        'possible_exchange': 'Возможен обмен',
+        'is_auction': 'Аукцион',
+        're_auction_sale': 'Аукцион',
+        'installment_pro': 'Рассрочка',
+        'flat_rent_prepayment': 'Предоплата за аренду',
+        'leasePeriod': 'Срок аренды',
+        'lease_period': 'Срок аренды',
+        'vat': 'НДС',
+        're_property_rights': 'Права на участок',
+
+        // --- Характеристики здания и квартиры ---
+        'flat_ceiling_height': 'Высота потолков',
+        'ceiling_height': 'Высота потолков',
+        'flat_storeys': 'Этажность дома',
+        'separate_rooms': 'Раздельных комнат',
+        'studio': 'Студия',
+        'flat_open_room': 'Планировка open space',
+        'size_snb': 'Площадь по СНБ, м²',
+        'wall_material': 'Материал стен',
+        'house_roof_material_type': 'Тип материала крыши',
+        'year_built': 'Год постройки',
+
+        // --- Удобства в квартире/доме ---
+        'has_furniture': 'Мебель',
+        'flat_furnished': 'Меблирована',
+        'appliances': 'Бытовая техника',
+        'flat_kitchen': 'Кухонная техника',
+        'flat_bath': 'Оборудование в ванной',
         'has_fireplace': 'Камин',
         'has_pool': 'Бассейн',
-        'has_guest_house': 'Гостевой домик'
+        'has_bath': 'Баня / Сауна',
+
+        // --- Удобства (Территория и парковка) ---
+        'has_garage': 'Гараж',
+        'has_parking_place': 'Парковочное место',
+        'is_fenced_territory': 'Огороженная территория',
+        'has_guest_house': 'Гостевой домик',
+        're_outbuildings_size': 'Площадь хоз. построек, м²',
+
+        // --- Коммуникации ---
+        'electricity': 'Электричество',
+        'gas': 'Газ',
+        'water': 'Вода',
+        're_hot_water': 'Горячая вода',
+        'heating': 'Отопление',
+        'sewage': 'Канализация',
+
+        // --- Детали для аренды ---
+        'flat_rent_couchettes': 'Спальных мест',
+        'house_rent_couchettes': 'Спальных мест',
+        'flat_rent_for_whom': 'Предпочтения по арендаторам',
+        
+        // --- Улучшения и прочее ---
+        'flat_improvement': 'Благоустройство квартиры',
+        'house_improvements': 'Благоустройство дома',
+        'flat_building_improvements': 'Благоустройство здания',
+        'has_signaling': 'Сигнализация',
+        'has_video_intercom': 'Видеодомофон',
+        'flat_windows_side': 'Окна выходят на',
+        'views': 'Вид из окна',
+        'content_video': 'Ссылка на видео',
+        'trademark': 'Торговая марка',
+
+        // --- Адресные компоненты ---
+        'street_name': 'Улица',
+        'town_district_name': 'Район города',
+        'town_sub_district_name': 'Микрорайон',
+
+        // --- Новостройки ---
+        'new_buildings_apartment_complex': 'Жилой комплекс',
+
+        // --- Коммерческая недвижимость ---
+        'commercial_legal_address': 'Предоставление юр. адреса',
+        'provides_legal_address': 'Предоставление юр. адреса',
+        'commercial_pavilions_type': 'Тип павильона',
+        'commercial_services_type': 'Тип услуг',
+        'commercial_rent_workplace': 'Аренда рабочего места',
+        're_special_purpose': 'Специальное назначение',
+        
+        // --- Площади (для домов) ---
+        'house_sell_area': 'Продаваемая площадь, м²',
+        'house_rent_area': 'Сдаваемая площадь, м²',
+        'house_rent_near_area': 'Прилегающая территория, м²',
+        'house_rent_services': 'Услуги'
     };
     return map[key] || key; // Если перевода нет, возвращаем ключ как есть (например, formatted_parameter)
 }

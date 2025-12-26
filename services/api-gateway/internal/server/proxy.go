@@ -6,11 +6,10 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	// "strings"
 )
 
-// CreateProxy создает универсальный обратный прокси.
-// Он берет путь изначального запроса и добавляет к нему префикс.
+// CreateProxy создает универсальный обратный прокси
+// Он берет путь изначального запроса и добавляет к нему префикс
 func CreateProxy(targetURL, pathPrefix string) http.Handler {
 	target, err := url.Parse(targetURL)
 	if err != nil {
@@ -25,16 +24,14 @@ func CreateProxy(targetURL, pathPrefix string) http.Handler {
 		req.URL.Host = target.Host
 		req.Host = target.Host
 
-		// ---> ВОТ УНИФИЦИРОВАННАЯ ЛОГИКА <---
-		// Берем оригинальный путь (например, /objects/123-abc?query=1)
-		// и добавляем к нему префикс (например, /api/v1)
-		// ВАЖНО: req.URL.Path не содержит query-параметров, они в req.URL.RawQuery
+		// Берем оригинальный путь и добавляем к нему префикс
+		// req.URL.Path не содержит query-параметров, они в req.URL.RawQuery
 		req.URL.Path = pathPrefix + req.URL.Path
 
-		// 1. Извлекаем trace_id из контекста входящего запроса.
+		// Извлекаем trace_id из контекста входящего запроса
 		traceID := contextkeys.TraceIDFromContext(req.Context())
 
-		// 2. Устанавливаем его как заголовок в исходящем запросе.
+		// Устанавливаем его как заголовок в исходящем запросе
 		if traceID != "" {
 			req.Header.Set("X-Trace-ID", traceID)
 		}
@@ -52,9 +49,8 @@ func CreateSSEProxy(targetURL, pathPrefix string) http.Handler {
 
 	proxy := httputil.NewSingleHostReverseProxy(target)
 
-	// ДЛЯ SSE
-	// -1 означает: сбрасывать данные клиенту МГНОВЕННО после получения от бэкенда.
-	// Не ждать накопления буфера.
+	// -1 означает: сбрасывать данные клиенту мгновенно после получения от бэкенда
+	// Не ждать накопления буфера
 	proxy.FlushInterval = -1 
 
 	proxy.Director = func(req *http.Request) {

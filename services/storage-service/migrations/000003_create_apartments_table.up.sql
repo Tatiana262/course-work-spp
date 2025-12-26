@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS apartments (
     bathroom_type           VARCHAR(100),
     balcony_type            VARCHAR(100),
     price_per_square_meter  NUMERIC(14, 2),
+    is_new_condition        BOOLEAN,
 
     -- Все остальное, что встречается редко
     parameters              JSONB NOT NULL DEFAULT '{}'::jsonb

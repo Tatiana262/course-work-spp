@@ -8,5 +8,8 @@ const (
 	RoutingKeySearchTasksRealt = "realt.search.tasks"
 	RoutingKeySearchTasksKufar = "kufar.search.tasks"
 
-	RoutingKeyTasksResults = "task.completion.results"
+	// RoutingKeyTasksResults = "task.completion.results"
+	RoutingKeyTasksResults = "notify.task.result"
 )
+
+const MainExchange = "main_exchange"

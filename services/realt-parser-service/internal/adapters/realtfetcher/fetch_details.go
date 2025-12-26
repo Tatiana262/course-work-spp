@@ -59,12 +59,7 @@ func (a *RealtFetcherAdapter) FetchAdDetails(ctx context.Context, adURL string, 
 	})
 
 	collector.OnError(func(r *colly.Response, err error) {
-		fetchDetailsLogger.Error("Failed to fetch ad details", err, port.Fields{
-			"ad_id":  adID,
-			"url":    r.Request.URL.String(),
-			"status": r.StatusCode,
-		})
-
+		
 		if r.StatusCode == http.StatusNotFound || r.StatusCode == http.StatusGone {
 			fetchDetailsLogger.Warn("Ad is not available (404/410), creating archive record", port.Fields{"ad_id": adID})
 			// Создаем "пустой" объект-заглушку для архивации
@@ -78,6 +73,12 @@ func (a *RealtFetcherAdapter) FetchAdDetails(ctx context.Context, adURL string, 
 			// Важно! Не устанавливаем `criticalError`, так как мы успешно обработали этот случай.
 			return 
 		}
+
+		fetchDetailsLogger.Error("Failed to fetch ad details", err, port.Fields{
+			"ad_id":  adID,
+			"url":    r.Request.URL.String(),
+			"status": r.StatusCode,
+		})
 
         criticalError = fmt.Errorf("FetchAdDetails: colly error on %s: status %d: %w", adURL, r.StatusCode, err) // Сохраняем ошибку для возврата
 	})

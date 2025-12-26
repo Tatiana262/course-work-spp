@@ -78,13 +78,13 @@ func (a *TaskReporterAdapter) ReportResults(ctx context.Context, taskID uuid.UUI
 	publishCtx, cancel := context.WithTimeout(ctx, 10*time.Second) // Таймаут 10 секунд на публикацию
 	defer cancel()
 
-	adapterLogger.Info("Publishing batch save report for task", port.Fields{"stats": dto.Results})
+	adapterLogger.Debug("Publishing batch save report for task", port.Fields{"stats": dto.Results})
 	err := a.producer.Publish(publishCtx, a.routingKey, msg)
 	if err != nil {
 		adapterLogger.Error("Failed to publish report", err, nil)
 		return fmt.Errorf("rabbitmq adapter: failed to publish report for task %s: %w", taskID, err)
 	}
 
-	adapterLogger.Info("Successfully published report", nil)
+	adapterLogger.Info("Successfully published report", port.Fields{"stats": dto.Results})
 	return nil
 }

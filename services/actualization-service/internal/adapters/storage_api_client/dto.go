@@ -8,3 +8,16 @@ type PropertyInfoResponse struct {
     
     // UpdatedAt time.Time `json:"updatedAt"`
 }
+
+type DictionaryItem struct {
+    SystemName  string  `json:"system_name"`
+    DisplayName string  `json:"display_name"`
+}
+
+
+type DictionaryItemsResponse map[string][]DictionaryItemResponse
+
+type DictionaryItemResponse struct {
+	SystemName  string `json:"system_name"`
+	DisplayName string `json:"display_name"`
+}

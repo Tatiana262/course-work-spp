@@ -177,11 +177,11 @@ func (a *PostgresStorageAdapter) FindBestByMasterIDs(ctx context.Context, master
 	})
 
 	if len(masterIDs) == 0 {
-		repoLogger.Info("Received empty list of master IDs, returning empty result.", nil)
+		repoLogger.Debug("Received empty list of master IDs, returning empty result.", nil)
 		return []domain.GeneralPropertyInfo{}, nil
 	}
 
-	repoLogger.Info("Querying for best objects by master IDs.", nil)
+	repoLogger.Debug("Querying for best objects by master IDs.", nil)
 	query := `
         WITH ranked_objects AS (
             SELECT
@@ -243,14 +243,14 @@ func (a *PostgresStorageAdapter) GetPropertyDetails(ctx context.Context, propert
 		"property_id": propertyID,
 	})
 
-	repoLogger.Info("Starting to get full property details.", nil)
+	repoLogger.Debug("Starting to get full property details.", nil)
 
 	result := &domain.PropertyDetailsView{}
 	// var masterID uuid.UUID
 	// var category string
 
 	// --- Шаг 1: Получаем основное объявление и его master_id --- AND status = 'active'
-	repoLogger.Info("Querying for main property.", nil)
+	repoLogger.Debug("Querying for main property.", nil)
 	mainQuery := `SELECT master_object_id, id, source, source_ad_id, updated_at, created_at, category, ad_link, sale_type, currency, images, list_time,
 						 description, title, deal_type, city_or_district, region, price_byn, price_usd, price_eur, address, is_agency, seller_name, seller_details,
 	                     status
@@ -280,12 +280,12 @@ func (a *PostgresStorageAdapter) GetPropertyDetails(ctx context.Context, propert
 	case "apartment":
 		var details domain.Apartment
 		detailsQuery := `SELECT rooms_amount, floor_number, building_floors, total_area, living_space_area, kitchen_area, year_built,
-							wall_material, repair_state, bathroom_type, balcony_type, price_per_square_meter, parameters 
+							wall_material, repair_state, bathroom_type, balcony_type, price_per_square_meter, is_new_condition, parameters 
 		                 FROM apartments WHERE property_id = $1`
 		err := a.pool.QueryRow(ctx, detailsQuery, propertyID).Scan(
 			&details.RoomsAmount, &details.FloorNumber, &details.BuildingFloors, &details.TotalArea,
 			&details.LivingSpaceArea, &details.KitchenArea, &details.YearBuilt, &details.WallMaterial, &details.RepairState,
-			&details.BathroomType, &details.BalconyType, &details.PricePerSquareMeter, &details.Parameters,
+			&details.BathroomType, &details.BalconyType, &details.PricePerSquareMeter, &details.IsNewCondition, &details.Parameters,
 		)
 		if err != nil && err != pgx.ErrNoRows {
 			repoLogger.Error("Failed to get apartment details", err, port.Fields{"query": detailsQuery})
@@ -296,12 +296,12 @@ func (a *PostgresStorageAdapter) GetPropertyDetails(ctx context.Context, propert
 	case "house":
 		var details domain.House
 		detailsQuery := `SELECT total_area, plot_area, living_space_area, kitchen_area, year_built, building_floors, rooms_amount, 
-							wall_material, roof_material, house_type, electricity, water, heating, sewage, gaz, completion_percent, parameters 
+							wall_material, roof_material, house_type, electricity, water, heating, sewage, gaz, completion_percent, is_new_condition, parameters 
 		                 FROM houses WHERE property_id = $1`
 		err := a.pool.QueryRow(ctx, detailsQuery, propertyID).Scan(
 			&details.TotalArea, &details.PlotArea, &details.LivingSpaceArea, &details.KitchenArea, &details.YearBuilt, &details.BuildingFloors,
 			&details.RoomsAmount, &details.WallMaterial, &details.RoofMaterial, &details.HouseType, &details.Electricity, &details.Water, &details.Heating,
-			&details.Sewage, &details.Gaz, &details.CompletionPercent, &details.Parameters,
+			&details.Sewage, &details.Gaz, &details.CompletionPercent, &details.IsNewCondition, &details.Parameters,
 		)
 		if err != nil && err != pgx.ErrNoRows {
 			repoLogger.Error("Failed to get house details", err, port.Fields{"query": detailsQuery})
@@ -309,13 +309,28 @@ func (a *PostgresStorageAdapter) GetPropertyDetails(ctx context.Context, propert
 		}
 		result.Details = &details
 
+	case "commercial":
+		var details domain.Commercial
+		detailsQuery := `SELECT property_type, floor_number, building_floors, total_area, commercial_improvements, commercial_repair,
+							price_per_square_meter, rooms_range, commercial_building_location, commercial_rent_type, is_new_condition, parameters 
+		                 FROM commercial WHERE property_id = $1`
+		err := a.pool.QueryRow(ctx, detailsQuery, propertyID).Scan(
+			&details.PropertyType, &details.FloorNumber, &details.BuildingFloors, &details.TotalArea, &details.CommercialImprovements,
+			&details.CommercialRepair, &details.PricePerSquareMeter, &details.RoomsRange, &details.CommercialBuildingLocation,
+			&details.CommercialRentType, &details.IsNewCondition, &details.Parameters,
+		)
+		if err != nil && err != pgx.ErrNoRows {
+			repoLogger.Error("Failed to get commercial details", err, port.Fields{"query": detailsQuery})
+			return nil, fmt.Errorf("failed to get commercial details: %w", err)
+		}
+		result.Details = &details
 	default:
 		repoLogger.Warn("No details handler for category", port.Fields{"category": result.MainProperty.Category})
 		// ... другие case "Коммерческая" и т.д. ...
 	}
 
 	// --- Шаг 3: Получаем все связанные предложения (дубликаты) --- AND deal_type = $3
-	repoLogger.Info("Querying for related duplicate offers.", port.Fields{"master_object_id": result.MainProperty.MasterObjectID})
+	repoLogger.Debug("Querying for related duplicate offers.", port.Fields{"master_object_id": result.MainProperty.MasterObjectID})
 	relatedQuery := `SELECT id, source, ad_link, is_source_duplicate, deal_type
 	                 FROM general_properties
 	                 WHERE master_object_id = $1 AND id != $2 AND status = 'active' 
@@ -347,7 +362,6 @@ func (a *PostgresStorageAdapter) GetPropertyDetails(ctx context.Context, propert
 
 	result.RelatedOffers = relatedOffers
 	repoLogger.Info("Successfully found related offers.", port.Fields{"count": len(relatedOffers)})
-	repoLogger.Info("GetPropertyDetails completed successfully.", nil)
 
 	return result, nil
 }

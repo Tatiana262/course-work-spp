@@ -47,7 +47,7 @@ const NavBar = observer(() => {
                         </Button>
                         <Button 
                             variant={"outline-danger"} 
-                            className="me-2"
+                            className="ms-2"
                             onClick={() => navigate(FAVORITES_ROUTE)}
                         >
                             <i className="bi bi-heart-fill me-1"></i> Избранное

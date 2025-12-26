@@ -79,6 +79,7 @@ export interface IApartmentDetails {
     bathroom_type?: string;
     balcony_type?: string;
     price_per_square_meter?: number;
+    is_new_condition?: boolean;
     parameters: Record<string, any>; 
 }
 
@@ -100,6 +101,23 @@ export interface IHouseDetails {
     roof_material?: string;
     house_type?: string;
     completion_percent?: string;
+    is_new_condition?: boolean;
+    parameters: Record<string, any>; 
+}
+
+
+export interface ICommercialDetails {
+    property_type?: string;
+    floor_number?: number;
+    building_floors?: number;
+    total_area?: number;
+    commercial_improvements?: string[];
+    commercial_repair?: string;
+    price_per_square_meter?: number;
+    rooms_range?: number[];
+    commercial_building_location?: string;
+    commercial_rent_type?: string;
+    is_new_condition?: boolean;
     parameters: Record<string, any>; 
 }
 
@@ -115,6 +133,6 @@ export interface IRelatedOffer {
 // Итоговый ответ (ObjectDetailsResponse)
 export interface IObjectDetailsResponse {
     general: IObjectGeneralInfoResponse;
-    details: IApartmentDetails | IHouseDetails; // TS сам разберется, что там
+    details: IApartmentDetails | IHouseDetails | ICommercialDetails; // TS сам разберется, что там
     related_offers: IRelatedOffer[]; // Проверь JSON тег в Go: RelatedOffers -> related_offers?
 }

@@ -47,7 +47,7 @@ func (uc *ProcessLinkUseCase) Execute(ctx context.Context, linkToParse domain.Pr
 		// "task_id":  taskID,
 	})
 	
-	ucLogger.Info("Processing link", nil)
+	ucLogger.Debug("Processing link", nil)
 
 	// 1. Используем порт для парсинга деталей
 	propertyRecord, fetchErr := uc.detailsFetcher.FetchAdDetails(ctx, linkToParse.URL, linkToParse.AdID)
@@ -58,9 +58,9 @@ func (uc *ProcessLinkUseCase) Execute(ctx context.Context, linkToParse domain.Pr
 	}
 
 	if propertyRecord.General.Status == domain.StatusArchived {
-		ucLogger.Info("Successfully processed as archived.", nil)
+		ucLogger.Debug("Successfully processed as archived.", nil)
 	} else {
-		ucLogger.Info("Successfully parsed details.", port.Fields{"title": propertyRecord.General.Title})
+		ucLogger.Debug("Successfully parsed details.", port.Fields{"title": propertyRecord.General.Title})
 	}
 
 	// 2. Используем порт для отправки результата в очередь

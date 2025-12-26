@@ -61,6 +61,15 @@ type FindObjectsFilters struct {
     ElectricityConditions []string
     SewageConditions []string
     GazConditions []string
+
+    // коммерция
+    PropertyType string
+    CommercialImprovements []string
+    CommercialRepairs []string
+    CommercialLocation []string
+
+    CommercialRoomsMin *int
+    CommercialRoomsMax *int
 }
 
 // PaginatedResult - стандартная структура для ответа с пагинацией.

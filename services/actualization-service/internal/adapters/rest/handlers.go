@@ -53,25 +53,25 @@ func (h *ActualizationHandlers) HandleActualizeActiveObjects(w http.ResponseWrit
 	}
 
 	// 2. Валидируем входные данные.
-	if reqDTO.Category == "" {
-		WriteJSONError(w, http.StatusBadRequest, "Field 'category' is required")
-		return
-	}
-	if reqDTO.Limit <= 0 {
+	// if reqDTO.Category == "" {
+	// 	WriteJSONError(w, http.StatusBadRequest, "Field 'category' is required")
+	// 	return
+	// }
+	if reqDTO.LimitPerCategory <= 0 {
 		// Установим значение по умолчанию или вернем ошибку. Давайте вернем ошибку.
 		WriteJSONError(w, http.StatusBadRequest, "Field 'limit' must be a positive number")
 		return
 	}
 
 	loggerForActualize := logger.WithFields(port.Fields{
-		"limit":    reqDTO.Limit,
-		"category": reqDTO.Category,
+		"limit":    reqDTO.LimitPerCategory,
+		"category": *reqDTO.Category,
 	})
 
 	loggerForActualize.Info("Received request to actualize active objects for category", nil)
 
 	// 3. Вызываем Use Case,
-	taskID, err := h.actualizeActiveUC.Execute(r.Context(), userID, reqDTO.Category, reqDTO.Limit)
+	taskID, err := h.actualizeActiveUC.Execute(r.Context(), userID, reqDTO.Category, reqDTO.LimitPerCategory)
 	if err != nil {
 		loggerForActualize.Error("Use case execution failed", err, nil)
 		WriteJSONError(w, http.StatusInternalServerError, "Failed to start actualization process")
@@ -99,26 +99,26 @@ func (h *ActualizationHandlers) HandleActualizeArchivedObjects(w http.ResponseWr
 	}
 
 	// 2. Валидируем входные данные.
-	if reqDTO.Category == "" {
-		WriteJSONError(w, http.StatusBadRequest, "Field 'category' is required")
-		return
-	}
-	if reqDTO.Limit <= 0 {
+	// if reqDTO.Category == "" {
+	// 	WriteJSONError(w, http.StatusBadRequest, "Field 'category' is required")
+	// 	return
+	// }
+	if reqDTO.LimitPerCategory <= 0 {
 		// Установим значение по умолчанию или вернем ошибку. Давайте вернем ошибку.
 		WriteJSONError(w, http.StatusBadRequest, "Field 'limit' must be a positive number")
 		return
 	}
 
 	loggerForActualize := logger.WithFields(port.Fields{
-		"limit":    reqDTO.Limit,
-		"category": reqDTO.Category,
+		"limit":    reqDTO.LimitPerCategory,
+		"category": *reqDTO.Category,
 	})
 
 	loggerForActualize.Info("Received request to actualize archived objects for category", nil)
 
 	// 3. Вызываем Use Case, передавая ему очищенные и проверенные данные.
 	// Use Case должен принимать простые типы, а не DTO.
-	taskID, err := h.actualizeArchivedUC.Execute(r.Context(), userID, reqDTO.Category, reqDTO.Limit) // Приоритет 3 для активных
+	taskID, err := h.actualizeArchivedUC.Execute(r.Context(), userID, reqDTO.Category, reqDTO.LimitPerCategory) // Приоритет 3 для активных
 	if err != nil {
 		// Здесь могут быть разные типы ошибок от use case,
 		// например, "категория не найдена", которые можно обработать по-разному.

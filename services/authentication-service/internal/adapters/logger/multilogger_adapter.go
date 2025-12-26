@@ -37,6 +37,11 @@ func (m *MultiLoggerAdapter) Error(msg string, err error, fields port.Fields) {
 	}
 }
 
+func (m *MultiLoggerAdapter) Debug(msg string, fields port.Fields) {
+    for _, logger := range m.loggers {
+        logger.Debug(msg, fields)
+    }
+}
 // WithFields создает новый MultiLogger, где каждый из дочерних логгеров
 // также был создан с помощью WithFields. Это сохраняет контекст для всех.
 func (m *MultiLoggerAdapter) WithFields(fields port.Fields) port.LoggerPort {

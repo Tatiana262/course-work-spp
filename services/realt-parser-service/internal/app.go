@@ -107,7 +107,7 @@ func NewApp() (*App, error) {
 	})
 
 	appLogger := baseLogger.WithFields(port.Fields{"component": "app"})
-	appLogger.Info("Logger system initialized", port.Fields{
+	appLogger.Debug("Logger system initialized", port.Fields{
 		"active_loggers": len(activeLoggers), "fluent_enabled": appConfig.FluentBit.Enabled,
 	})
 
@@ -121,7 +121,7 @@ func NewApp() (*App, error) {
 		appLogger.Error("Failed to create connection manager", err, nil)
 		return nil, fmt.Errorf("failed to create connection manager: %w", err)
 	}
-	appLogger.Info("RabbitMQ Connection Manager initialized.", nil)
+	appLogger.Debug("RabbitMQ Connection Manager initialized.", nil)
 
 	// 1. Инициализация низкоуровневых зависимостей
 	dbPool, err := postgres.NewClient(context.Background(), postgres.Config{DatabaseURL: appConfig.Database.URL})
@@ -129,11 +129,11 @@ func NewApp() (*App, error) {
 		appLogger.Error("Failed to connect to PostgreSQL", err, nil)
 		return nil, fmt.Errorf("failed to connect to PostgreSQL: %w", err)
 	}
-	appLogger.Info("Successfully connected to PostgreSQL pool!", nil)
+	appLogger.Debug("Successfully connected to PostgreSQL pool!", nil)
 
 	producerCfg := rabbitmq_producer.PublisherConfig{
 		Config:                   rabbitmq_common.Config{URL: appConfig.RabbitMQ.URL},
-		ExchangeName:             "parser_exchange",
+		ExchangeName:             constants.MainExchange,
 		ExchangeType:             "direct",
 		DurableExchange:          true,
 		DeclareExchangeIfMissing: true,
@@ -145,7 +145,7 @@ func NewApp() (*App, error) {
 		dbPool.Close()
 		return nil, fmt.Errorf("failed to create event producer: %w", err)
 	}
-	appLogger.Info("RabbitMQ Event Producer initialized.", nil)
+	appLogger.Debug("RabbitMQ Event Producer initialized.", nil)
 
 	realtAdapter, err := realtfetcher.NewRealtFetcherAdapter(
 		"https://realt.by/bff/graphql",
@@ -157,28 +157,28 @@ func NewApp() (*App, error) {
 		return nil, fmt.Errorf("failed to initialize kufar fetcher: %w", err)
 	}
 
-	appLogger.Info("Kufar Fetcher Adapter initialized.", nil)
+	appLogger.Debug("Kufar Fetcher Adapter initialized.", nil)
 
 	linkQueueAdapter, _ := rabbitmq_adapter.NewRabbitMQLinkQueueAdapter(eventProducer, constants.RoutingKeyLinkTasks)
 	tasksResultsQueueAdapter, _ := rabbitmq_adapter.NewTaskReporterAdapter(eventProducer, constants.RoutingKeyTaskResults)
 	processedPropertyQueueAdapter, _ := rabbitmq_adapter.NewRabbitMQProcessedPropertyQueueAdapter(eventProducer, constants.RoutingKeyProcessedProperties)
 	pgLastRunRepo, _ := postgres_adapter.NewPostgresLastRunRepository(dbPool)
 
-	appLogger.Info("All outgoing adapters initialized.", nil)
+	appLogger.Debug("All outgoing adapters initialized.", nil)
 
 	// 3. ИНИЦИАЛИЗАЦИЯ USE CASES (ядра бизнес-логики)
 	fetchRealtUseCase := usecase.NewFetchAndEnqueueLinksUseCase(realtAdapter, linkQueueAdapter, pgLastRunRepo, "realt")
 	processLinkUseCase := usecase.NewProcessLinkUseCase(realtAdapter, processedPropertyQueueAdapter)
 	orchestrateParsingUseCase := usecase.NewOrchestrateParsingUseCase(fetchRealtUseCase, tasksResultsQueueAdapter)
-	appLogger.Info("All use cases initialized.", nil)
+	appLogger.Debug("All use cases initialized.", nil)
 
 	// 4. ИНИЦИАЛИЗАЦИЯ ВХОДЯЩИХ АДАПТЕРОВ (те, которые ВЫЗЫВАЮТ наше ядро)
 	linksConsumerCfg := rabbitmq_consumer.ConsumerConfig{
 		Config:              rabbitmq_common.Config{URL: appConfig.RabbitMQ.URL},
 		QueueName:           constants.QueueLinkTasks,
 		RoutingKeyForBind:   constants.RoutingKeyLinkTasks,
-		ExchangeNameForBind: "parser_exchange",
-		PrefetchCount:       5,
+		ExchangeNameForBind: constants.MainExchange,
+		PrefetchCount:       20,
 		DurableQueue:        true,
 		ConsumerTag:         "link-processor-adapter",
 		DeclareQueue:        true,
@@ -192,9 +192,13 @@ func NewApp() (*App, error) {
 
 		// 2. Настраиваем "сателлиты" для этой конкретной очереди.
 		// Используем имя основной очереди как префикс для уникальности.
-		RetryExchange: constants.QueueLinkTasks + "_retry_ex",
-		RetryQueue:    constants.QueueLinkTasks + "_retry_wait_10s",
-		RetryTTL:      10000, // 10 секунд в миллисекундах
+		// RetryExchange: constants.QueueLinkTasks + "_retry_ex",
+		// RetryQueue:    constants.QueueLinkTasks + "_retry_wait_10s",
+		// RetryTTL:      10000, // 10 секунд в миллисекундах
+
+		RetryExchange: constants.RetryExchange,
+		RetryQueue: constants.WaitQueue,
+		RetryTTL: constants.RetryTTL,
 
 		// 3. Указываем общую "свалку" для сообщений, исчерпавших все попытки.
 		FinalDLXExchange:   constants.FinalDLXExchange,
@@ -211,13 +215,13 @@ func NewApp() (*App, error) {
 		dbPool.Close()
 		return nil, err
 	}
-	appLogger.Info("Link Events Listener initialized.", nil)
+	appLogger.Debug("Link Events Listener initialized.", nil)
 
 	tasksConsumerCfg := rabbitmq_consumer.ConsumerConfig{
 		Config:              rabbitmq_common.Config{URL: appConfig.RabbitMQ.URL},
 		QueueName:           constants.QueueSearchTasks,
 		RoutingKeyForBind:   constants.RoutingKeySearchTasks,
-		ExchangeNameForBind: "parser_exchange",
+		ExchangeNameForBind: constants.MainExchange,
 		PrefetchCount:       1,
 		DurableQueue:        true,
 		ConsumerTag:         "search-tasks-processor-adapter",
@@ -229,9 +233,13 @@ func NewApp() (*App, error) {
 
 		// 2. Настраиваем "сателлиты" для этой конкретной очереди.
 		// Используем имя основной очереди как префикс для уникальности.
-		RetryExchange: constants.QueueSearchTasks + "_retry_ex",
-		RetryQueue:    constants.QueueSearchTasks + "_retry_wait_10s",
-		RetryTTL:      10000, // 10 секунд в миллисекундах
+		// RetryExchange: constants.QueueSearchTasks + "_retry_ex",
+		// RetryQueue:    constants.QueueSearchTasks + "_retry_wait_10s",
+		// RetryTTL:      10000, // 10 секунд в миллисекундах
+
+		RetryExchange: constants.RetryExchange,
+		RetryQueue: constants.WaitQueue,
+		RetryTTL: constants.RetryTTL,
 
 		// 3. Указываем общую "свалку" для сообщений, исчерпавших все попытки.
 		FinalDLXExchange:   constants.FinalDLXExchangeForSearchTasks,
@@ -248,7 +256,7 @@ func NewApp() (*App, error) {
 		dbPool.Close()
 		return nil, err
 	}
-	appLogger.Info("Search Events Listener initialized.", nil)
+	appLogger.Debug("Search Events Listener initialized.", nil)
 
 	// 5. Собираем приложение
 	application := &App{
@@ -291,12 +299,12 @@ func (a *App) Run() error {
 	var wg sync.WaitGroup
 
 	defer func() {
-		a.logger.Info("Shutdown sequence initiated...", nil)
+		a.logger.Debug("Shutdown sequence initiated...", nil)
 
 		// Ждем завершения всех запущенных горутин (слушателей)
-		a.logger.Info("Waiting for background processes to finish...", nil)
+		a.logger.Debug("Waiting for background processes to finish...", nil)
 		wg.Wait()
-		a.logger.Info("All background processes finished.", nil)
+		a.logger.Debug("All background processes finished.", nil)
 
 		// Теперь безопасно закрываем ресурсы
 		if a.linkEventsListener != nil {
@@ -316,12 +324,12 @@ func (a *App) Run() error {
 		}
 		if a.dbPool != nil {
 			a.dbPool.Close()
-			a.logger.Info("PostgreSQL pool closed.", nil)
+			a.logger.Debug("PostgreSQL pool closed.", nil)
 		}
 		a.logger.Info("Application shut down gracefully.", nil)
 
 		if a.fluentClient != nil {
-			a.logger.Info("Closing Fluent Bit connection...", nil)
+			a.logger.Debug("Closing Fluent Bit connection...", nil)
 			if err := a.fluentClient.Close(); err != nil {
 				log.Printf("App: Error closing fluent client: %v\n", err)
 			}
@@ -339,12 +347,12 @@ func (a *App) Run() error {
 	startListener := func(name string, listener port.EventListenerPort) {
 		defer wg.Done()
 		listenerLogger := a.logger.WithFields(port.Fields{"listener_name": name})
-		listenerLogger.Info("Starting listener...", nil)
+		listenerLogger.Debug("Starting listener...", nil)
 		if err := listener.Start(appCtx); err != nil {
 			listenerLogger.Error("Listener stopped with an unexpected error", err, nil)
 			consumerErrors <- fmt.Errorf("%s error: %w", name, err)
 		} else {
-			listenerLogger.Info("Listener stopped gracefully due to context cancellation.", nil)
+			listenerLogger.Debug("Listener stopped gracefully due to context cancellation.", nil)
 		}
 	}
 
@@ -356,7 +364,7 @@ func (a *App) Run() error {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	a.logger.Info("Application running. Waiting for signals or consumer error...", nil)
+	a.logger.Debug("Application running. Waiting for signals or consumer error...", nil)
 	select {
 	case receivedSignal := <-quit:
 		a.logger.Warn("Received signal, shutting down", port.Fields{"signal": receivedSignal.String()})

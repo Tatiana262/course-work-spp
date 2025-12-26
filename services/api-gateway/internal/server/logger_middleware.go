@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// LoggerMiddleware создает контекстный логгер для каждого запроса.
+// LoggerMiddleware создает контекстный логгер для каждого запроса
 func LoggerMiddleware(logger port.LoggerPort) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -20,7 +20,7 @@ func LoggerMiddleware(logger port.LoggerPort) func(next http.Handler) http.Handl
 				traceID = uuid.New().String()
 			}
 
-			// Создаем "чистый" логгер только с trace_id для передачи вглубь
+			// Создаем чистый логгер только с trace_id для передачи вглубь
 			coreLogger := logger.WithFields(port.Fields{"trace_id": traceID})
 
 			// Создаем HTTP-логгер для логов самого middleware

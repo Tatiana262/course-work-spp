@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS houses (
     gaz                     VARCHAR(100),
 
     completion_percent      SMALLINT, 
+    is_new_condition        BOOLEAN,
 
     -- "Карман" для редко встречающихся или неструктурированных параметров.
     -- JSONB является бинарным форматом, он быстрее и поддерживает индексацию.

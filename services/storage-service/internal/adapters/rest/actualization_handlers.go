@@ -12,17 +12,20 @@ type ActualiztionObjectsHandler struct {
     getActiveObjectsUC usecases_port.GetActiveObjectsUseCase
 	getArchivedObjectsUC usecases_port.GetArchivedObjectsUseCase
 	getObjectByIDUC usecases_port.GetObjectByIDUseCase
+	getActualizationStatsUC usecases_port.GetActualizationStats
 }
 
 
 
 func NewActualizationHandlers(getActiveObjectsUC usecases_port.GetActiveObjectsUseCase, 
 						getArchivedObjectsUC usecases_port.GetArchivedObjectsUseCase,
-						getObjectByIDUC usecases_port.GetObjectByIDUseCase) *ActualiztionObjectsHandler {
+						getObjectByIDUC usecases_port.GetObjectByIDUseCase,
+						getActualizationStatsUC usecases_port.GetActualizationStats) *ActualiztionObjectsHandler {
     return &ActualiztionObjectsHandler{
 		getActiveObjectsUC: getActiveObjectsUC,
 		getArchivedObjectsUC: getArchivedObjectsUC,
 		getObjectByIDUC: getObjectByIDUC,
+		getActualizationStatsUC: getActualizationStatsUC,
 	}
 }
 
@@ -164,4 +167,34 @@ func (h *ActualiztionObjectsHandler) GetObjectsByMasterID(w http.ResponseWriter,
 
 	handlerLogger.Info("Successfully found objects", port.Fields{"count": len(response)})
 	RespondWithJSON(w, http.StatusOK, response) // Используем хелпер для отправки
+}
+
+
+func(h *ActualiztionObjectsHandler) GetActualizationStats(w http.ResponseWriter, r *http.Request) {
+	logger := contextkeys.LoggerFromContext(r.Context())
+
+	handlerLogger := logger.WithFields(port.Fields{
+		"handler": "GetActualizationStats",
+	})
+
+	stats, err := h.getActualizationStatsUC.Execute(r.Context())
+    if err != nil {
+		handlerLogger.Error("Use case failed", err, nil)
+		WriteJSONError(w, http.StatusInternalServerError, fmt.Sprintf("GetActualizationStatsHandler: failed to get actualization stats: %v", err))
+        return
+    }
+
+	statsResp := make([]StatsByCategoryResponse, len(stats))
+	for i, stat := range(stats) {
+		statsResp[i] = StatsByCategoryResponse{
+			DisplayName: stat.DisplayName,
+			SystemName: stat.SystemName,
+			ActiveCount: stat.ActiveCount,
+			ArchivedCount: stat.ArchivedCount,
+		}
+	}
+
+	
+	handlerLogger.Info("Successfully get stats", nil)
+	RespondWithJSON(w, http.StatusOK, statsResp) // Используем хелпер для отправки
 }

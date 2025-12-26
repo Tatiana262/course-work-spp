@@ -15,6 +15,8 @@ type LoggerPort interface {
 	// Error записывает ошибку, обычно вместе с объектом error.
 	Error(msg string, err error, fields Fields)
 
+	Debug(msg string, fields Fields)
+
 	// WithFields создает новый экземпляр логгера с уже добавленными полями.
 	// Это полезно для добавления контекста (например, request_id).
 	WithFields(fields Fields) LoggerPort

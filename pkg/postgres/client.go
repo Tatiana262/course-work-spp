@@ -3,17 +3,12 @@ package postgres
 import (
 	"context"
 	"fmt"
-	// "log"
-
-	// "github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool" // pgxpool для пула соединений
-	// "github.com/twpayne/pgx-geom"
+	"github.com/jackc/pgx/v5/pgxpool" 
 )
 
 // Config хранит конфигурацию для подключения к PostgreSQL
 type Config struct {
-	DatabaseURL string // Например, "postgres://user:password@host:port/dbname?sslmode=disable"
-	// Можно добавить параметры для пула:
+	DatabaseURL string // "postgres://user:password@host:port/dbname?sslmode=disable"
 	// MaxConns int32
 	// MinConns int32
 	// MaxConnLifetime time.Duration
@@ -31,19 +26,8 @@ func NewClient(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("failed to parse database URL: %w", err)
 	}
 
-	// Можно установить дополнительные параметры для пула, если они есть в cfg
 	// if cfg.MaxConns > 0 {
 	// 	poolConfig.MaxConns = cfg.MaxConns
-	// }
-
-	// // --- 2. РЕГИСТРАЦИЯ ТИПОВ POSTGIS ---
-	// poolConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
-	// 	// Передаем и контекст, и соединение, как того требует функция
-	// 	if err := pgxgeom.Register(ctx, conn); err != nil { // <--- ИСПРАВЛЕНО
-	// 		return fmt.Errorf("failed to register pgxgeom types: %w", err)
-	// 	}
-	// 	log.Println("pgxgeom types registered successfully for new connection.")
-	// 	return nil
 	// }
 
 	// Подключаемся к базе данных, используя конфигурацию пула

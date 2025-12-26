@@ -6,7 +6,7 @@ import (
 )
 
 // MultiLoggerAdapter реализует LoggerPort, перенаправляя вызовы
-// на несколько других логгеров.
+// на несколько других логгеров
 type MultiLoggerAdapter struct {
 	loggers []port.LoggerPort
 }
@@ -37,17 +37,20 @@ func (m *MultiLoggerAdapter) Error(msg string, err error, fields port.Fields) {
 	}
 }
 
+func (m *MultiLoggerAdapter) Debug(msg string, fields port.Fields) {
+    for _, logger := range m.loggers {
+        logger.Debug(msg, fields)
+    }
+}
+
 // WithFields создает новый MultiLogger, где каждый из дочерних логгеров
-// также был создан с помощью WithFields. Это сохраняет контекст для всех.
+// также был создан с помощью WithFields
 func (m *MultiLoggerAdapter) WithFields(fields port.Fields) port.LoggerPort {
-	// Создаем новый срез для "обогащенных" логгеров
 	enrichedLoggers := make([]port.LoggerPort, 0, len(m.loggers))
 
 	for _, logger := range m.loggers {
-		// Каждый дочерний логгер получает свой собственный обогащенный экземпляр
 		enrichedLoggers = append(enrichedLoggers, logger.WithFields(fields))
 	}
 
-	// Возвращаем новый экземпляр MultiLogger с уже обогащенными дочерними логгерами
 	return &MultiLoggerAdapter{loggers: enrichedLoggers}
 }

@@ -88,7 +88,7 @@ func NewApp() (*App, error) {
 	})
 
 	appLogger := baseLogger.WithFields(port.Fields{"component": "app"})
-	appLogger.Info("Logger system initialized", port.Fields{
+	appLogger.Debug("Logger system initialized", port.Fields{
 		"active_loggers": len(activeLoggers), "fluent_enabled": appConfig.FluentBit.Enabled,
 	})
 
@@ -98,7 +98,7 @@ func NewApp() (*App, error) {
 		appLogger.Error("Failed to connect to PostgreSQL", err, nil)
 		return nil, fmt.Errorf("failed to connect to PostgreSQL: %w", err)
 	}
-	appLogger.Info("Successfully connected to PostgreSQL pool!", nil)
+	appLogger.Debug("Successfully connected to PostgreSQL pool!", nil)
 
 	postgresStorageAdapter, err := postgres_adapter.NewPostgresFavoritesRepository(dbPool)
 	if err != nil {
@@ -108,14 +108,14 @@ func NewApp() (*App, error) {
 	}
 
 	storageClient := storage_api_client.NewStorageServiceAPIClient(appConfig.ApiClient.STORAGE_PORT)
-	appLogger.Info("All persistence and service adapters initialized.", nil)
+	appLogger.Debug("All persistence and service adapters initialized.", nil)
 
 	// ИНИЦИАЛИЗАЦИЯ USE CASES (ядра бизнес-логики)
 	addToFavoritesUseCase := usecase.NewAddToFavoritesUseCase(postgresStorageAdapter)
 	removeFromFavoritesUseCase := usecase.NewRemoveFromFavoritesUseCase(postgresStorageAdapter)
 	getUserFavoritesUseCase := usecase.NewGetUserFavoritesUseCase(postgresStorageAdapter, storageClient)
 	getUserFavoritesIdsUseCase := usecase.NewGetUserFavoritesIdsUseCase(postgresStorageAdapter)
-	appLogger.Info("REST API server configured.", nil)
+	appLogger.Debug("REST API server configured.", nil)
 
 	// REST API Server
 	apiHandlers := rest.NewFavoritesHandler(addToFavoritesUseCase, removeFromFavoritesUseCase, getUserFavoritesUseCase, getUserFavoritesIdsUseCase)
@@ -142,7 +142,7 @@ func (a *App) Run() error {
 	//defer cancelApp()
 
 	defer func() {
-		a.logger.Info("Shutdown sequence initiated...", nil)
+		a.logger.Debug("Shutdown sequence initiated...", nil)
 
 		if a.apiServer != nil {
 			if err := a.apiServer.Stop(context.Background()); err != nil {
@@ -152,7 +152,7 @@ func (a *App) Run() error {
 
 		if a.dbPool != nil {
 			a.dbPool.Close()
-			a.logger.Info("PostgreSQL pool closed.", nil)
+			a.logger.Debug("PostgreSQL pool closed.", nil)
 		}
 
 		a.logger.Info("Application shut down gracefully.", nil)
@@ -169,7 +169,7 @@ func (a *App) Run() error {
 
 	serverErrors := make(chan error, 1)
 	go func() {
-		a.logger.Info("Starting HTTP server...", port.Fields{"port": a.config.Rest.PORT})
+		a.logger.Debug("Starting HTTP server...", port.Fields{"port": a.config.Rest.PORT})
 		if err := a.apiServer.Start(); err != nil && err != http.ErrServerClosed {
 			serverErrors <- err
 		}
@@ -179,7 +179,7 @@ func (a *App) Run() error {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	a.logger.Info("Application running. Waiting for signals or server error...", nil)
+	a.logger.Debug("Application running. Waiting for signals or server error...", nil)
 	select {
 	case receivedSignal := <-quit:
 		a.logger.Warn("Received OS signal, shutting down...", port.Fields{"signal": receivedSignal.String()})

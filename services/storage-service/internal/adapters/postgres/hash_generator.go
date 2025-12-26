@@ -3,10 +3,13 @@ package postgres
 import (
 	"crypto/sha256"
 	"fmt"
+	"math"
+
 	// "regexp"
 	// "sort"
 	"storage-service/internal/core/domain"
 	"strings"
+
 	"github.com/mmcloughlin/geohash"
 )
 
@@ -31,7 +34,11 @@ func normalizeAreaToBucket(area *float64, bucketSize float64) string {
     if bucketSize <= 0 {
         bucketSize = 1.0 // Защита от деления на ноль
     }
-    bucketIndex := int(*area / bucketSize)
+   
+    value := *area / bucketSize
+    roundedValue := math.Round(value)
+	bucketIndex := int(roundedValue)
+
     return fmt.Sprintf("%d", bucketIndex)
 }
 
@@ -91,16 +98,17 @@ func buildHashPayload(rec domain.RealEstateRecord) string {
 	// Дом: Площадь дома, комнаты, площадь участка. Можно ещё AreaLiving
 	case *domain.House:
 		addPart(normalizeAreaToBucket(d.TotalArea, 2.0))
-		addPart(normalizeAreaToBucket(d.PlotArea, 2.0))
-		addInt(d.RoomsAmount)
-		addString(d.HouseType)
+		addInt(d.RoomsAmount) // ?	
+		// addPart(normalizeAreaToBucket(d.PlotArea, 2.0))
+		// addString(d.HouseType)
 		fmt.Println(strings.Join(parts, "|"), rec.General.ID)
 		
 		
 	// Коммерческая недвижимость: Тип, площадь, этаж.
 	case *domain.Commercial:
-		addString(d.PropertyType)
-		addFloat(d.TotalArea)
+		addPart(normalizeAreaToBucket(d.TotalArea, 2.0))
+		
+		// addString(d.PropertyType)
 		// addInt(d.FloorNumber)
 		// addInt(d.BuildingFloors)
 

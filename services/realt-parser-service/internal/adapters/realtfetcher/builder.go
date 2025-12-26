@@ -19,7 +19,7 @@ type Pagination struct {
 	PageSize int `json:"pageSize"` 
 }
 type AddressV2 struct { 
-	TownUuid string `json:"townUuid"` 
+	RegionUuid string `json:"stateRegionUuid"` 
 }
 type Where struct {
 	AddressList      []AddressV2 `json:"addressV2"`
@@ -47,7 +47,7 @@ func buildGraphQLVariables(criteria domain.SearchCriteria) RequestVariables {
 	return RequestVariables{
 		Data: Data{
 			Where: Where{
-				AddressList:      []AddressV2{{TownUuid: criteria.LocationUUID}},
+				AddressList:      []AddressV2{{RegionUuid: criteria.LocationUUID}},
 				Category:         criteria.Category,
 				ObjectCategory:   criteria.ObjectCategory,
 				ObjectType: 	  criteria.ObjectType,	

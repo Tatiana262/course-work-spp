@@ -62,7 +62,7 @@ func (c *Client) CreateTask(ctx context.Context, name, taskType string, userID u
 	reqBody, _ := json.Marshal(req)
 
 	url := c.baseURL + "/api/v1/tasks"
-	clientLogger.Info("Sending request to create task", port.Fields{"url": url, "task_name": name, "task_request": req})
+	clientLogger.Debug("Sending request to create task", port.Fields{"url": url, "task_name": name, "task_request": req})
 
 	resp, err := c.doRequest(ctx, http.MethodPost, url, bytes.NewBuffer(reqBody))
 	if err != nil {
@@ -116,7 +116,7 @@ func (c *Client) UpdateTaskStatus(ctx context.Context, taskID uuid.UUID, status 
 	reqBody, _ := json.Marshal(updateTaskRequest{Status: status})
 
 	url := fmt.Sprintf("%s/api/v1/tasks/%s", c.baseURL, taskID.String())
-	clientLogger.Info("Sending request to update task status", port.Fields{"url": url, "new_status": status})
+	clientLogger.Debug("Sending request to update task status", port.Fields{"url": url, "new_status": status})
 
 	resp, err := c.doRequest(ctx, http.MethodPut, url, bytes.NewBuffer(reqBody))
 	if err != nil {

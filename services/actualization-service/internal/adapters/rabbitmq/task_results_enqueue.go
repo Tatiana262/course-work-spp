@@ -7,21 +7,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"real-estate-system/pkg/rabbitmq/rabbitmq_producer" // Ваш пакет
-
-	// "log"
+	"real-estate-system/pkg/rabbitmq/rabbitmq_producer"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-// TaskManagerPublisher - реализация порта для RabbitMQ.
+// TaskManagerPublisher - реализация порта TaskResultsPort для RabbitMQ
 type TaskManagerPublisher struct {
 	producer   *rabbitmq_producer.Publisher
 	routingKey string
 }
 
-// NewTaskManagerPublisher - конструктор.
+// NewTaskManagerPublisher - конструктор
 func NewTaskManagerPublisher(producer *rabbitmq_producer.Publisher, routingKey string) (*TaskManagerPublisher, error) {
 	if producer == nil {
 		return nil, fmt.Errorf("rabbitmq adapter: producer cannot be nil")
@@ -31,11 +29,11 @@ func NewTaskManagerPublisher(producer *rabbitmq_producer.Publisher, routingKey s
 	}
 	return &TaskManagerPublisher{
 		producer:   producer,
-		routingKey: routingKey, // Например, "tasks.management"
+		routingKey: routingKey,
 	}, nil
 }
 
-// PublishCompletionCommand отправляет команду в task_management_queue.
+
 func (a *TaskManagerPublisher) PublishCompletionCommand(ctx context.Context, cmd domain.TaskCompletionCommand) error {
 
 	logger := contextkeys.LoggerFromContext(ctx)
@@ -59,23 +57,22 @@ func (a *TaskManagerPublisher) PublishCompletionCommand(ctx context.Context, cmd
 		Headers:      make(amqp.Table),
 	}
 
-	// 2. Извлекаем trace_id из контекста и кладем в заголовки
+	// Извлекаем trace_id из контекста и кладем в заголовки
 	traceID := contextkeys.TraceIDFromContext(ctx)
 	if traceID != "" {
 		msg.Headers["x-trace-id"] = traceID
 	}
 
-	// Устанавливаем таймаут на операцию публикации, если контекст его не предоставляет
 	publishCtx, cancel := context.WithTimeout(ctx, 10*time.Second) // Таймаут 10 секунд на публикацию
 	defer cancel()
 
-	adapterLogger.Info("Publishing completion command", port.Fields{"expected_results": cmd.ExpectedResultsCount})
+	adapterLogger.Debug("Publishing completion command", nil)
 	err = a.producer.Publish(publishCtx, a.routingKey, msg)
 	if err != nil {
 		adapterLogger.Error("Failed to publish completion command", err, nil)
 		return fmt.Errorf("rabbitmq adapter: failed to publish completion command for task %s: %w", cmd.TaskID, err)
 	}
 
-	adapterLogger.Info("Successfully published completion command", nil)
+	adapterLogger.Info("Successfully published completion command", port.Fields{"expected_results": cmd.Results})
 	return nil
 }

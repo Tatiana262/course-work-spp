@@ -9,12 +9,11 @@ type Logger interface {
 
 type noopLogger struct{}
 
-func (l *noopLogger) Debug(msg string, keysAndValues ...interface{}) {}
-func (l *noopLogger) Info(msg string, keysAndValues ...interface{})  {}
-func (l *noopLogger) Warn(msg string, keysAndValues ...interface{})  {}
+func (l *noopLogger) Debug(msg string, keysAndValues ...interface{})            {}
+func (l *noopLogger) Info(msg string, keysAndValues ...interface{})             {}
+func (l *noopLogger) Warn(msg string, keysAndValues ...interface{})             {}
 func (l *noopLogger) Error(err error, msg string, keysAndValues ...interface{}) {}
 
-// NewNoopLogger returns a logger that performs no operations.
 func NewNoopLogger() Logger {
 	return &noopLogger{}
 }

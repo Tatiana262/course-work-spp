@@ -18,3 +18,12 @@ const (
     FinalDLQ           = "processed_properties_final_dlq"
     FinalDLQRoutingKey = "properties.dlq.key"
 )
+
+const MainExchange = "main_exchange"
+
+
+const (
+	RetryExchange = "shared_retry_exchange"
+	WaitQueue     = "shared_wait_10s"
+	RetryTTL      = 10000 // 10 секунд
+)

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Table, ProgressBar, Badge, Spinner, Button, Modal } from 'react-bootstrap';
 import { fetchTasks, subscribeToTasks } from '../../http/adminAPI';
 import type { ITask } from '../../types/task';
+import TaskDetailsModal from './TaskDetailsModal';
 
 const TaskMonitor = () => {
     const [tasks, setTasks] = useState<ITask[]>([]);
@@ -12,8 +13,22 @@ const TaskMonitor = () => {
     const [selectedTask, setSelectedTask] = useState<ITask | null>(null);
 
     useEffect(() => {
+        // 1. Загружаем сразу при монтировании компонента (вход на страницу)
         loadTasks();
-    }, []);
+
+        // 2. Настраиваем слушатель фокуса (возвращение на вкладку)
+        const onFocus = () => {
+            // Можно добавить проверку: если сейчас loading=true, то не запускать второй раз
+            loadTasks();
+        };
+
+        window.addEventListener("focus", onFocus);
+
+        // 3. Чистим слушатель при выходе
+        return () => {
+            window.removeEventListener("focus", onFocus);
+        };
+    }, []); // Пустой массив зависимостей = выполняется 1 раз при старте
 
     const loadTasks = () => {
         fetchTasks(1, 20)
@@ -52,6 +67,7 @@ const TaskMonitor = () => {
             () => {
                 // onConnect (НОВЫЙ КОЛБЭК)
                 setConnected(true); // Ставим Live сразу при подключении!
+                loadTasks(); 
             }
         );
         return () => {
@@ -65,21 +81,22 @@ const TaskMonitor = () => {
         if (task.status === 'completed') return 100;
         if (!task.result_summary) return 0;
         
-        let processed: number, expected: number 
+        const { total_processed, expected_results_count, new_links_found } = task.result_summary;
+        
+        if (!expected_results_count || expected_results_count <= 0) return 0;
+        
+        let denumerator;
         if (task.type === 'FIND_NEW') {
-            const { total_processed, new_links_found } = task.result_summary;
-            processed = total_processed
-            expected = new_links_found
-        } else {
-            const { total_processed, expected_results_count } = task.result_summary;
-            processed = total_processed
-            expected = expected_results_count
+            denumerator = new_links_found ?? 0;
+        } 
+        else {
+            denumerator = expected_results_count ?? 0;
         }
         
-        if (!expected || expected <= 0) return 0; // Защита от деления на 0
+        const percent = (total_processed / denumerator) * 100;
         
-        const percent = (processed / expected) * 100;
-        return Math.min(Math.round(percent), 100); // Не больше 100%
+        if (Number.isNaN(percent)) return 0;
+        return Math.min(Math.round(percent), 100);
     };
 
     const getStatusBadge = (status: string) => {
@@ -125,20 +142,24 @@ const TaskMonitor = () => {
                             return (
                                 <tr key={task.id}>
                                     <td>
-                                        <div className="fw-bold small">{task.name || task.type}</div>
+                                        <div className="fw-bold small">{task.name}</div>
                                         <div className="text-muted" style={{fontSize: '0.7rem'}}>{task.id}</div>
                                     </td>
                                     <td>
-                                        {/* Ваш badge */}
-                                        <Badge bg={task.status === 'completed' ? 'success' : task.status === 'running' ? 'primary' : task.status === 'failed' ? 'danger' : 'secondary'}>
-                                            {task.status}
-                                        </Badge>
+                                        {getStatusBadge(task.status)}
                                     </td>
                                     <td>
                                         {task.status === 'running' ? (
-                                            <ProgressBar animated now={progress} label={`${progress}%`} variant={progress < 100 ? "info" : "success"} />
+                                            progress > 0 ? (
+                                                <ProgressBar animated now={progress} label={`${progress}%`} variant={progress < 100 ? "info" : "success"} />
+                                            ) : (
+                                                // Если задача запущена, но прогресс пока 0 - показываем "Запуск..."
+                                                <ProgressBar animated now={100} label="Запуск..." variant="secondary" striped />
+                                            )
                                         ) : task.status === 'completed' ? (
                                             <ProgressBar variant="success" now={100} label="100%" />
+                                        ) : task.status === 'failed' ? (
+                                            <span className="text-muted small">Ошибка</span>
                                         ) : (
                                             <span className="text-muted small">Ожидание...</span>
                                         )}
@@ -146,12 +167,12 @@ const TaskMonitor = () => {
                                     <td className="small">
                                         {summary && (
                                             <div style={{fontSize: '0.75rem'}}>
-                                                {summary.created > 0 && <div className="text-success">+{summary.created} новыx</div>}
-                                                {summary.updated > 0 && <div className="text-primary">~{summary.updated} обн.</div>}
-                                                {/* Защита от undefined */}
+                                                {(summary.created ?? 0) > 0 && <div className="text-success">+{summary.created} новых</div>}
+                                                {(summary.updated ?? 0) > 0 && <div className="text-primary">~{summary.updated} обн.</div>}
+                                                {(summary.archived ?? 0) > 0 && <div className="text-secondary">-{summary.archived} архив</div>}
                                                 {task.type === 'FIND_NEW' 
-                                                    ? `${summary.total_processed} (Новых: ${summary.new_links_found})` 
-                                                    : `${summary.total_processed} / ${summary.expected_results_count}`
+                                                    ? `${summary.total_processed ?? 0} / ${summary.new_links_found ?? 0}` 
+                                                    : `${summary.total_processed ?? 0} / ${summary.expected_results_count ?? 0}`
                                                 }
                                               
                                             </div>
@@ -162,7 +183,7 @@ const TaskMonitor = () => {
                                     </td>
                                     <td>
                                         <Button size="sm" variant="outline-secondary" onClick={() => setSelectedTask(task)} style={{fontSize: '0.7rem'}}>
-                                            JSON
+                                            Детали
                                         </Button>
                                     </td>
                                 </tr>
@@ -172,12 +193,17 @@ const TaskMonitor = () => {
                 </Table>
             )}
             
-            <Modal show={!!selectedTask} onHide={() => setSelectedTask(null)} size="lg">
+            {/* <Modal show={!!selectedTask} onHide={() => setSelectedTask(null)} size="lg">
                 <Modal.Header closeButton><Modal.Title>Детали</Modal.Title></Modal.Header>
                 <Modal.Body>
                     <pre className="bg-light p-2 small">{JSON.stringify(selectedTask, null, 2)}</pre>
                 </Modal.Body>
-            </Modal>
+            </Modal> */}
+            <TaskDetailsModal 
+                show={!!selectedTask} 
+                onHide={() => setSelectedTask(null)} 
+                task={selectedTask} 
+            />
         </div>
     );
 };

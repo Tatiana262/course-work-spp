@@ -75,10 +75,18 @@ const REObjectItem: React.FC<PropertyItemProps> = ({ property, isFavoritePage, o
 
                     <div className="mt-2">
                         <h4 className="text-primary">
-                            {property.price_byn?.toLocaleString('ru-RU')} BYN
-                            <span className="text-muted fs-6 ms-2">
-                                (~{property.price_usd?.toLocaleString('ru-RU')} $)
-                            </span>
+                            {property.price_byn > 0 ? (
+                                <>
+                                    {/* Если цена есть */}
+                                    {property.price_byn.toLocaleString('ru-RU')} BYN
+                                    <span className="text-muted fs-6 ms-2">
+                                        (~{property.price_usd?.toLocaleString('ru-RU')} $)
+                                    </span>
+                                </>
+                            ) : (
+                                /* Если цены нет (0) */
+                                "Договорная"
+                            )}
                         </h4>
                     </div>
 

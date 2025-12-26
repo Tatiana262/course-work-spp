@@ -37,17 +37,15 @@ const Favorites = observer(() => {
         }
     }, [user.isAuth, page]);
 
-    console.log("!!!!!")
+    
     favorites.forEach((fav) => {
         console.log(fav.master_object_id)
     })
-    console.log("!!!!!")
+ 
     actualization.updates.forEach((val, key)=>{
         console.log(key)
     })
-    console.log("********")
-    
-    console.log("********")
+   
 
     useEffect(() => {
         // Этот эффект сработает, когда в сторе изменится version (кто-то обновился)

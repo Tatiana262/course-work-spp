@@ -32,4 +32,5 @@ type noopLogger struct{}
 func (n *noopLogger) Info(msg string, fields port.Fields)             {}
 func (n *noopLogger) Warn(msg string, fields port.Fields)             {}
 func (n *noopLogger) Error(msg string, err error, fields port.Fields) {}
+func (n *noopLogger) Debug(msg string, fields port.Fields)			  {}
 func (n *noopLogger) WithFields(fields port.Fields) port.LoggerPort   { return n }

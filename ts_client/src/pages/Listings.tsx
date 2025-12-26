@@ -26,18 +26,20 @@ const Listings = () => {
         
         // Перебираем все ключи, которые есть в URL
         searchParams.forEach((value, key) => {
-            // Если ключ входит в список массивов (например, rooms)
-            // @ts-ignore
-            if (ARRAY_KEYS.includes(key)) {
-                // Если массив еще не создан, создаем
-                if (!params[key]) {
-                    // Используем getAll, чтобы получить ВСЕ значения ['1', '2']
-                    params[key] = searchParams.getAll(key);
-                }
-            } else {
-                // Обычные поля (category, priceMin)
-                params[key] = value;
-            }
+            // // Если ключ входит в список массивов (например, rooms)
+            // // @ts-ignore
+            // if (ARRAY_KEYS.includes(key)) {
+            //     // Если массив еще не создан, создаем
+            //     if (!params[key]) {
+            //         // Используем getAll, чтобы получить ВСЕ значения ['1', '2']
+            //         params[key] = searchParams.getAll(key);
+            //     }
+            // } else {
+            //     // Обычные поля (category, priceMin)
+            //     params[key] = value;
+            // }
+            if (key === 'page') return;
+            params[key] = value;
         });
 
         // Пагинация
@@ -70,7 +72,11 @@ const Listings = () => {
             if (value === '' || value === null || (Array.isArray(value) && value.length === 0)) {
                 return;
             }
-            params[key] = value;
+            if (Array.isArray(value)) {
+                params[key] = value.join(','); 
+            } else {
+                params[key] = value;
+            }
         });
         
         // Сбрасываем на 1 страницу при новом поиске

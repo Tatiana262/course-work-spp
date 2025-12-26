@@ -80,17 +80,22 @@ func (a *KufarFetcherAdapter) buildURLFromCriteria(criteria domain.SearchCriteri
 	if criteria.Cursor != "" {
 		q.Set("cursor", criteria.Cursor)
 	}
+	if criteria.Query != "" {
+		q.Set("bkbt", criteria.Query)
+	}
 
 	// FOR DEBUG
 	//можно добавить query параметры для тестирования, например rms=v.or%3A5
 
 	// для квартир
-	q.Set("rms", "v.or:5")
+	// q.Set("rms", "v.or:1")
 
 	// для домов
 	// q.Set("rms", "v.or:5")
 	// q.Set("prc", "r:0,20000000")
 	
+	// для коммерческой
+	// q.Set("prc", "r:1000,2000")
 
 	u.RawQuery = q.Encode()
 	return u.String(), nil
@@ -116,7 +121,7 @@ func (a *KufarFetcherAdapter) FetchLinks(ctx context.Context, criteria domain.Se
 	}
 
 	collector.OnRequest(func(r *colly.Request) {
-		fetchLinksLogger.Info("Making request to fetch links", port.Fields{
+		fetchLinksLogger.Debug("Making request to fetch links", port.Fields{
 			"url": r.URL.String(),
 		})
 	})
@@ -148,7 +153,7 @@ func (a *KufarFetcherAdapter) FetchLinks(ctx context.Context, criteria domain.Se
 
 				// Если объявление старше или равно 'since', устанавливаем флаг остановки и прекращаем цикл.
 				if !since.IsZero() && (listedAt.Before(since) || listedAt.Equal(since)) {
-					fetchLinksLogger.Info("Reached the 'since' date cutoff", port.Fields{ // <-- Используем logger
+					fetchLinksLogger.Debug("Reached the 'since' date cutoff", port.Fields{ // <-- Используем logger
 						"since_date": since.Format(time.RFC3339),
 						"ad_link":    ad.AdLink,
 					})
@@ -193,7 +198,9 @@ func (a *KufarFetcherAdapter) FetchLinks(ctx context.Context, criteria domain.Se
 	}
 
 	if stopProcessing {
-		fetchLinksLogger.Info("Link processing stopped due to 'since' date.", nil)
+		fetchLinksLogger.Info("Link processing stopped due to 'since' date.", port.Fields{
+			"since": since,
+		})
 		nextCursor = "" // Не переходим дальше, если остановились
 	}
 	

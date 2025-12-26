@@ -8,24 +8,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"real-estate-system/pkg/rabbitmq/rabbitmq_producer"
-
-	// "log"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-// RabbitMQLinkQueueAdapter реализует интерфейс PropertyLinkQueuePort для RabbitMQ.
+// RabbitMQLinkQueueAdapter реализует интерфейс LinksSearchQueuePort для RabbitMQ
 type RabbitMQLinksSearchQueueAdapter struct {
 	producer *rabbitmq_producer.Publisher
 
-	// Можно добавить ExchangeName, если он не задан глобально в producer'е
-	// exchangeName string
 }
 
-// NewRabbitMQLinkQueueAdapter создает новый экземпляр RabbitMQLinkQueueAdapter.
-// producer - это уже инициализированный экземпляр вашего rabbitmq_producer.Publisher.
-// routingKey - ключ, с которым будут публиковаться сообщения
 func NewRabbitMQLinksSearchQueueAdapter(producer *rabbitmq_producer.Publisher) (*RabbitMQLinksSearchQueueAdapter, error) {
 	if producer == nil {
 		return nil, fmt.Errorf("rabbitmq adapter: producer cannot be nil")
@@ -58,25 +51,26 @@ func (a *RabbitMQLinksSearchQueueAdapter) PublishTask(ctx context.Context, task 
 		Body:         taskJSON,
 		DeliveryMode: amqp.Persistent, // Для сохранения сообщений при перезапуске брокера
 		Timestamp:    time.Now(),
+		Priority: 	  task.Priority,
 		Headers:      make(amqp.Table),
 	}
 
-	// 2. Извлекаем trace_id из контекста и кладем в заголовки
+	// Извлекаем trace_id из контекста и кладем в заголовки
 	traceID := contextkeys.TraceIDFromContext(ctx)
 	if traceID != "" {
 		msg.Headers["x-trace-id"] = traceID
 	}
 
-	// Устанавливаем таймаут на операцию публикации, если контекст его не предоставляет
 	publishCtx, cancel := context.WithTimeout(ctx, 10*time.Second) // Таймаут 10 секунд на публикацию
 	defer cancel()
 
-	adapterLogger.Info("Publishing new links search task", nil)
+	adapterLogger.Debug("Publishing new links search task", nil)
 	err = a.producer.Publish(publishCtx, task.RoutingKey, msg)
 	if err != nil {
 		adapterLogger.Error("Failed to publish new links search task", err, nil)
+		return err
 	}
 
-	adapterLogger.Info("Successfully published task", nil)
+	adapterLogger.Debug("Successfully published task", nil)
 	return nil
 }

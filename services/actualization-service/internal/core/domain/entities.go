@@ -7,6 +7,7 @@ import "github.com/google/uuid"
 const (
 	ACTUALIZE_ARCHIVED = 1
 	ACTUALIZE_ACTIVE   = 2
+	FIND_NEW_OBJECTS = 3
 	ACTUALIZE_OBJECT   = 4
 )
 
@@ -18,7 +19,7 @@ const (
 // Задача, которую мы отправляем в RabbitMQ
 type ActualizationTask struct {
 	Task       PropertyInfo // Ссылка на объект для пере-парсинга
-	RoutingKey string 
+	Source string 
 	Priority   uint8
 	
 }
@@ -54,6 +55,7 @@ type FindNewLinksTask struct {
     
 	Task TaskInfo
 	RoutingKey string
+	Priority   uint8
     // Опциональные параметры, которые могут быть специфичны,
     // но все еще выражены в общих терминах
     // RoomsCount []int `json:"roomsCount,omitempty"`
@@ -64,5 +66,12 @@ type FindNewLinksTask struct {
 type TaskCompletionCommand struct {
 	TaskID               uuid.UUID `json:"task_id"`
 	// Command              string    `json:"command"` // Например, "MARK_AWAITING_RESULTS"
-	ExpectedResultsCount int       `json:"expected_results_count"`
+	Results map[string]int `json:"results"`
+	// ExpectedResultsCount int       `json:"expected_results_count"`
+}
+
+
+type DictionaryItem struct {
+	SystemName  string 
+	DisplayName string 
 }

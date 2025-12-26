@@ -56,6 +56,14 @@ export interface IFilterState {
     electricityConditions: string[];
     sewageConditions: string[];
     gazConditions: string[];
+
+    //коммерция
+    commercialTypes: string[]
+    commercialImprovements: string[]
+    commercialRepairs: string[]
+    commercialBuildingLocations: string[]
+    roomsMin: string
+    roomsMax: string
 }
 
 // Опция фильтра, приходящая с бэкенда (из /filters/options)

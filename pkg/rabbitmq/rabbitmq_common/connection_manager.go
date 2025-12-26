@@ -1,4 +1,3 @@
-// file: pkg/rabbitmq/rabbitmq_common/connection_manager.go
 package rabbitmq_common
 
 import (
@@ -68,13 +67,13 @@ func (m *ConnectionManager) getConnection() (*amqp.Connection, error) {
 		return m.connection, nil
 	}
 
-	m.Logger.Info("ConnectionManager: Connecting...")
+	m.Logger.Debug("ConnectionManager: Connecting...")
 	conn, err := amqp.Dial(m.url)
 	if err != nil {
 		return nil, fmt.Errorf("ConnectionManager: failed to dial RabbitMQ: %w", err)
 	}
 	m.connection = conn
-	m.Logger.Info("ConnectionManager: Connected successfully!")
+	m.Logger.Debug("ConnectionManager: Connected successfully!")
 	return m.connection, nil
 }
 
@@ -93,7 +92,7 @@ func (m *ConnectionManager) GetChannel() (*amqp.Connection, *amqp.Channel, error
 
 func (m *ConnectionManager) handleReconnect() {
 	for {
-		// Ждем 5 секунд перед проверкой
+		// Ждем секунд перед проверкой
 		time.Sleep(10 * time.Second)
 
 		m.mutex.RLock()
@@ -104,7 +103,7 @@ func (m *ConnectionManager) handleReconnect() {
 		}
 		m.mutex.RUnlock()
 
-		m.Logger.Info("ConnectionManager: Detected closed connection. Attempting to reconnect...")
+		m.Logger.Debug("ConnectionManager: Detected closed connection. Attempting to reconnect...")
 		// Пытаемся переподключиться
 		if _, err := m.getConnection(); err != nil {
 			m.Logger.Error(err, "ConnectionManager: Reconnect failed")
@@ -112,23 +111,22 @@ func (m *ConnectionManager) handleReconnect() {
 	}
 }
 
-
 // Close закрывает общее соединение RabbitMQ
 func (m *ConnectionManager) Close() error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
 	if m.connection != nil && !m.connection.IsClosed() {
-		m.Logger.Info("ConnectionManager: Closing the connection...")
+		m.Logger.Debug("ConnectionManager: Closing the connection...")
 		err := m.connection.Close()
 		if err != nil {
 			m.Logger.Error(err, "ConnectionManager: Failed to close connection properly")
 			return err
 		}
-		m.Logger.Info("ConnectionManager: Connection closed successfully.")
+		m.Logger.Debug("ConnectionManager: Connection closed successfully.")
 		return nil
 	}
 
-	m.Logger.Info("ConnectionManager: Connection was already closed or not established.")
+	m.Logger.Debug("ConnectionManager: Connection was already closed or not established.")
 	return nil
 }

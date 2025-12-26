@@ -170,6 +170,41 @@ func applyFilters(filters domain.FindObjectsFilters) (string, string, []interfac
 		if len(filters.GazConditions) > 0 {
 			qb.addCondition("%s = ANY($%d)", "d.gaz", filters.GazConditions)
 		}
+	case "commercial":
+		qb.joinClause.WriteString(" JOIN commercial d ON gp.id = d.property_id ")
+
+		if filters.PropertyType != "" {
+			qb.addCondition("%s = $%d", "d.property_type", filters.PropertyType)
+		}
+		
+		qb.AddIntFilter("d.floor_number", filters.FloorMin, filters.FloorMax)
+		qb.AddIntFilter("d.building_floors", filters.FloorBuildingMin, filters.FloorBuildingMax)
+		qb.AddFloatFilter("d.total_area", filters.TotalAreaMin, filters.TotalAreaMax)
+
+		if len(filters.CommercialRepairs) > 0 {
+			qb.addCondition("%s = ANY($%d)", "d.commercial_repair", filters.CommercialRepairs)
+		}
+
+		if len(filters.CommercialLocation) > 0 {
+			qb.addCondition("%s = ANY($%d)", "d.commercial_building_location", filters.CommercialLocation)
+		}
+
+		if len(filters.CommercialImprovements) > 0 {
+			// Используем оператор пересечения `&&`
+			qb.addCondition("%s && $%d", "d.commercial_improvements", filters.CommercialImprovements)
+		}
+
+		if filters.CommercialRoomsMin != nil || filters.CommercialRoomsMax != nil {
+			// Формируем сложное условие.
+			// coalesce используется на случай, если одна из границ не задана.
+			condition := fmt.Sprintf(
+				"(d.rooms_range[1] <= COALESCE($%d, 1000) AND d.rooms_range[cardinality(d.rooms_range)] >= COALESCE($%d, 0))",
+				qb.argId, qb.argId+1,
+			)
+			qb.conditions = append(qb.conditions, condition)
+			qb.args = append(qb.args, filters.CommercialRoomsMax, filters.CommercialRoomsMin) // ВНИМАНИЕ: Порядок! Сначала Max, потом Min.
+			qb.argId += 2
+		}
 	}
 	
 	return qb.build()

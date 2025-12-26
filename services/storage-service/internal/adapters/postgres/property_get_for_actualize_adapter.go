@@ -8,6 +8,65 @@ import (
 	"storage-service/internal/core/port"
 )
 
+type StatItem struct {
+	Category string
+	Status   string
+	Count    int64
+}
+
+func (r *PostgresStorageAdapter) GetActualizationStats(ctx context.Context) ([]domain.StatsByCategory, error) {
+	query := `
+		SELECT
+			category,
+			status,
+			COUNT(DISTINCT master_object_id) as unique_object_count
+		FROM
+			general_properties
+		GROUP BY
+			category, status;
+	`
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query object stats: %w", err)
+	}
+	defer rows.Close()
+	
+	// Используем map для удобной агрегации
+	statsMap := make(map[string]*domain.StatsByCategory)
+	
+	for rows.Next() {
+		var item StatItem
+		if err := rows.Scan(&item.Category, &item.Status, &item.Count); err != nil {
+			return nil, fmt.Errorf("failed to scan stats item: %w", err)
+		}
+		
+		// Если мы еще не видели эту категорию, создаем для нее запись в map
+		if _, ok := statsMap[item.Category]; !ok {
+			statsMap[item.Category] = &domain.StatsByCategory{
+				SystemName:  item.Category,
+				DisplayName: translateCategory(item.Category), // Используем ваш переводчик
+			}
+		}
+		
+		// Заполняем счетчики
+		if item.Status == "active" {
+			statsMap[item.Category].ActiveCount = item.Count
+		} else if item.Status == "archived" {
+			statsMap[item.Category].ArchivedCount = item.Count
+		}
+	}
+    if err := rows.Err(); err != nil {
+        return nil, err
+    }
+
+	// Преобразуем map в срез для JSON-ответа
+	result := make([]domain.StatsByCategory, 0, len(statsMap))
+	for _, stat := range statsMap {
+		result = append(result, *stat)
+	}
+    
+	return result, nil
+}
 
 func (a *PostgresStorageAdapter) GetActiveIDsForActualization(ctx context.Context, category string, limit int) ([]domain.PropertyBasicInfo, error) {
 	logger := contextkeys.LoggerFromContext(ctx)
@@ -19,10 +78,27 @@ func (a *PostgresStorageAdapter) GetActiveIDsForActualization(ctx context.Contex
 	})
 	
     // Здесь будет ваш SQL-запрос. Например, выбрать самые старые активные объекты.
-    query := `SELECT id, ad_link, source_ad_id, source, updated_at FROM general_properties 
-               WHERE category = $1 AND status = 'active' ORDER BY updated_at ASC LIMIT $2`
+    // query := `SELECT id, ad_link, source_ad_id, source, updated_at FROM general_properties 
+    //            WHERE category = $1 AND status = 'active' ORDER BY updated_at ASC LIMIT $2`
+
+	query := `WITH oldest_master_objects AS (
+				SELECT master_object_id
+				FROM general_properties
+				WHERE
+					category = $1
+					AND status = 'active'
+				GROUP BY master_object_id
+				ORDER BY MIN(updated_at) ASC
+				LIMIT $2 -- limit
+			)
+
+			SELECT id, ad_link, source_ad_id, source, updated_at
+			FROM general_properties
+			WHERE
+				master_object_id IN (SELECT master_object_id FROM oldest_master_objects)
+			AND status = 'active';`
     
-	repoLogger.Info("Querying for active objects to actualize.", nil)
+	repoLogger.Debug("Querying for active objects to actualize.", nil)
 	rows, err := a.pool.Query(ctx, query, category, limit)
 
 	if err != nil {
@@ -73,10 +149,27 @@ func (a *PostgresStorageAdapter) GetArchivedIDsForActualization(ctx context.Cont
 	})
 
     // Здесь будет ваш SQL-запрос. Например, выбрать самые старые активные объекты.
-    query := `SELECT id, ad_link, source_ad_id, source, updated_at FROM general_properties 
-               WHERE category = $1 AND status = 'archived' ORDER BY updated_at ASC LIMIT $2`
+    // query := `SELECT id, ad_link, source_ad_id, source, updated_at FROM general_properties 
+    //            WHERE category = $1 AND status = 'archived' ORDER BY updated_at ASC LIMIT $2`
+
+	query := `WITH oldest_master_objects AS (
+				SELECT master_object_id
+				FROM general_properties
+				WHERE
+					category = $1
+					AND status = 'archived'
+				GROUP BY master_object_id
+				ORDER BY MIN(updated_at) ASC
+				LIMIT $2 -- limit
+			)
+
+			SELECT id, ad_link, source_ad_id, source, updated_at
+			FROM general_properties
+			WHERE
+				master_object_id IN (SELECT master_object_id FROM oldest_master_objects)
+			AND status = 'archived';`
     
-	repoLogger.Info("Querying for archived objects to actualize.", nil)
+	repoLogger.Debug("Querying for archived objects to actualize.", nil)
 	rows, err := a.pool.Query(ctx, query, category, limit)
 
 	if err != nil {
@@ -132,8 +225,8 @@ func (a *PostgresStorageAdapter) GetObjectsByIDForActualization(ctx context.Cont
     
 	rows, err := a.pool.Query(ctx, query, masterObjectID)
     if err != nil {
-        repoLogger.Error("Failed to query active duplicates", err, nil)
-        return nil, fmt.Errorf("failed to find active duplicates for master_id %s: %w", masterObjectID, err)
+        repoLogger.Error("Failed to query objects by master_id", err, nil)
+        return nil, fmt.Errorf("failed to find objects by master_id %s: %w", masterObjectID, err)
     }
     defer rows.Close()
 
@@ -141,7 +234,7 @@ func (a *PostgresStorageAdapter) GetObjectsByIDForActualization(ctx context.Cont
     for rows.Next() {
         var info domain.PropertyBasicInfo
         if err := rows.Scan(&info.ID, &info.Link, &info.AdID, &info.Source, &info.UpdatedAt); err != nil {
-            return nil, fmt.Errorf("failed to scan active duplicate: %w", err)
+            return nil, fmt.Errorf("failed to scan objects by master_id: %w", err)
         }
         objectsInfo = append(objectsInfo, info)
     }
@@ -150,7 +243,7 @@ func (a *PostgresStorageAdapter) GetObjectsByIDForActualization(ctx context.Cont
         return nil, err
     }
 
-    repoLogger.Info("Successfully found active duplicates", port.Fields{"count": len(objectsInfo)})
+    repoLogger.Info("Successfully found objects by master_id", port.Fields{"count": len(objectsInfo)})
     return objectsInfo, nil
 }
 

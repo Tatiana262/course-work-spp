@@ -34,7 +34,7 @@ type App struct {
 	dbPool                         *pgxpool.Pool
 	apiServer                      *rest.Server
 	resultsListener                port.EventListenerPort
-	tasksCompletionResultsListener port.EventListenerPort
+	dlqListeners                   []port.EventListenerPort
 
 	logger       port.LoggerPort
 	fluentClient *fluent.Fluent
@@ -93,7 +93,7 @@ func NewApp() (*App, error) {
 	})
 
 	appLogger := baseLogger.WithFields(port.Fields{"component": "app"})
-	appLogger.Info("Logger system initialized", port.Fields{
+	appLogger.Debug("Logger system initialized", port.Fields{
 		"active_loggers": len(activeLoggers), "fluent_enabled": appConfig.FluentBit.Enabled,
 	})
 
@@ -104,7 +104,7 @@ func NewApp() (*App, error) {
 		appLogger.Error("Failed to create connection manager", err, nil)
 		return nil, fmt.Errorf("failed to create connection manager: %w", err)
 	}
-	appLogger.Info("RabbitMQ Connection Manager initialized.", nil)
+	appLogger.Debug("RabbitMQ Connection Manager initialized.", nil)
 
 	// 1. Инициализация низкоуровневых зависимостей
 	dbPool, err := postgres.NewClient(context.Background(), postgres.Config{DatabaseURL: appConfig.Database.URL})
@@ -112,7 +112,7 @@ func NewApp() (*App, error) {
 		appLogger.Error("Failed to connect to PostgreSQL", err, nil)
 		return nil, fmt.Errorf("failed to connect to PostgreSQL: %w", err)
 	}
-	appLogger.Info("Successfully connected to PostgreSQL pool!", nil)
+	appLogger.Debug("Successfully connected to PostgreSQL pool!", nil)
 
 	taskRepo, err := postgres_adapter.NewPostgresTaskRepository(dbPool)
 	if err != nil {
@@ -122,7 +122,7 @@ func NewApp() (*App, error) {
 	}
 
 	sseNotifier := notifier.NewSSENotifier(baseLogger)
-	appLogger.Info("SSE Notifier initialized.", nil)
+	appLogger.Debug("SSE Notifier initialized.", nil)
 
 	// ИНИЦИАЛИЗАЦИЯ USE CASES (ядра бизнес-логики)
 	createTaskUC := usecase.NewCreateTaskUseCase(taskRepo, sseNotifier)
@@ -130,20 +130,20 @@ func NewApp() (*App, error) {
 	getTaskByIdUC := usecase.NewGetTaskByIdUseCase(taskRepo)
 	getTasksUC := usecase.NewGetTasksListUseCase(taskRepo)
 	processResultUC := usecase.NewProcessTaskResultUseCase(taskRepo, sseNotifier)
-	completeTaskUC := usecase.NewCompleteTaskUseCase(taskRepo, sseNotifier)
-	appLogger.Info("All use cases initialized.", nil)
+	// completeTaskUC := usecase.NewCompleteTaskUseCase(taskRepo, sseNotifier)
+	appLogger.Debug("All use cases initialized.", nil)
 
 	// REST API Server
 	apiHandlers := rest.NewTaskHandler(createTaskUC, updateTaskUC, getTaskByIdUC, getTasksUC, processResultUC, sseNotifier)
 	apiServer := rest.NewServer(appConfig.Rest.PORT, apiHandlers, baseLogger)
-	appLogger.Info("REST API server configured.", nil)
+	appLogger.Debug("REST API server configured.", nil)
 
 	// RabbitMQ Consumer для результатов
 	consumerCfg := rabbitmq_consumer.ConsumerConfig{
 		Config:              rabbitmq_common.Config{URL: appConfig.RabbitMQ.URL},
 		QueueName:           constants.QueueTaskResults,
 		RoutingKeyForBind:   constants.RoutingKeyTaskResults,
-		ExchangeNameForBind: "parser_exchange",
+		ExchangeNameForBind: constants.MainExchange,
 		PrefetchCount:       5,
 		DurableQueue:        true,
 		ConsumerTag:         "task-results-processor-adapter",
@@ -155,9 +155,13 @@ func NewApp() (*App, error) {
 
 		// 2. Настраиваем "сателлиты" для этой конкретной очереди.
 		// Используем имя основной очереди как префикс для уникальности.
-		RetryExchange: constants.QueueTaskResults + "_retry_ex",
-		RetryQueue:    constants.QueueTaskResults + "_retry_wait_10s",
-		RetryTTL:      10000, // 10 секунд в миллисекундах
+		// RetryExchange: constants.QueueTaskResults + "_retry_ex",
+		// RetryQueue:    constants.QueueTaskResults + "_retry_wait_10s",
+		// RetryTTL:      10000, // 10 секунд в миллисекундах
+
+		RetryExchange: constants.RetryExchange,
+		RetryQueue: constants.WaitQueue,
+		RetryTTL: constants.RetryTTL,
 
 		// 3. Указываем общую "свалку" для сообщений, исчерпавших все попытки.
 		FinalDLXExchange:   constants.FinalDLXExchange,
@@ -175,43 +179,41 @@ func NewApp() (*App, error) {
 		return nil, fmt.Errorf("failed to create results consumer adapter: %w", err)
 	}
 
-	consumerTaskCompletionResultsCfg := rabbitmq_consumer.ConsumerConfig{
-		Config:              rabbitmq_common.Config{URL: appConfig.RabbitMQ.URL},
-		QueueName:           constants.QueueTaskCompletionResults,
-		RoutingKeyForBind:   constants.RoutingKeyTaskCompletionResults,
-		ExchangeNameForBind: "parser_exchange",
-		PrefetchCount:       5,
-		DurableQueue:        true,
-		ConsumerTag:         "task-completion-results-processor-adapter",
-		DeclareQueue:        true,
-
-		// --- НОВЫЕ НАСТРОЙКИ ---
-		// 1. Включаем сам механизм
-		EnableRetryMechanism: true,
-
-		// 2. Настраиваем "сателлиты" для этой конкретной очереди.
-		// Используем имя основной очереди как префикс для уникальности.
-		RetryExchange: constants.QueueTaskCompletionResults + "_retry_ex",
-		RetryQueue:    constants.QueueTaskCompletionResults + "_retry_wait_10s",
-		RetryTTL:      10000, // 10 секунд в миллисекундах
-
-		// 3. Указываем общую "свалку" для сообщений, исчерпавших все попытки.
-		FinalDLXExchange:   constants.FinalDLXExchange,
-		FinalDLQ:           constants.FinalDLQ,
-		FinalDLQRoutingKey: constants.FinalDLQRoutingKey,
-
-		// 4. Задаем количество ретраев (помимо первой попытки).
-		MaxRetries: 3,
+	var dlqListeners []port.EventListenerPort
+	
+	// Список всех DLQ, которые мы хотим мониторить
+	dlqToMonitor := []string{
+		constants.LinkParsingTasksDlq,
+		constants.TasksForSearchDlq,
+		constants.ProcessedPropertiesDlq,
 	}
 
-	tasksCompletionResultsListener, err := rabbitmq_adapter.NewTaskCompletionResultsConsumerAdapter(consumerTaskCompletionResultsCfg, completeTaskUC, baseLogger, connManager)
-	if err != nil {
-		appLogger.Error("Failed to create task completion consumer", err, nil)
-		resultsListener.Close()
-		dbPool.Close()
-		return nil, fmt.Errorf("failed to create results consumer adapter: %w", err)
+	for _, queueName := range dlqToMonitor {
+		dlqConsumerCfg := rabbitmq_consumer.ConsumerConfig{
+			Config:              rabbitmq_common.Config{URL: appConfig.RabbitMQ.URL},
+			QueueName:           queueName,
+			DeclareQueue:        false, 
+			ConsumerTag:         fmt.Sprintf("dlq-processor-%s", queueName),
+			EnableRetryMechanism: false,	
+		}
+
+		// Создаем новый экземпляр DLQ адаптера
+		dlqListener, err := rabbitmq_adapter.NewDLQConsumerAdapter(
+			dlqConsumerCfg,
+			updateTaskUC, 
+			baseLogger,
+			connManager,
+		)
+		if err != nil {
+			appLogger.Error(fmt.Sprintf("Failed to create dlq-processor-%s", queueName), err, nil)
+			dbPool.Close()
+			return nil, fmt.Errorf("failed to create DLQ consumer for queue %s: %w", queueName, err)
+		}
+		dlqListeners = append(dlqListeners, dlqListener)
+		appLogger.Debug("DLQ listener created", port.Fields{"queue_name": queueName})
 	}
-	appLogger.Info("All RabbitMQ listeners initialized.", nil)
+
+	appLogger.Debug("All RabbitMQ listeners initialized.", nil)
 
 	// 5. Собираем приложение
 	application := &App{
@@ -219,7 +221,7 @@ func NewApp() (*App, error) {
 		dbPool:                         dbPool,
 		apiServer:                      apiServer,
 		resultsListener:                resultsListener,
-		tasksCompletionResultsListener: tasksCompletionResultsListener,
+		dlqListeners:    				dlqListeners,
 		logger:                         appLogger,
 		fluentClient:                   fluentClient,
 	}
@@ -237,12 +239,12 @@ func (a *App) Run() error {
 	var wg sync.WaitGroup
 
 	defer func() {
-		a.logger.Info("Shutdown sequence initiated...", nil)
+		a.logger.Debug("Shutdown sequence initiated...", nil)
 
 		// Ждем завершения всех запущенных горутин (слушателей)
-		a.logger.Info("Waiting for background processes to finish...", nil)
+		a.logger.Debug("Waiting for background processes to finish...", nil)
 		wg.Wait()
-		a.logger.Info("All background processes finished.", nil)
+		a.logger.Debug("All background processes finished.", nil)
 
 		if a.apiServer != nil {
 			if err := a.apiServer.Stop(context.Background()); err != nil {
@@ -257,15 +259,18 @@ func (a *App) Run() error {
 			}
 		}
 
-		if a.tasksCompletionResultsListener != nil {
-			if err := a.tasksCompletionResultsListener.Close(); err != nil {
-				a.logger.Error("Error closing task completion listener", err, nil)
+		if len(a.dlqListeners) > 0 {
+			a.logger.Debug("Closing DLQ listeners...", nil)
+			for _, listener := range a.dlqListeners {
+				if err := listener.Close(); err != nil {
+					a.logger.Error("Error closing DLQ listener", err, nil)
+				}
 			}
 		}
 
 		if a.dbPool != nil {
 			a.dbPool.Close()
-			a.logger.Info("PostgreSQL pool closed.", nil)
+			a.logger.Debug("PostgreSQL pool closed.", nil)
 		}
 
 		a.logger.Info("Application shut down gracefully.", nil)
@@ -281,7 +286,7 @@ func (a *App) Run() error {
 	errorsCh := make(chan error, 1)
 
 	go func() {
-		a.logger.Info("Starting HTTP server...", port.Fields{"port": a.config.Rest.PORT})
+		a.logger.Debug("Starting HTTP server...", port.Fields{"port": a.config.Rest.PORT})
 		if err := a.apiServer.Start(); err != nil && err != http.ErrServerClosed {
 			errorsCh <- fmt.Errorf("HTTP server start error: %w", err)
 		}
@@ -291,25 +296,29 @@ func (a *App) Run() error {
 	startListener := func(name string, listener port.EventListenerPort) {
 		defer wg.Done()
 		listenerLogger := a.logger.WithFields(port.Fields{"listener": name})
-		listenerLogger.Info("Starting listener...", nil)
+		listenerLogger.Debug("Starting listener...", nil)
 
 		if err := listener.Start(appCtx); err != nil {
 			listenerLogger.Error("Listener stopped with an unexpected error", err, nil)
 			errorsCh <- fmt.Errorf("%s error: %w", name, err)
 		} else {
-			listenerLogger.Info("Listener stopped gracefully.", nil)
+			listenerLogger.Debug("Listener stopped gracefully.", nil)
 		}
 	}
 
-	wg.Add(2)
+	wg.Add(1)
 	go startListener("Results Events Listener", a.resultsListener)
-	go startListener("Task Completion Results Events Listener", a.tasksCompletionResultsListener)
+	a.logger.Debug("Starting DLQ listeners...", nil)
+	for _, listener := range a.dlqListeners {
+		wg.Add(1)
+		go startListener("DLQ Listener", listener)
+	}
 
 	// Ожидание сигнала на завершение или ошибки от одного из компонентов
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	a.logger.Info("Application running. Waiting for signals or component error...", nil)
+	a.logger.Debug("Application running. Waiting for signals or component error...", nil)
 	select {
 	case receivedSignal := <-quit:
 		a.logger.Warn("Received OS signal, shutting down...", port.Fields{"signal": receivedSignal.String()})

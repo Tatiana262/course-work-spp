@@ -39,14 +39,14 @@ func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
 	
 	query := `INSERT INTO users (id, email, password_hash, role, created_at) VALUES ($1, $2, $3, $4, $5)`
 	
-	repoLogger.Info("Executing query to create user.", nil)
+	repoLogger.Debug("Executing query to create user.", nil)
 	_, err := r.pool.Exec(ctx, query, user.ID, user.Email, user.PasswordHash, user.Role, user.CreatedAt)
 	if err != nil {
 		repoLogger.Error("Failed to create user", err, port.Fields{"query": query})
 		return fmt.Errorf("failed to create user: %w", err)
 	}
 
-	repoLogger.Info("User created successfully.", nil)
+	repoLogger.Debug("User created successfully.", nil)
 	return nil
 }
 
@@ -63,7 +63,7 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*domain
 
 	query := `SELECT id, email, password_hash, role, created_at FROM users WHERE email = $1`
 
-	repoLogger.Info("Executing query to find user by email.", nil)
+	repoLogger.Debug("Executing query to find user by email.", nil)
 	var user domain.User
 	err := r.pool.QueryRow(ctx, query, email).Scan(
 		&user.ID,
@@ -74,7 +74,6 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*domain
 	)
 
 	if err != nil {
-		// ---> ВОТ КЛЮЧЕВАЯ ЛОГИКА <---
 		// pgx.ErrNoRows - это специальная ошибка, которую возвращает Scan,
 		// если запрос не вернул ни одной строки.
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -85,7 +84,7 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*domain
 		return nil, fmt.Errorf("failed to find user by email: %w", err)
 	}
 
-	repoLogger.Info("User found by email.", port.Fields{"user_id": user.ID.String()})
+	repoLogger.Debug("User found by email.", port.Fields{"user_id": user.ID.String()})
 	return &user, nil
 }
 
@@ -100,7 +99,7 @@ func (r *UserRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.Us
 
 	query := `SELECT id, email, password_hash, role, created_at FROM users WHERE id = $1`
 	
-	repoLogger.Info("Executing query to find user by ID.", nil)
+	repoLogger.Debug("Executing query to find user by ID.", nil)
 	var user domain.User
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&user.ID,
@@ -119,6 +118,6 @@ func (r *UserRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.Us
 		return nil, fmt.Errorf("failed to find user by id: %w", err)
 	}
 
-	repoLogger.Info("User found by ID.", nil)
+	repoLogger.Debug("User found by ID.", nil)
 	return &user, nil
 }

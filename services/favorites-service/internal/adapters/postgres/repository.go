@@ -36,7 +36,7 @@ func (r *PostgresFavoritesRepository) Add(ctx context.Context, userID, masterObj
 		"master_object_id": masterObjectID,
 	})
 	
-	repoLogger.Info("Attempting to add to favorites.", nil)
+	repoLogger.Debug("Attempting to add to favorites.", nil)
 	query := `INSERT INTO user_favorites (user_id, master_object_id) VALUES ($1, $2)`
 
 	_, err := r.pool.Exec(ctx, query, userID, masterObjectID)
@@ -52,7 +52,7 @@ func (r *PostgresFavoritesRepository) Add(ctx context.Context, userID, masterObj
 		return fmt.Errorf("failed to add favorite: %w", err)
 	}
 
-	repoLogger.Info("Successfully added to favorites.", nil)
+	repoLogger.Debug("Successfully added to favorites.", nil)
 	return nil
 }
 
@@ -66,7 +66,7 @@ func (r *PostgresFavoritesRepository) Remove(ctx context.Context, userID, master
 		"master_object_id": masterObjectID,
 	})
 
-	repoLogger.Info("Attempting to remove from favorites.", nil)
+	repoLogger.Debug("Attempting to remove from favorites.", nil)
 	query := `DELETE FROM user_favorites WHERE user_id = $1 AND master_object_id = $2`
 
 	// Exec возвращает CommandTag, который можно проверить, чтобы узнать, была ли удалена строка.
@@ -80,7 +80,7 @@ func (r *PostgresFavoritesRepository) Remove(ctx context.Context, userID, master
 	if cmdTag.RowsAffected() == 0 {
 		repoLogger.Warn("Attempted to remove a favorite that did not exist.", nil)
 	} else {
-		repoLogger.Info("Successfully removed from favorites.", nil)
+		repoLogger.Debug("Successfully removed from favorites.", nil)
 	}
 	return nil
 }
@@ -129,7 +129,7 @@ func (r *PostgresFavoritesRepository) FindPaginatedByUser(ctx context.Context, u
 		"offset":    offset,
 	})
 
-	repoLogger.Info("Starting transaction to find paginated favorites.", nil)
+	repoLogger.Debug("Starting transaction to find paginated favorites.", nil)
 	// Выполняем два запроса в одной "виртуальной" транзакции для консистентности.
 	// Использование `tx.Begin` здесь не обязательно, но это хорошая практика.
 	tx, err := r.pool.Begin(ctx)
@@ -146,7 +146,7 @@ func (r *PostgresFavoritesRepository) FindPaginatedByUser(ctx context.Context, u
 		repoLogger.Error("Failed to count favorites", err, port.Fields{"query": countQuery})
 		return nil, fmt.Errorf("failed to count favorites: %w", err)
 	}
-	repoLogger.Info("Total favorites for user", port.Fields{"total_count": totalCount})
+	repoLogger.Debug("Total favorites for user", port.Fields{"total_count": totalCount})
 
 	// Если избранных нет, сразу возвращаем результат
 	if totalCount == 0 {
@@ -188,7 +188,7 @@ func (r *PostgresFavoritesRepository) FindPaginatedByUser(ctx context.Context, u
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	repoLogger.Info("Successfully found paginated favorites.", port.Fields{"found_on_page": len(ids)})
+	repoLogger.Debug("Successfully found paginated favorites.", port.Fields{"found_on_page": len(ids)})
 	return &domain.PaginatedFavoriteIDs{
 		MasterObjectIDs: ids,
 		TotalCount:      totalCount,

@@ -20,7 +20,7 @@ const Admin = () => {
                 onSelect={(k) => setKey(k || 'controls')}
                 className="mb-3"
                 // mountOnEnter={true} // Рендерить вкладку только при первом открытии (оптимизация)
-                unmountOnExit={true} // Не удалять DOM при переключении (чтобы не рвать SSE соединение)
+                // unmountOnExit={true} // Не удалять DOM при переключении (чтобы не рвать SSE соединение)
             >
                 {/* --- ВКЛАДКА 1: ЗАПУСК ЗАДАЧ --- */}
                 <Tab eventKey="controls" title="Управление парсерами">

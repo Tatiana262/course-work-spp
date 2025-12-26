@@ -3,6 +3,8 @@ package realtfetcher
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+
 	// "log"
 	"realt-parser-service/internal/constants"
 	"realt-parser-service/internal/core/domain"
@@ -52,6 +54,60 @@ type Agent struct {
 	Email     string `json:"email"`
 }
 
+type PriceRates struct {
+	USD float64 `json:"840"` // Цена в USD (код 840)
+	BYN float64 `json:"933"` // Цена в BYN (код 933)
+	RUB float64 `json:"643"` // Цена в RUB (код 643)
+	EUR float64 `json:"978"` // Цена в RUB (код 978)
+}
+
+// isSet проверяет, установлена ли цена (считаем по USD, т.к. он почти всегда есть).
+func (pr *PriceRates) isSet() bool {
+	return pr != nil && pr.USD > 0
+}
+
+// PriceResult - структура для возврата результата из хелпера.
+type PriceResult struct {
+	BYN float64
+	USD float64
+	EUR float64
+}
+
+// calculatePrices инкапсулирует логику определения цены.
+func calculatePrices(obj PropertiesObject) PriceResult {
+	// Сценарий 1: Есть точная цена в PriceRates.
+	if obj.PriceRates.isSet() {
+		return PriceResult{
+			BYN: obj.PriceRates.BYN,
+			USD: obj.PriceRates.USD,
+			EUR: obj.PriceRates.EUR,
+		}
+	}
+
+	// Сценарий 2: Работаем с диапазоном Min/Max.
+	hasMin := obj.PriceRatesMin.isSet()
+	hasMax := obj.PriceRatesMax.isSet()
+
+	switch {
+	case hasMin && hasMax:
+		// Есть и Min, и Max -> считаем среднее арифметическое.
+		return PriceResult{
+			BYN: (obj.PriceRatesMin.BYN + obj.PriceRatesMax.BYN) / 2,
+			USD: (obj.PriceRatesMin.USD + obj.PriceRatesMax.USD) / 2,
+			EUR: (obj.PriceRatesMin.EUR + obj.PriceRatesMax.EUR) / 2,
+		}
+	case hasMin:
+		// Есть только Min.
+		return PriceResult{BYN: obj.PriceRatesMin.BYN, USD: obj.PriceRatesMin.USD, EUR: obj.PriceRatesMin.EUR}
+	case hasMax:
+		// Есть только Max.
+		return PriceResult{BYN: obj.PriceRatesMax.BYN, USD: obj.PriceRatesMax.USD, EUR: obj.PriceRatesMax.EUR}
+	default:
+		// Сценарий 3: Цен нет.
+		return PriceResult{}
+	}
+}
+
 type PropertiesObject struct {
 	Code        int64  `json:"code"`
 	Category    int    `json:"category"`
@@ -70,12 +126,9 @@ type PropertiesObject struct {
 	StateDistrictName string `json:"stateDistrictName"`
 	TownName          string `json:"townName"`
 
-	PriceRates struct {
-		USD float64 `json:"840"` // Цена в USD (код 840)
-		BYN float64 `json:"933"` // Цена в BYN (код 933)
-		RUB float64 `json:"643"` // Цена в RUB (код 643)
-		EUR float64 `json:"978"` // Цена в RUB (код 978)
-	} `json:"priceRates"`
+	PriceRates    *PriceRates `json:"priceRates"`
+	PriceRatesMin *PriceRates `json:"priceRatesMin"`
+	PriceRatesMax *PriceRates `json:"priceRatesMax"`
 
 	Address string `json:"address"`
 
@@ -90,6 +143,7 @@ type PropertiesObject struct {
 
 	Apartment
 	House
+	Commercial
 }
 
 type AgencyConract struct {
@@ -97,9 +151,9 @@ type AgencyConract struct {
 }
 
 type Apartment struct {
-	RoomsAmount     *int8   `json:"rooms"`
-	FloorNumber     *int8   `json:"storey"`
-	BuildingFloorsAp  *int8   `json:"storeys"`
+	RoomsAmount     *int8    `json:"rooms"`
+	FloorNumber     *int8    `json:"storey"`
+	BuildingFloors  *int8    `json:"storeys"`
 	TotalArea       *float64 `json:"areaTotal"`
 	LivingSpaceArea *float64 `json:"areaLiving"`
 	KitchenArea     *float64 `json:"areaKitchen"`
@@ -116,44 +170,58 @@ type Apartment struct {
 		EUR float64 `json:"978"` // Цена в RUB (код 978)
 	} `json:"priceRatesPerM2"`
 
-	CeilingHeight        *float64       `json:"ceilingHeight"`
-	Appliances           []string       `json:"appliances"`
-	IsFencedTerritory    *bool          `json:"fencedTerritory"`
-	HasFurniture         *bool          `json:"furniture"`
-	HasGarage            *bool          `json:"garage"`
-	IsAuction            *bool          `json:"isAuction"`
-	IsNewBuild           *bool          `json:"isNewBuild"`
+	CeilingHeight     *float64 `json:"ceilingHeight"`
+	Appliances        []string `json:"appliances"`
+	IsFencedTerritory *bool    `json:"fencedTerritory"`
+	HasFurniture      *bool    `json:"furniture"`
+	HasGarage         *bool    `json:"garage"`
+	IsAuction         *bool    `json:"isAuction"`
+	IsNewBuild        *bool    `json:"isNewBuild"`
 	// NearestMetroStations []string       `json:"nearestMetroStations"`
-	HasParkingPlace      *bool          `json:"parkingPlace"`
-	IsPriceHaggle        *bool          `json:"priceHaggle"`
-	SeparateRooms        *int8          `json:"separateRooms"`
-	HasSignaling         *bool          `json:"signaling"`
-	StreetName           *string        `json:"streetName"`
-	TownDistrictName     *string        `json:"townDistrictName"`
-	TownSubDistrictName  *string        `json:"townSubDistrictName"`
-	HasVideoIntercom     *bool          `json:"videoIntercom"`
-	Views                []string       `json:"view"`
-	AgencyConract        *AgencyConract `json:"agencyContract"`
+	HasParkingPlace     *bool          `json:"parkingPlace"`
+	IsPriceHaggle       *bool          `json:"priceHaggle"`
+	SeparateRooms       *int8          `json:"separateRooms"`
+	HasSignaling        *bool          `json:"signaling"`
+	StreetName          *string        `json:"streetName"`
+	TownDistrictName    *string        `json:"townDistrictName"`
+	TownSubDistrictName *string        `json:"townSubDistrictName"`
+	HasVideoIntercom    *bool          `json:"videoIntercom"`
+	Views               []string       `json:"view"`
+	AgencyConract       *AgencyConract `json:"agencyContract"`
 
-	LeasePeriod			 *string        `json:"leasePeriod"`
+	LeasePeriod *string `json:"leasePeriod"`
 
 	//TODO
 }
 
 type House struct {
-	HasBath			 *bool		`json:"bath"`
-	HasFireplace	 *bool		`json:"fireplace"`
-	BuildingFloorsH  *int8   `json:"levels"`
-	WallMaterialH *string  `json:"wallMaterial"`
-	PlotArea     *float64 `json:"areaLand"`
-	Electricity  *string  `json:"electricity"` // В Realt это строка ("есть")
-	Water        *string  `json:"water"`
-	Heating      *string  `json:"heating"`
-	Sewage       *string  `json:"sewerage"`
-	Gaz          *string  `json:"gas"`         // В Realt пишется "gas"
-	RoofMaterial *string  `json:"roofMaterial"`
-	HouseType    *string  `json:"objectType"` // "дом", "коттедж" и т.д.
-	CompletionPercent  *int8   `json:"completionPercent"`
+	HasBath             *bool    `json:"bath"`
+	HasFireplace        *bool    `json:"fireplace"`
+	BuildingFloorsHouse *int8    `json:"levels"`
+	WallMaterialH       *string  `json:"wallMaterial"`
+	PlotArea            *float64 `json:"areaLand"`
+	Electricity         *string  `json:"electricity"` // В Realt это строка ("есть")
+	Water               *string  `json:"water"`
+	Heating             *string  `json:"heating"`
+	Sewage              *string  `json:"sewerage"`
+	Gaz                 *string  `json:"gas"` // В Realt пишется "gas"
+	RoofMaterial        *string  `json:"roofMaterial"`
+	PropertyType        *string  `json:"objectType"` // "дом", "коттедж" и т.д.
+	CompletionPercent   *int8    `json:"completionPercent"`
+}
+
+type Commercial struct {
+	AreaMax                *float64 `json:"areaMax"`
+	AreaMin                *float64 `json:"areaMin"`
+	CommercialImprovements []string `json:"equipment"`
+
+	CommercialRoomsMin *int8    `json:"commercialRoomsMin"`
+	CommercialRoomsMax *int8    `json:"commercialRoomsMax"`
+	Place              []string `json:"place"`
+	CommercialRentType *string  `json:"termOfLease"`
+
+	ProvidesLegalAddress *bool   `json:"legalAddress"`
+	Vat                  *string `json:"nds"`
 }
 
 const (
@@ -164,8 +232,9 @@ const (
 )
 
 const (
-	Sale = "sale"
-	Rent = "rent"
+	Sale      = "sale"
+	Rent      = "rent"
+	DailyRent = "daily_rent"
 )
 
 // const (
@@ -181,6 +250,7 @@ var currenciesMap = map[int]string{
 }
 
 func toDomainRecord(jsonData string, url string, source string, logger port.LoggerPort) (*domain.RealEstateRecord, error) {
+
 	var data NextData
 	err := json.Unmarshal([]byte(jsonData), &data)
 	if err != nil {
@@ -189,12 +259,18 @@ func toDomainRecord(jsonData string, url string, source string, logger port.Logg
 
 	obj := data.Props.PageProps.InitialState.ObjectView.Object
 
+	prices := calculatePrices(obj)
+	var priceEUR *float64
+	if prices.EUR > 0 {
+		priceEUR = &prices.EUR
+	}
+
 	// --- 1. Заполняем GeneralProperty ---
 	general := domain.GeneralProperty{
-		Source:           source,
-		SourceAdID:       obj.Code,
-		AdLink:           url,
-		SaleType:        obj.TermsOfSale,
+		Source:     source,
+		SourceAdID: obj.Code,
+		AdLink:     url,
+		SaleType:   obj.TermsOfSale,
 
 		ListTime:       obj.CreatedAt,
 		Description:    obj.Description,
@@ -202,32 +278,32 @@ func toDomainRecord(jsonData string, url string, source string, logger port.Logg
 		Images:         obj.Slides,
 		Longitude:      obj.Coordinates[0],
 		Latitude:       obj.Coordinates[1],
-		CityOrDistrict: obj.TownName,	//obj.StateDistrictName
-		Region:         obj.StateRegionName,
-		PriceBYN:       obj.PriceRates.BYN,
-		PriceUSD:       obj.PriceRates.USD,
-		PriceEUR:       &obj.PriceRates.EUR,
+		CityOrDistrict: NormalizeFilterValue(obj.TownName), //obj.StateDistrictName
+		Region:         NormalizeRegion(obj.StateRegionName),
+		PriceBYN:       prices.BYN,
+		PriceUSD:       prices.USD,
+		PriceEUR:       priceEUR,
 
 		Address:       obj.Address,
 		SellerDetails: BuildSellerDetails(obj),
 
-		Status:           domain.StatusActive,
+		Status: domain.StatusActive,
 	}
 
 	switch obj.Category {
-	case constants.ApartmentSaleCategory:
+	case constants.ApartmentSaleCategory, constants.CountryEstateSaleCategory, constants.DachaSaleCategory, constants.OfficeSaleCategory,
+		constants.WarehouseSaleCategory, constants.ShopSaleCategory, constants.RestaurantCafeSaleCategory, constants.ServicesSaleCategory,
+		constants.BusinessSaleCategory, constants.PomeschenieSaleCategory, constants.ProizvodstvoSaleCategory:
 		// general.Category = Apartments
 		general.DealType = Sale
-	case constants.ApartmentRentCategory, constants.ApartmentRentForDayCategory:
+	case constants.ApartmentRentCategory, constants.CountryEstateRentCategory, constants.OfficeRentCategory, constants.WarehouseRentCategory,
+		constants.ShopRentCategory, constants.RestaurantCafeRentCategory, constants.ServicesRentCategory,
+		constants.BusinessRentCategory, constants.PomeschenieRentCategory, constants.ProizvodstvoRentCategory:
 		// general.Category = Apartments
 		general.DealType = Rent
-
-	case constants.CountryEstateSaleCategory, constants.DachaSaleCategory:
-		// general.Category = Houses
-		general.DealType = Sale
-	case constants.CountryEstateRentCategory, constants.CountryEstateRentForDayCategory:
-		// general.Category = Houses
-		general.DealType = Rent
+	case constants.ApartmentRentForDayCategory, constants.CountryEstateRentForDayCategory, constants.AgroEstateRentForDayCategory,
+		constants.DachaBathRentForDayCategory:
+		general.DealType = DailyRent
 	}
 
 	if len(obj.PriceHistory) != 0 {
@@ -252,15 +328,16 @@ func toDomainRecord(jsonData string, url string, source string, logger port.Logg
 		apt := &domain.Apartment{
 			RoomsAmount:     obj.RoomsAmount,
 			FloorNumber:     obj.FloorNumber,
-			BuildingFloors:  obj.BuildingFloorsAp,
+			BuildingFloors:  obj.BuildingFloors,
 			TotalArea:       obj.TotalArea,
 			LivingSpaceArea: obj.LivingSpaceArea,
 			KitchenArea:     obj.KitchenArea,
 			YearBuilt:       obj.YearBuilt,
-			WallMaterial:    obj.WallMaterialAp,
-			RepairState:     obj.RepairState,
-			BathroomType:    obj.BathroomType,
-			BalconyType:     obj.BalconyType,
+			WallMaterial:    NormalizeStringPtr(obj.WallMaterialAp),
+			RepairState:     NormalizeStringPtr(obj.RepairState),
+			BathroomType:    NormalizeStringPtr(obj.BathroomType),
+			BalconyType:     NormalizeStringPtr(obj.BalconyType),
+			IsNewCondition:  obj.IsNewBuild,
 			Parameters:      BuildApartmentParameters(obj),
 		}
 
@@ -272,32 +349,88 @@ func toDomainRecord(jsonData string, url string, source string, logger port.Logg
 
 		details = apt
 
-	case constants.CountryEstateSaleCategory, constants.DachaSaleCategory, 
-		constants.CountryEstateRentCategory, constants.CountryEstateRentForDayCategory:   
+	case constants.CountryEstateSaleCategory, constants.DachaSaleCategory,
+		constants.CountryEstateRentCategory, constants.CountryEstateRentForDayCategory, constants.AgroEstateRentForDayCategory,
+		constants.DachaBathRentForDayCategory:
 
-	   house := &domain.House{
-		   // Общие поля, которые есть и у квартир
-		   TotalArea:       obj.TotalArea,
-		   LivingSpaceArea: obj.LivingSpaceArea,
-		   KitchenArea:     obj.KitchenArea,
-		   YearBuilt:       obj.YearBuilt,
-		   RoomsAmount:     obj.RoomsAmount,      
-		   BuildingFloors:  obj.BuildingFloorsH,  
-		   
-		   // Специфичные для домов поля
-		   PlotArea:     obj.PlotArea,
-		   WallMaterial: obj.WallMaterialH, 
-		   Electricity:  obj.Electricity,
-		   Water:        obj.Water,
-		   Heating:      obj.Heating,
-		   Sewage:       obj.Sewage,
-		   Gaz:          obj.Gaz,
-		   RoofMaterial: obj.RoofMaterial,
-		   HouseType:    obj.HouseType,
-		   CompletionPercent: obj.CompletionPercent,
-		   Parameters:   BuildHouseParameters(obj), // Новая функция для параметров дома
-	   }
-	   details = house
+		house := &domain.House{
+			// Общие поля, которые есть и у квартир
+			TotalArea:       obj.TotalArea,
+			LivingSpaceArea: obj.LivingSpaceArea,
+			KitchenArea:     obj.KitchenArea,
+			YearBuilt:       obj.YearBuilt,
+			RoomsAmount:     obj.RoomsAmount,
+			BuildingFloors:  obj.BuildingFloorsHouse,
+
+			// Специфичные для домов поля
+			PlotArea:          obj.PlotArea,
+			WallMaterial:      NormalizeStringPtr(obj.WallMaterialH),
+			Electricity:       NormalizeStringPtr(obj.Electricity),
+			Water:             NormalizeStringPtr(obj.Water),
+			Heating:           NormalizeStringPtr(obj.Heating),
+			Sewage:            NormalizeStringPtr(obj.Sewage),
+			Gaz:               NormalizeStringPtr(obj.Gaz),
+			RoofMaterial:      NormalizeStringPtr(obj.RoofMaterial),
+			HouseType:         NormalizeStringPtr(obj.PropertyType),
+			CompletionPercent: obj.CompletionPercent,
+			IsNewCondition:    obj.IsNewBuild,
+			Parameters:        BuildHouseParameters(obj), // Новая функция для параметров дома
+		}
+		details = house
+
+	case constants.OfficeSaleCategory, constants.OfficeRentCategory, constants.WarehouseSaleCategory, constants.WarehouseRentCategory,
+		constants.ShopSaleCategory, constants.ShopRentCategory, constants.RestaurantCafeSaleCategory, constants.RestaurantCafeRentCategory,
+		constants.ServicesSaleCategory, constants.ServicesRentCategory, constants.BusinessSaleCategory, constants.BusinessRentCategory,
+		constants.PomeschenieSaleCategory, constants.PomeschenieRentCategory, constants.ProizvodstvoSaleCategory, constants.ProizvodstvoRentCategory:
+
+		commercial := &domain.Commercial{
+			IsNewCondition:         obj.IsNewBuild,
+			PropertyType:           NormalizeStringPtr(obj.PropertyType),
+			FloorNumber:            obj.FloorNumber,
+			BuildingFloors:         obj.BuildingFloors,
+			CommercialImprovements: NormalizeStringSlice(obj.CommercialImprovements),
+			CommercialRepair:       NormalizeStringPtr(obj.RepairState),
+			CommercialRentType:     NormalizeStringPtr(obj.CommercialRentType),
+			TotalArea:              calculateAverage(obj.AreaMin, obj.AreaMax),
+			RoomsRange:             buildRange(obj.CommercialRoomsMin, obj.CommercialRoomsMax),
+			Parameters:             BuildCommercialParameters(obj),
+		}
+
+		// if obj.AreaMin != nil && obj.AreaMax != nil {
+		// 	area := (*obj.AreaMin + *obj.AreaMax) / 2
+		// 	commercial.TotalArea = &area
+		// } else if obj.AreaMin != nil {
+		// 	commercial.TotalArea = obj.AreaMin
+		// } else if obj.AreaMax != nil {
+		// 	commercial.TotalArea = obj.AreaMax
+		// }
+
+		if general.Currency == "BYN" {
+			commercial.PricePerSquareMeter = &obj.PriceRatesPerM2.BYN
+		} else {
+			commercial.PricePerSquareMeter = &obj.PriceRatesPerM2.USD
+		}
+
+		// var roomsAmount []int8
+		// if obj.CommercialRoomsMin != nil &&  obj.CommercialRoomsMax != nil {
+		// 	if *obj.CommercialRoomsMin == *obj.CommercialRoomsMax {
+		// 		roomsAmount = []int8{*obj.CommercialRoomsMin}
+		// 	} else {
+		// 		roomsAmount = []int8{*obj.CommercialRoomsMin, *obj.CommercialRoomsMax}
+		// 	}
+		// } else if obj.CommercialRoomsMin != nil {
+		// 	roomsAmount = []int8{*obj.CommercialRoomsMin}
+		// } else if obj.CommercialRoomsMax != nil {
+		// 	roomsAmount = []int8{*obj.CommercialRoomsMax}
+		// }
+		// commercial.RoomsRange = roomsAmount
+
+		if obj.Place != nil {
+			location := strings.Join(obj.Place, ", ")
+			commercial.CommercialBuildingLocation = NormalizeStringPtr(&location)
+		}
+
+		details = commercial
 
 	default:
 		logger.Warn("Unknown category received from Realt", port.Fields{
@@ -312,6 +445,42 @@ func toDomainRecord(jsonData string, url string, source string, logger port.Logg
 	}
 
 	return record, nil
+}
+
+func calculateAverage(min, max *float64) *float64 {
+	hasMin := min != nil
+	hasMax := max != nil
+
+	switch {
+	case hasMin && hasMax:
+		avg := (*min + *max) / 2
+		return &avg
+	case hasMin:
+		return min
+	case hasMax:
+		return max
+	default:
+		return nil
+	}
+}
+
+func buildRange(min, max *int8) []int8 {
+	hasMin := min != nil
+	hasMax := max != nil
+
+	switch {
+	case hasMin && hasMax:
+		if *min == *max {
+			return []int8{*min}
+		}
+		return []int8{*min, *max}
+	case hasMin:
+		return []int8{*min}
+	case hasMax:
+		return []int8{*max}
+	default:
+		return nil
+	}
 }
 
 func BuildSellerDetails(g PropertiesObject) map[string]interface{} {
@@ -365,9 +534,9 @@ func BuildApartmentParameters(obj PropertiesObject) map[string]interface{} {
 		apartment["is_auction"] = obj.IsAuction
 	}
 
-	if obj.IsNewBuild != nil {
-		apartment["is_new_build"] = obj.IsNewBuild
-	}
+	// if obj.IsNewBuild != nil {
+	// 	apartment["is_new_build"] = obj.IsNewBuild
+	// }
 
 	// if len(obj.NearestMetroStations) > 0 {
 	// 	apartment["nearest_metro_stations"] = obj.NearestMetroStations
@@ -420,7 +589,6 @@ func BuildApartmentParameters(obj PropertiesObject) map[string]interface{} {
 	return apartment
 }
 
-
 func BuildHouseParameters(obj PropertiesObject) map[string]interface{} {
 	params := make(map[string]interface{})
 
@@ -446,7 +614,77 @@ func BuildHouseParameters(obj PropertiesObject) map[string]interface{} {
 	if obj.HasBath != nil {
 		params["has_bath"] = obj.HasBath
 	}
-	
+
+	// Местоположение
+	if obj.StreetName != nil && *obj.StreetName != "" {
+		params["street_name"] = *obj.StreetName
+	}
+	if obj.TownDistrictName != nil && *obj.TownDistrictName != "" {
+		params["town_district_name"] = *obj.TownDistrictName
+	}
+	if obj.TownSubDistrictName != nil && *obj.TownSubDistrictName != "" {
+		params["town_sub_district_name"] = *obj.TownSubDistrictName
+	}
+
+	return params
+}
+
+func BuildCommercialParameters(obj PropertiesObject) map[string]interface{} {
+	params := make(map[string]interface{})
+
+	// Финансовые и юридические детали
+	if obj.IsAuction != nil {
+		params["is_auction"] = *obj.IsAuction
+	}
+	if obj.ProvidesLegalAddress != nil { // Добавил это поле в вашу структуру Commercial ниже
+		params["provides_legal_address"] = *obj.ProvidesLegalAddress
+	}
+	if obj.Vat != nil { // И это тоже
+		params["vat"] = *obj.Vat
+	}
+	if obj.AgencyConract != nil && obj.AgencyConract.Contract != "" {
+		params["agency_contract"] = obj.AgencyConract.Contract
+	}
+
+	// Физические характеристики
+	if obj.CeilingHeight != nil {
+		params["ceiling_height"] = *obj.CeilingHeight
+	}
+	if obj.WallMaterialH != nil { // Для коммерции тоже бывает материал стен
+		params["wall_material"] = *obj.WallMaterialH
+	}
+	if obj.HasParkingPlace != nil {
+		params["has_parking_place"] = *obj.HasParkingPlace
+	}
+
+	// Коммуникации (если они не вынесены в основные поля)
+	if obj.Electricity != nil {
+		params["electricity"] = *obj.Electricity
+	}
+	if obj.Water != nil {
+		params["water"] = *obj.Water
+	}
+	if obj.Heating != nil {
+		params["heating"] = *obj.Heating
+	}
+	if obj.Sewage != nil {
+		params["sewage"] = *obj.Sewage
+	}
+	if obj.Gaz != nil {
+		params["gas"] = *obj.Gaz
+	}
+
+	// Местоположение
+	if obj.StreetName != nil && *obj.StreetName != "" {
+		params["street_name"] = *obj.StreetName
+	}
+	if obj.TownDistrictName != nil && *obj.TownDistrictName != "" {
+		params["town_district_name"] = *obj.TownDistrictName
+	}
+	if obj.TownSubDistrictName != nil && *obj.TownSubDistrictName != "" {
+		params["town_sub_district_name"] = *obj.TownSubDistrictName
+	}
+
 	return params
 }
 

@@ -78,7 +78,7 @@ func (a *TasksConsumerAdapter) messageHandler(d amqp.Delivery) (err error) {
 	ctx = contextkeys.ContextWithLogger(ctx, msgLogger)
 	ctx = contextkeys.ContextWithTraceID(ctx, traceID)
 
-	msgLogger.Info("Received new task", nil)
+	msgLogger.Info("Received new task for find objects", nil)
 	// log.Printf("LinkConsumerAdapter: Received task (Tag: %d)\n", d.DeliveryTag)
 
 	var taskDTO TaskInfo
@@ -115,7 +115,7 @@ func (a *TasksConsumerAdapter) translateDTOToInternalTasks(dto TaskInfo) ([]doma
 	}
 
 	// 2. Находим технический ID категории
-	kufarCategory, ok := constants.BusinessCategoryToKufarMap[dto.Category]
+	kufarCategories, ok := constants.BusinessCategoryToKufarMap[dto.Category]
 	if !ok {
 		return nil, fmt.Errorf("unknown category for Kufar: %s", dto.Category)
 	}
@@ -125,25 +125,34 @@ func (a *TasksConsumerAdapter) translateDTOToInternalTasks(dto TaskInfo) ([]doma
 
 	// Внешний цикл по локациям (для "Минск" он выполнится дважды)
 	for _, location := range kufarLocations {
-		for _, dealType := range constants.DealTypes {
+		for _, kufarCategory := range kufarCategories {
+			for _, dealType := range constants.DealTypes {
 
-			if kufarCategory == constants.PlotCategory && dealType == constants.DealTypeRent ||
-				kufarCategory == constants.NewBuildingCategory && dealType == constants.DealTypeRent {
-				continue
+				if kufarCategory == constants.PlotCategory && dealType == constants.DealTypeRent ||
+					kufarCategory == constants.NewBuildingCategory && dealType == constants.DealTypeRent ||
+					kufarCategory == constants.TravelsCategory && dealType == constants.DealTypeRent{
+					continue
+				}
+	
+				task := domain.SearchCriteria{
+					Category: kufarCategory,
+					Location: location, // <-- Используем конкретную локацию из цикла
+					DealType: dealType,
+	
+					AdsAmount: constants.MaxAdsAmount,
+					SortBy:    constants.SortByDateDesc,
+	
+					Name: fmt.Sprintf("FindNew_%s_%s_loc-%s_%s", dto.Region, dto.Category, location, dealType),
+				}
+	
+				if kufarCategory == constants.TravelsCategory {
+					query := constants.Queries[dto.Category]
+					task.Query = query
+				}
+				
+				tasks = append(tasks, task)
 			}
-
-			task := domain.SearchCriteria{
-				Category: kufarCategory,
-				Location: location, // <-- Используем конкретную локацию из цикла
-				DealType: dealType,
-
-				AdsAmount: constants.MaxAdsAmount,
-				SortBy:    constants.SortByDateDesc,
-
-				Name: fmt.Sprintf("FindNew_%s_%s_loc-%s_%s", dto.Region, dto.Category, location, dealType),
-			}
-			tasks = append(tasks, task)
-		}
+		}	
 	}
 
 	return tasks, nil

@@ -69,6 +69,7 @@ type Apartment struct {
 	BalconyType           *string         `json:"balcony_type"`
 	PricePerSquareMeter   *float64        `json:"price_per_square_meter"`
 	
+	IsNewCondition        *bool 		  `json:"is_new_condition"`
 	Parameters            json.RawMessage `json:"parameters"`
 }
 
@@ -91,11 +92,32 @@ type House struct {
 	HouseType             *string  					`json:"house_type"`
 	
 	CompletionPercent 	  *int8						`json:"completion_percent"`
+	IsNewCondition        *bool 					`json:"is_new_condition"`
 
 	// Condition             *string    				`db:"condition"`     
 	// InGardeningCommunity  *bool  					`db:"in_gardening_community"`		         
 	//ContractNumberAndDate *string  					`db:"contract_number_and_date"`  	     
 	Parameters            json.RawMessage 	`json:"parameters"`
+}
+
+
+type Commercial struct {
+	PropertyID          	  uuid.UUID		`json:"-"`
+	IsNewCondition             *bool      	`json:"is_new_condition"`    
+	PropertyType               *string		`json:"property_type"`         
+	FloorNumber                *int8 		`json:"floor_number"`         
+	BuildingFloors             *int8   		`json:"building_floors"`       
+	TotalArea                  *float64		`json:"total_area"`        
+	CommercialImprovements     []string 	`json:"commercial_improvements"`       
+	CommercialRepair           *string    	`json:"commercial_repair"`     	
+	PricePerSquareMeter        *float64		`json:"price_per_square_meter"`        
+	RoomsRange                []int8        `json:"rooms_range"`
+	CommercialBuildingLocation *string 		`json:"commercial_building_location"`        
+	CommercialRentType		   *string		`json:"commercial_rent_type"`	   
+	Parameters                 json.RawMessage `json:"parameters"`
+
+	// IsPartlySellOrRent         *bool       
+	// ContractNumberAndDate      *string           
 }
 
 type GarageAndParking struct {
@@ -137,23 +159,7 @@ type Room struct {
 	Parameters                json.RawMessage `json:"parameters"`
 }
 
-type Commercial struct {
-	PropertyID          	  uuid.UUID					`json:"-"`
-	Condition                  *string         			`json:"condition"`
-	PropertyType               *string         			`json:"property_type"`
-	FloorNumber                *int16          			`json:"floor_number"`
-	BuildingFloors             *int16          			`json:"building_floors"`
-	TotalArea                  *float64        			`json:"total_area"`
-	CommercialImprovements     []string        			`json:"commercial_improvements"`
-	CommercialRepair           *string         			`json:"commercial_repair"`
-	IsPartlySellOrRent         *bool         			`json:"partly_sell"`
-	PricePerSquareMeter        *float64        			`json:"price_per_square_meter"`
-	ContractNumberAndDate      *string         			`json:"contract_number_and_date"`
-	RoomsAmount                *int16          			`json:"rooms_amount"`
-	CommercialBuildingLocation *string         			`json:"commercial_building_location"`
-	CommercialRentType		   *string		   			`json:"commercial_rent_type"`
-	Parameters                 json.RawMessage	`json:"parameters"`		 
-}
+
 
 type Plot struct {
 	PropertyID            uuid.UUID					`json:"-"`

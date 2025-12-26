@@ -3,7 +3,6 @@ package usecase
 import (
 	"context"
 	"fmt"
-	"log"
 	"realt-parser-service/internal/contextkeys"
 	"realt-parser-service/internal/core/domain"
 	"realt-parser-service/internal/core/port"
@@ -68,7 +67,9 @@ func (uc *FetchAndEnqueueLinksUseCase) Execute(ctx context.Context, initialCrite
 	}
 
 	//FOR DEBUG
-	lastRunTime = time.Time{}
+	// lastRunTime = time.Time{}
+	const debugLinkLimit = 30 // Собираем не больше 5 ссылок для каждого вызова
+	stopFetching := false
 
 	currentCriteria := initialCriteria
 	newLinksFoundOverall := 0
@@ -86,7 +87,7 @@ func (uc *FetchAndEnqueueLinksUseCase) Execute(ctx context.Context, initialCrite
 		pageLogger := parserLogger.WithFields(port.Fields{
 			"page":   currentCriteria.Page,
 		})
-		pageLogger.Info("Fetching page", nil)
+		pageLogger.Debug("Fetching page", nil)
 
 		links, nextPage, fetchErr := uc.fetcherRepo.FetchLinks(ctx, currentCriteria, lastRunTime)
 		if fetchErr != nil {
@@ -97,7 +98,7 @@ func (uc *FetchAndEnqueueLinksUseCase) Execute(ctx context.Context, initialCrite
 		if len(links) == 0 && nextPage == 0 {
 			// Это может случиться, если на первой же странице нет новых ссылок И нет следующей страницы,
 			// или если адаптер сразу вернул пустой nextCursor из-за отсечки по 'since'
-			pageLogger.Info("No new links found and no next page. Stopping.", nil)
+			pageLogger.Debug("No new links found and no next page. Stopping.", nil)
 			break
 		}
 		
@@ -115,15 +116,29 @@ func (uc *FetchAndEnqueueLinksUseCase) Execute(ctx context.Context, initialCrite
 			if link.ListedAt.After(latestAdTimeOnCurrentRun) { // Обновляем самое свежее время
 				latestAdTimeOnCurrentRun = link.ListedAt
 			}
-			log.Printf("Use Case: Enqueued link with AdID: %d (ListedAt: %s)\n", link.AdID, link.ListedAt.Format(time.RFC3339))
+
+			//FOR DEBUG
+			if newLinksFoundOverall >= debugLinkLimit {
+				parserLogger.Warn("DEBUG: Link limit reached. Stopping fetch process.", port.Fields{
+					"limit": debugLinkLimit,
+					"total_found": newLinksFoundOverall,
+				})
+				stopFetching = true // Устанавливаем флаг для выхода из внешнего цикла
+				break // Выходим из внутреннего цикла `for _, link := ...`
+			}
+		}
+
+		//FOR DEBUG
+		if stopFetching {
+			break 
 		}
 
 		if newLinksOnPage > 0 {
-			pageLogger.Info("Enqueued new links from page", port.Fields{"count": newLinksOnPage})
+			pageLogger.Debug("Enqueued new links from page", port.Fields{"count": newLinksOnPage})
 		}
 
 		if nextPage == 0 {
-			parserLogger.Info("No next page. Pagination finished.", nil)
+			parserLogger.Debug("No next page. Pagination finished.", nil)
 			break
 		}
 

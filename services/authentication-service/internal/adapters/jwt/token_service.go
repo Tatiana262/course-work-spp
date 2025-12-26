@@ -45,7 +45,7 @@ func (s *TokenService) GenerateToken(ctx context.Context, user *domain.User, ttl
 		"user_id":   user.ID.String(),
 	})
 	
-	serviceLogger.Info("Generating new token.", port.Fields{"ttl": ttl.String()})
+	serviceLogger.Debug("Generating new token.", port.Fields{"ttl": ttl.String()})
 	claims := &jwtCustomClaims{
 		UserID: user.ID,
 		Email:  user.Email,
@@ -80,7 +80,7 @@ func (s *TokenService) ValidateToken(ctx context.Context, tokenString string) (*
 		"method":    "ValidateToken",
 	})
 
-	serviceLogger.Info("Attempting to validate token.", nil)
+	serviceLogger.Debug("Attempting to validate token.", nil)
 
 	token, err := jwt.ParseWithClaims(tokenString, &jwtCustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 		// Проверяем, что метод подписи - HS256, как мы и ожидали
@@ -97,7 +97,7 @@ func (s *TokenService) ValidateToken(ctx context.Context, tokenString string) (*
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			// Здесь token.Valid будет false, но claims можно прочитать
 			if claims, ok := token.Claims.(*jwtCustomClaims); ok {
-				 serviceLogger.Warn("Token has expired", port.Fields{"user_id": claims.UserID.String(), "email": claims.Email})
+				serviceLogger.Warn("Token has expired", port.Fields{"user_id": claims.UserID.String(), "email": claims.Email})
 			}  else {
 				serviceLogger.Warn("An expired token could not be parsed to claims", nil)
 			}	

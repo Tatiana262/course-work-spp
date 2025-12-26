@@ -1,7 +1,7 @@
 package usecase
 
 import (
-	"actualization-service/internal/constants"
+	// "actualization-service/internal/constants"
 	"actualization-service/internal/contextkeys"
 	"actualization-service/internal/core/domain"
 	"actualization-service/internal/core/port" // Используем порты
@@ -15,25 +15,25 @@ import (
 
 type ActualizeActiveObjectsUseCase struct {
 	storage     port.StoragePort
-	taskQueue   port.ParsingTaskQueuePort
+	linksQueue   port.LinksQueuePort
 	taskService port.UserTaskServicePort
 	taskResults port.TaskResultsPort
 }
 
 func NewActualizeActiveObjectsUseCase(storage port.StoragePort,
-	taskQueue port.ParsingTaskQueuePort,
+	taskQueue port.LinksQueuePort,
 	taskService port.UserTaskServicePort,
 	taskResults port.TaskResultsPort) *ActualizeActiveObjectsUseCase {
 	return &ActualizeActiveObjectsUseCase{
 		storage:     storage,
-		taskQueue:   taskQueue,
+		linksQueue:   taskQueue,
 		taskService: taskService,
 		taskResults: taskResults,
 	}
 }
 
 // Execute - основной метод
-func (uc *ActualizeActiveObjectsUseCase) Execute(ctx context.Context, userID uuid.UUID, category string, limit int) (uuid.UUID, error) {
+func (uc *ActualizeActiveObjectsUseCase) Execute(ctx context.Context, userID uuid.UUID, category* string, limit int) (uuid.UUID, error) {
 
 	// 1. Извлекаем логгер и обогащаем его
 	logger := contextkeys.LoggerFromContext(ctx)
@@ -47,8 +47,16 @@ func (uc *ActualizeActiveObjectsUseCase) Execute(ctx context.Context, userID uui
 	backgroundCtx = contextkeys.ContextWithLogger(backgroundCtx, logger)
 	backgroundCtx = contextkeys.ContextWithTraceID(backgroundCtx, traceID)
 
+	//  Определяем имя и тип задачи 
+	taskName := ""
+	if category != nil && *category != "" {
+		taskName = fmt.Sprintf("Актуализация %d активных объектов (Категория: %s)", limit, *category)
+	} else {
+		taskName = fmt.Sprintf("Массовая актуализация активных объектов (лимит: %d на категорию)", limit)
+	}
+
 	// Шаг 1: Создаем задачу в task-service
-	taskName := fmt.Sprintf("Актуализация %d активных объектов (Категория: %s)", limit, category)
+	// taskName := fmt.Sprintf("Актуализация %d активных объектов (Категория: %s)", limit, category)
 	taskID, err := uc.taskService.CreateTask(ctx, taskName, "ACTUALIZE_ACTIVE", userID)
 	if err != nil {
 		ucLogger.Error("Could not create user task", err, nil)
@@ -66,13 +74,13 @@ func (uc *ActualizeActiveObjectsUseCase) Execute(ctx context.Context, userID uui
 }
 
 // runInBackground - приватный метод для выполнения долгой работы.
-func (uc *ActualizeActiveObjectsUseCase) runInBackground(ctx context.Context, taskID uuid.UUID, category string, limit int) {
+func (uc *ActualizeActiveObjectsUseCase) runInBackground(ctx context.Context, taskID uuid.UUID, category *string, limit int) {
 
 	logger := contextkeys.LoggerFromContext(ctx)
 	taskLogger := logger.WithFields(port.Fields{
 		"use_case": "ActualizeActiveObjects.background",
 		"task_id":  taskID.String(),
-		"category": category,
+		"category": *category,
 	})
 
 	// Шаг 3.1: Обновляем статус задачи на "running"
@@ -83,23 +91,54 @@ func (uc *ActualizeActiveObjectsUseCase) runInBackground(ctx context.Context, ta
 		return
 	}
 
-	// Шаг 3.2: Выполняем старую логику
-	// 1. Получаем список объектов от storage-service
-	taskLogger.Info("Fetching active objects from storage", port.Fields{"limit": limit})
-	objects, err := uc.storage.GetActiveObjects(ctx, category, limit)
-	if err != nil {
-		taskLogger.Error("Failed to get active objects from storage", err, nil)
-		uc.taskService.UpdateTaskStatus(ctx, taskID, "failed")
-		return
+	var categoriesToProcess []string
+	if category != nil && *category != "" {
+		// Сценарий 1: Задана одна конкретная категория
+		categoriesToProcess = []string{*category}
+		taskLogger.Debug("Starting single-category actualization", port.Fields{"category": *category})
+	} else {
+		// Сценарий 2: Актуализация всех категорий
+		taskLogger.Debug("Starting multi-category actualization", nil)
+		
+        // Получаем список всех категорий от storage-service
+		categoryDict, err := uc.storage.GetCategories(ctx)
+		if err != nil {
+			taskLogger.Error("Failed to get categories from storage", err, nil)
+			uc.taskService.UpdateTaskStatus(ctx, taskID, "failed")
+			return
+		}
+
+		for _, item := range categoryDict {
+			categoriesToProcess = append(categoriesToProcess, item.SystemName)
+		}
+		taskLogger.Info("Found categories to process", port.Fields{"categories": categoriesToProcess})
 	}
 
-	totalTasksToDispatch := len(objects)
+	totalTasksToDispatch := 0
+	var allObjects []domain.PropertyInfo
+
+	// Собираем объекты из всех категорий
+	for _, cat := range categoriesToProcess {
+		objects, err := uc.storage.GetActiveObjects(ctx, cat, limit)
+		if err != nil {
+			taskLogger.Error("Failed to get archived objects for category", err, port.Fields{"category": cat})
+			uc.taskService.UpdateTaskStatus(ctx, taskID, "failed")
+			return
+		}
+		allObjects = append(allObjects, objects...)
+	}
+
+
+	totalTasksToDispatch = len(allObjects)
 
 	if totalTasksToDispatch == 0 {
 		taskLogger.Info("No active objects to actualize. Sending completion command.", nil)
 		completionCmd := domain.TaskCompletionCommand{
 			TaskID:               taskID,
-			ExpectedResultsCount: 0,
+			Results: map[string]int{
+				"expected_results_count": 0,
+			},
+			// ExpectedResultsCount: 0,
 		}
 		if err := uc.taskResults.PublishCompletionCommand(ctx, completionCmd); err != nil {
 			taskLogger.Error("Failed to publish zero-count completion command", err, nil)
@@ -108,34 +147,32 @@ func (uc *ActualizeActiveObjectsUseCase) runInBackground(ctx context.Context, ta
 		uc.taskService.UpdateTaskStatus(ctx, taskID, "completed")
 		return
 	} else {
-		taskLogger.Info("Found active objects to actualize", port.Fields{"count": len(objects)})
+		taskLogger.Info("Total objects to actualize across all categories", port.Fields{"count": totalTasksToDispatch})
 	}
 
 	// 2. Для каждого объекта создаем и отправляем задачу
-	for _, obj := range objects {
+	for _, obj := range allObjects {
 		obj.TaskID = taskID
 
 		task := domain.ActualizationTask{
 			Task:     obj,
 			Priority: domain.ACTUALIZE_ACTIVE,
+			Source: obj.Source,
 		}
 
-		if obj.Source == domain.KUFAR_SOURCE {
-			task.RoutingKey = constants.RoutingKeyLinkTasksKufar
-		}
-		if obj.Source == domain.REALT_SOURCE {
-			task.RoutingKey = constants.RoutingKeyLinkTasksRealt
-		}
-		if err := uc.taskQueue.PublishTask(ctx, task); err != nil {
+		if err := uc.linksQueue.PublishTask(ctx, task); err != nil {
 			taskLogger.Error("Failed to publish actualization active sub-task", err, port.Fields{"link": obj.Link})
 			uc.taskService.UpdateTaskStatus(ctx, taskID, "failed")
 		}
 	}
 
-	taskLogger.Info("All sub-tasks for active objects dispatched. Sending completion command for user task", port.Fields{"dispatched_count": totalTasksToDispatch})
+	// taskLogger.Info("All sub-tasks for active objects dispatched. Sending completion command for user task", port.Fields{"dispatched_count": totalTasksToDispatch})
 	completionCmd := domain.TaskCompletionCommand{
 		TaskID:               taskID,
-		ExpectedResultsCount: totalTasksToDispatch,
+		Results: map[string]int{
+			"expected_results_count": totalTasksToDispatch,
+		},
+		// ExpectedResultsCount: totalTasksToDispatch,
 	}
 	if err := uc.taskResults.PublishCompletionCommand(ctx, completionCmd); err != nil {
 		taskLogger.Error("Failed to publish completion command", err, nil)

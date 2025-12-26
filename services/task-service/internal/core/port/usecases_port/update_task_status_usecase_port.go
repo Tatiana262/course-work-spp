@@ -8,5 +8,5 @@ import (
 )
 
 type UpdateTaskStatusUseCasePort interface {
-	Execute(ctx context.Context, taskID uuid.UUID, status domain.TaskStatus, summary *domain.ResultSummary) (*domain.Task, error)
+	Execute(ctx context.Context, taskID uuid.UUID, status domain.TaskStatus) (*domain.Task, error)
 }

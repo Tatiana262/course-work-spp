@@ -110,3 +110,11 @@ type DictionaryItemResponse struct {
 	SystemName  string `json:"system_name"`
 	DisplayName string `json:"display_name"`
 }
+
+
+type StatsByCategoryResponse struct {
+	DisplayName   string `json:"display_name"`
+	SystemName    string `json:"system_name"`
+	ActiveCount   int64  `json:"active_count"`
+	ArchivedCount int64  `json:"archived_count"`
+}

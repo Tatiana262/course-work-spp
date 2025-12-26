@@ -5,12 +5,12 @@ import (
 	"real-estate-system/pkg/rabbitmq/rabbitmq_common"
 )
 
-// PkgLoggerBridge адаптирует наш внутренний LoggerPort к интерфейсу pkg-уровня.
+// PkgLoggerBridge адаптирует наш внутренний LoggerPort к интерфейсу pkg-уровня
 type PkgLoggerBridge struct {
 	internalLogger port.LoggerPort
 }
 
-// NewPkgLoggerBridge создает новый мост.
+// NewPkgLoggerBridge создает новый мост
 func NewPkgLoggerBridge(logger port.LoggerPort) rabbitmq_common.Logger {
 	return &PkgLoggerBridge{internalLogger: logger}
 }
@@ -28,8 +28,7 @@ func (b *PkgLoggerBridge) toFields(keysAndValues ...interface{}) port.Fields {
 }
 
 func (b *PkgLoggerBridge) Debug(msg string, keysAndValues ...interface{}) {
-	// В нашем порте нет Debug, поэтому отправляем как Info
-	b.internalLogger.Info(msg, b.toFields(keysAndValues...))
+	b.internalLogger.Debug(msg, b.toFields(keysAndValues...))
 }
 
 func (b *PkgLoggerBridge) Info(msg string, keysAndValues ...interface{}) {

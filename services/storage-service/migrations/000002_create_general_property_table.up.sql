@@ -1,4 +1,4 @@
-CREATE TYPE deal_type AS ENUM ('sale', 'rent');
+CREATE TYPE deal_type AS ENUM ('sale', 'rent', 'daily_rent');
 
 CREATE TABLE IF NOT EXISTS general_properties (
     master_object_id        UUID NOT NULL REFERENCES master_objects(id) ON DELETE CASCADE,
@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS general_properties (
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     category                VARCHAR(255) NOT NULL,
     ad_link                 TEXT NOT NULL, 
-    sale_type               VARCHAR(20) NOT NULL, 
+    sale_type               VARCHAR(50) NOT NULL, 
     currency                VARCHAR(10) NOT NULL,
     images                  TEXT[] NOT NULL DEFAULT '{}'::TEXT[],
     list_time               TIMESTAMPTZ NOT NULL,

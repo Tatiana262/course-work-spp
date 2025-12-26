@@ -37,18 +37,13 @@ func (uc *CreateTaskUseCase) Execute(ctx context.Context, name, taskType string,
 		task.ResultSummary["id"] = params[0]
 	}
 
-
-	ucLogger.Info("CREATE TASK USE CASE", port.Fields{
-		"task": *task,
-	})
-
 	if err := uc.repo.Create(ctx, task); err != nil {
 		ucLogger.Error("Repository failed to create task", err, nil)
 		return nil, err
 	}
 
 	ucLogger = ucLogger.WithFields(port.Fields{"task_id": task.ID.String()}) // Обогащаем ID после создания
-	ucLogger.Info("Task created successfully, notifying clients", nil)
+	ucLogger.Debug("Task created successfully, notifying clients", nil)
 
 	// Отправляем уведомление о создании задачи
 	uc.notifier.Notify(ctx, port.TaskEvent{Type: "task_created", Data: *task})

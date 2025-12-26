@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Form, Button, Row, Col, Card, Modal, Badge, Spinner } from 'react-bootstrap';
+import { Form, Button, Row, Col, Card, Modal, Badge, Spinner, Dropdown } from 'react-bootstrap';
 import { useSearchParams } from 'react-router-dom'; // <--- Добавили хук
 import type { IFilterState, IFilterOptionsResponse } from '../types/filter';
 import { fetchFilterOptions, fetchDictionaries } from '../http/filterAPI';
@@ -103,6 +103,8 @@ const AdvancedFilterBar: React.FC<Props> = ({ onSearch }) => {
              let hasChanges = false;
 
              searchParams.forEach((value, key) => {
+                if (key === 'page') return;
+                
                  // @ts-ignore
                 if (key in newFilters) {
                     hasChanges = true;
@@ -230,6 +232,45 @@ const AdvancedFilterBar: React.FC<Props> = ({ onSearch }) => {
         )
     };
 
+    // Хелпер для Multiselect (Dropdown с чекбоксами)
+    const renderMultiSelect = (label: string, backendKey: string, stateKey: keyof IFilterState) => {
+        const opt = dynamicOptions?.filters[backendKey];
+        if (!opt || !opt.options || opt.options.length === 0) return null;
+
+        const selectedCount = (filters[stateKey] as string[])?.length || 0;
+        
+        return (
+            <Form.Group className="mb-3">
+                <Form.Label>{label}</Form.Label>
+                <Dropdown>
+                    <Dropdown.Toggle variant="outline-secondary" className="w-100 text-start d-flex justify-content-between align-items-center">
+                        <span className="text-truncate">
+                            {selectedCount > 0 ? `Выбрано: ${selectedCount}` : 'Не выбрано'}
+                        </span>
+                    </Dropdown.Toggle>
+
+                    <Dropdown.Menu className="w-100 p-2" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                        {opt.options.map((o: any) => {
+                            const valStr = String(o);
+                            const isChecked = (filters[stateKey] as string[])?.includes(valStr);
+                            
+                            return (
+                                <Form.Check 
+                                    key={valStr}
+                                    type="checkbox"
+                                    label={o}
+                                    checked={isChecked}
+                                    onChange={() => handleCheckboxChange(stateKey, valStr)}
+                                    className="mb-1"
+                                />
+                            );
+                        })}
+                    </Dropdown.Menu>
+                </Dropdown>
+            </Form.Group>
+        );
+    };
+
     // --- LOGIC: Подсчет активных фильтров в модальном окне (Пункт 5 и вопрос про ошибку) ---
     const activeFiltersCount = useMemo(() => {
         let count = 0;
@@ -293,7 +334,86 @@ const AdvancedFilterBar: React.FC<Props> = ({ onSearch }) => {
                             </datalist>
                         </Col>
 
-                        {/* Кнопка Модалки */}
+                        {/* Пункт 2: Поле ввода улицы */}
+                        <Col md={4}>
+                            <Form.Control 
+                                // size="sm"
+                                placeholder="Улица, поселок..."
+                                value={filters.street}
+                                onChange={e => handleChange('street', e.target.value)}
+                            />
+                        </Col>
+                        
+                    </Row>
+
+                    {/* Вторая строка: Цена, Комнаты ИЛИ Тип, Улица */}
+                    <Row className="mt-2 g-2 align-items-center">
+                        <Col md={4}>
+                            <div className="d-flex gap-1 align-items-center">
+                                <span className="text-muted me-1">Цена:</span>
+                                
+                                <Form.Control size="sm" placeholder={priceMinPlaceholder} value={filters.priceMin} onChange={e => handleChange('priceMin', e.target.value)} />
+                                <span className="text-muted">-</span>
+                                <Form.Control size="sm" placeholder={priceMaxPlaceholder} value={filters.priceMax} onChange={e => handleChange('priceMax', e.target.value)} />
+                                <Form.Select size="sm" style={{width: '80px'}} value={filters.priceCurrency} onChange={e => handleChange('priceCurrency', e.target.value)}>
+                                    <option value="USD">USD</option>
+                                    <option value="BYN">BYN</option>
+                                    <option value="EUR">EUR</option>
+                                </Form.Select>
+                            </div>
+                        </Col>
+                        
+                        <Col md={4}>
+                             {filters.category === 'commercial' ? (
+                                 // 1. ДЛЯ КОММЕРЦИИ: Одиночный Select "Вид объекта"
+                                 <div className="d-flex gap-1 align-items-center">
+                                     <span className="text-muted me-1">Вид:</span>
+                                     <Form.Select 
+                                        size="sm"
+                                        // Берем первый элемент массива (так как стейт хранит массив) или пустую строку
+                                        value={filters.commercialTypes?.[0] || ''}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            // При выборе перезаписываем массив одним значением
+                                            setFilters(prev => ({
+                                                ...prev,
+                                                commercialTypes: val ? [val] : []
+                                            }));
+                                        }}
+                                     >
+                                         <option value="">Любой</option>
+                                         {/* Берем опции из commercial_types (как в твоем JSON) */}
+                                         {dynamicOptions?.filters?.commercial_types?.options?.map((opt: any) => (
+                                             <option key={opt} value={opt}>{opt}</option>
+                                         ))}
+                                     </Form.Select>
+                                 </div>
+                             ) : (
+                                 // 2. ДЛЯ ЖИЛОЙ (Квартиры/Дома): Кнопки комнат
+                                 <div className="d-flex gap-1 align-items-center flex-wrap">
+                                    <span className="text-muted me-1">Комнаты:</span>
+                                    {/* Берем опции из rooms (если нет, по умолчанию 1-4) */}
+                                    {(dynamicOptions?.filters?.rooms?.options || [1, 2, 3, 4]).map((r: any) => {
+                                        const valStr = String(r);
+                                        const isChecked = filters.rooms.includes(Number(valStr)) || (filters.rooms as any[]).includes(valStr);
+                                        return (
+                                            <Button 
+                                                key={r} 
+                                                size="sm"
+                                                variant={isChecked ? "secondary" : "outline-light text-dark border"}
+                                                onClick={() => handleCheckboxChange('rooms', r)}
+                                            >
+                                                {r}
+                                            </Button>
+                                        )
+                                    })}
+                                 </div>
+                             )}
+                        </Col>
+
+                        {/* Пункт 4: Комнаты теперь динамические (с сервера) */}
+                       
+
                         <Col md={2}>
                             <Button 
                                 variant="outline-primary" 
@@ -316,56 +436,6 @@ const AdvancedFilterBar: React.FC<Props> = ({ onSearch }) => {
                             </Button>
                         </Col>
                     </Row>
-
-                    {/* Вторая строка: Цена, Комнаты, Улица */}
-                    <Row className="mt-2 g-2 align-items-center">
-                        <Col md={4}>
-                            <div className="d-flex gap-1 align-items-center">
-                                <span className="text-muted me-1">Цена:</span>
-                                
-                                <Form.Control size="sm" placeholder={priceMinPlaceholder} value={filters.priceMin} onChange={e => handleChange('priceMin', e.target.value)} />
-                                <span className="text-muted">-</span>
-                                <Form.Control size="sm" placeholder={priceMaxPlaceholder} value={filters.priceMax} onChange={e => handleChange('priceMax', e.target.value)} />
-                                <Form.Select size="sm" style={{width: '80px'}} value={filters.priceCurrency} onChange={e => handleChange('priceCurrency', e.target.value)}>
-                                    <option value="USD">USD</option>
-                                    <option value="BYN">BYN</option>
-                                    <option value="EUR">EUR</option>
-                                </Form.Select>
-                            </div>
-                        </Col>
-                        
-                        {/* Пункт 4: Комнаты теперь динамические (с сервера) */}
-                        <Col md={4}>
-                             <div className="d-flex gap-1 align-items-center flex-wrap">
-                                <span className="text-muted me-1">Комнаты:</span>
-                                {/* Если с бэкенда пришли опции rooms, рисуем их. Если нет - рисуем стандартные 1-4 */}
-                                {(dynamicOptions?.filters?.rooms?.options || [1, 2, 3, 4]).map((r: any) => {
-                                    const valStr = String(r);
-                                    const isChecked = filters.rooms.includes(Number(valStr)) || (filters.rooms as any[]).includes(valStr);
-                                    return (
-                                        <Button 
-                                            key={r} 
-                                            size="sm"
-                                            variant={isChecked ? "secondary" : "outline-light text-dark border"}
-                                            onClick={() => handleCheckboxChange('rooms', r)}
-                                        >
-                                            {r}
-                                        </Button>
-                                    )
-                                })}
-                             </div>
-                        </Col>
-
-                        {/* Пункт 2: Поле ввода улицы */}
-                        <Col md={4}>
-                            <Form.Control 
-                                size="sm"
-                                placeholder="Улица, поселок..."
-                                value={filters.street}
-                                onChange={e => handleChange('street', e.target.value)}
-                            />
-                        </Col>
-                    </Row>
                 </Form>
             </Card>
 
@@ -377,40 +447,74 @@ const AdvancedFilterBar: React.FC<Props> = ({ onSearch }) => {
                 <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
                     <Form>
                         <h5 className="mb-3 text-primary">Общие характеристики</h5>
-                        <Row>
-                            <Col md={6}>{renderRangeInput("Площадь общая (м²)", "total_area", "totalAreaMin", "totalAreaMax")}</Col>
-                            <Col md={6}>{renderRangeInput("Площадь кухни (м²)", "kitchen_area", "kitchenAreaMin", "kitchenAreaMax")}</Col>
-                            <Col md={6}>{renderRangeInput("Год постройки", "year_built", "yearBuiltMin", "yearBuiltMax")}</Col>
-                            <Col md={12}>{renderCheckboxGroup("Материал стен", "wall_materials", "wallMaterials")}</Col>
-                        </Row>
+                       
 
                         {filters.category === 'apartment' && (
                             <>
+                                <Row>
+                                    <Col md={6}>{renderRangeInput("Площадь общая (м²)", "total_area", "totalAreaMin", "totalAreaMax")}</Col>
+                                    <Col md={6}>{renderRangeInput("Площадь кухни (м²)", "kitchen_area", "kitchenAreaMin", "kitchenAreaMax")}</Col>
+                                    <Col md={6}>{renderRangeInput("Год постройки", "year_built", "yearBuiltMin", "yearBuiltMax")}</Col>
+                                    <Col md={12}>{renderMultiSelect("Материал стен", "wall_materials", "wallMaterials")}</Col>
+                                </Row>
                                 <hr />
                                 <h5 className="mb-3 text-primary">Для квартир</h5>
                                 <Row>
                                     <Col md={6}>{renderRangeInput("Этаж", "floor", "floorMin", "floorMax")}</Col>
                                     <Col md={6}>{renderRangeInput("Этажность дома", "building_floor", "floorBuildingMin", "floorBuildingMax")}</Col>
-                                    <Col md={12}>{renderCheckboxGroup("Ремонт", "repair_states", "repairState")}</Col>
-                                    <Col md={12}>{renderCheckboxGroup("Санузел", "bathroom_types", "bathroomType")}</Col>
-                                    <Col md={12}>{renderCheckboxGroup("Балкон", "balcony_types", "balconyType")}</Col>
+                                    <Col md={12}>{renderMultiSelect("Ремонт", "repair_states", "repairState")}</Col>
+                                    <Col md={12}>{renderMultiSelect("Санузел", "bathroom_types", "bathroomType")}</Col>
+                                    <Col md={12}>{renderMultiSelect("Балкон", "balcony_types", "balconyType")}</Col>
                                 </Row>
                             </>
                         )}
 
                         {filters.category === 'house' && (
                             <>
+                                <Row>
+                                    <Col md={6}>{renderRangeInput("Площадь общая (м²)", "total_area", "totalAreaMin", "totalAreaMax")}</Col>
+                                    <Col md={6}>{renderRangeInput("Площадь кухни (м²)", "kitchen_area", "kitchenAreaMin", "kitchenAreaMax")}</Col>
+                                    <Col md={6}>{renderRangeInput("Год постройки", "year_built", "yearBuiltMin", "yearBuiltMax")}</Col>
+                                    <Col md={12}>{renderMultiSelect("Материал стен", "wall_materials", "wallMaterials")}</Col>
+                                </Row>
                                 <hr />
                                 <h5 className="mb-3 text-primary">Для домов и участков</h5>
                                 <Row>
-                                    <Col md={12}>{renderCheckboxGroup("Тип объекта", "house_types", "houseTypes")}</Col>
+                                    <Col md={12}>{renderMultiSelect("Тип объекта", "house_types", "houseTypes")}</Col>
                                     <Col md={6}>{renderRangeInput("Площадь участка (сот.)", "plot_area", "plotAreaMin", "plotAreaMax")}</Col>
-                                    <Col md={12}>{renderCheckboxGroup("Отопление", "heating_types", "heatingConditions")}</Col>
-                                    <Col md={12}>{renderCheckboxGroup("Вода", "water_types", "waterConditions")}</Col>
-                                    <Col md={12}>{renderCheckboxGroup("Канализация", "sewage_types", "sewageConditions")}</Col>
-                                    <Col md={12}>{renderCheckboxGroup("Газ", "gaz_types", "gazConditions")}</Col>
-                                    <Col md={12}>{renderCheckboxGroup("Электричество", "electricity_types", "electricityConditions")}</Col>
-                                    <Col md={12}>{renderCheckboxGroup("Крыша", "roof_materials", "roofMaterials")}</Col>
+                                    <Col md={12}>{renderMultiSelect("Отопление", "heating_types", "heatingConditions")}</Col>
+                                    <Col md={12}>{renderMultiSelect("Вода", "water_types", "waterConditions")}</Col>
+                                    <Col md={12}>{renderMultiSelect("Канализация", "sewage_types", "sewageConditions")}</Col>
+                                    <Col md={12}>{renderMultiSelect("Газ", "gaz_types", "gazConditions")}</Col>
+                                    <Col md={12}>{renderMultiSelect("Электричество", "electricity_types", "electricityConditions")}</Col>
+                                    <Col md={12}>{renderMultiSelect("Крыша", "roof_materials", "roofMaterials")}</Col>
+                                </Row>
+                            </>
+                        )}
+
+                        {filters.category === 'commercial' && (
+                            <>
+                                <Col md={6}>{renderRangeInput("Площадь общая (м²)", "total_area", "totalAreaMin", "totalAreaMax")}</Col>
+                                    
+                                <Col md={6}>{renderRangeInput("Этаж", "floor", "floorMin", "floorMax")}</Col>
+                                <Col md={6}>{renderRangeInput("Этажность здания", "building_floor", "floorBuildingMin", "floorBuildingMax")}</Col>
+                                <hr />
+                                <h5 className="mb-3 text-primary">Коммерческая недвижимость</h5>
+                                <Row>
+                                    {/* Диапазоны (из вашего JSON) */}
+                                    
+                                    
+                                    <Col md={6}>{renderRangeInput("Кол-во помещений", "commercial_rooms", "roomsMin", "roomsMax")}</Col>
+                                    
+                                   
+                                    <Col md={12}>{renderMultiSelect("Расположение", "commercial_locations", "commercialBuildingLocations")}</Col>
+                                    
+                                    {/* Обычные чекбоксы (если опций мало) или тоже мультиселект */}
+                                    <Col md={12}>{renderMultiSelect("Ремонт", "commercial_repairs", "commercialRepairs")}</Col> 
+                                    {/* ВНИМАНИЕ: Проверьте тип commercialRepair в IFilterState. Если это массив string[], то ок. */}
+                                    
+                                    <Col md={12}>{renderMultiSelect("Удобства", "commercial_improvements", "commercialImprovements")}</Col>
+                                    {/* Добавьте commercialImprovements в IFilterState и filterUtils.ARRAY_KEYS */}
                                 </Row>
                             </>
                         )}

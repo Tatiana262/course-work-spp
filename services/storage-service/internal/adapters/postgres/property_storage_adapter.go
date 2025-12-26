@@ -336,46 +336,46 @@ func (a *PostgresStorageAdapter) Save(ctx context.Context, record domain.RealEst
 // }
 
 
-func (a *PostgresStorageAdapter) saveCommercialDetails(ctx context.Context, tx pgx.Tx, propID uuid.UUID, details *domain.Commercial) error {
-	// dbComm, err := toDBCommercial(details)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to marshal commercial parameters to json: %w", err)
-	// }
-	details.PropertyID = propID
+// func (a *PostgresStorageAdapter) saveCommercialDetails(ctx context.Context, tx pgx.Tx, propID uuid.UUID, details *domain.Commercial) error {
+// 	// dbComm, err := toDBCommercial(details)
+// 	// if err != nil {
+// 	// 	return fmt.Errorf("failed to marshal commercial parameters to json: %w", err)
+// 	// }
+// 	details.PropertyID = propID
 
-	// Используем pgx.NamedArgs для удобства
-	sql := `
-		INSERT INTO commercial (
-			property_id, property_type, condition, floor_number, building_floors, total_area, 
-			commercial_improvements, commercial_repair, partly_sell_or_rent, price_per_square_meter, contract_number_and_date,
-			rooms_amount, commercial_building_location, commercial_rent_type, parameters
-		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
-		)
-		ON CONFLICT (property_id) DO UPDATE SET
-			property_type = EXCLUDED.property_type,
-			condition = EXCLUDED.condition,
-			floor_number = EXCLUDED.floor_number,
-			building_floors = EXCLUDED.building_floors,
-			total_area = EXCLUDED.total_area,
-			commercial_improvements = EXCLUDED.commercial_improvements,
-			commercial_repair = EXCLUDED.commercial_repair,
-			partly_sell_or_rent = EXCLUDED.partly_sell_or_rent,
-			price_per_square_meter = EXCLUDED.price_per_square_meter,
-			contract_number_and_date = EXCLUDED.contract_number_and_date,
-			rooms_amount = EXCLUDED.rooms_amount,
-			commercial_building_location = EXCLUDED.commercial_building_location,
-			commercial_rent_type = EXCLUDED.commercial_rent_type,
-			parameters = EXCLUDED.parameters;
-	`
-	_, err := tx.Exec(ctx, sql, details.PropertyID, details.PropertyType, details.Condition, details.FloorNumber, details.BuildingFloors,
-		details.TotalArea, details.CommercialImprovements, details.CommercialRepair, details.IsPartlySellOrRent, details.PricePerSquareMeter,
-		details.ContractNumberAndDate, details.RoomsAmount, details.CommercialBuildingLocation, details.CommercialRentType, details.Parameters)
-	if err != nil {
-		return fmt.Errorf("failed to insert/update commercial details: %w", err)
-	}
-	return nil
-}
+// 	// Используем pgx.NamedArgs для удобства
+// 	sql := `
+// 		INSERT INTO commercial (
+// 			property_id, property_type, condition, floor_number, building_floors, total_area, 
+// 			commercial_improvements, commercial_repair, partly_sell_or_rent, price_per_square_meter, contract_number_and_date,
+// 			rooms_amount, commercial_building_location, commercial_rent_type, parameters
+// 		) VALUES (
+// 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
+// 		)
+// 		ON CONFLICT (property_id) DO UPDATE SET
+// 			property_type = EXCLUDED.property_type,
+// 			condition = EXCLUDED.condition,
+// 			floor_number = EXCLUDED.floor_number,
+// 			building_floors = EXCLUDED.building_floors,
+// 			total_area = EXCLUDED.total_area,
+// 			commercial_improvements = EXCLUDED.commercial_improvements,
+// 			commercial_repair = EXCLUDED.commercial_repair,
+// 			partly_sell_or_rent = EXCLUDED.partly_sell_or_rent,
+// 			price_per_square_meter = EXCLUDED.price_per_square_meter,
+// 			contract_number_and_date = EXCLUDED.contract_number_and_date,
+// 			rooms_amount = EXCLUDED.rooms_amount,
+// 			commercial_building_location = EXCLUDED.commercial_building_location,
+// 			commercial_rent_type = EXCLUDED.commercial_rent_type,
+// 			parameters = EXCLUDED.parameters;
+// 	`
+// 	_, err := tx.Exec(ctx, sql, details.PropertyID, details.PropertyType, details.Condition, details.FloorNumber, details.BuildingFloors,
+// 		details.TotalArea, details.CommercialImprovements, details.CommercialRepair, details.IsPartlySellOrRent, details.PricePerSquareMeter,
+// 		details.ContractNumberAndDate, details.RoomsAmount, details.CommercialBuildingLocation, details.CommercialRentType, details.Parameters)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to insert/update commercial details: %w", err)
+// 	}
+// 	return nil
+// }
 
 
 // func toDBGarageAndParking(d *domain.GarageAndParking) (domain.GarageAndParking, error) {

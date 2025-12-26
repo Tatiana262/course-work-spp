@@ -1,6 +1,7 @@
 package rabbitmq
 
 import (
+	"actualization-service/internal/constants"
 	"actualization-service/internal/contextkeys"
 	"actualization-service/internal/core/domain"
 	"actualization-service/internal/core/port"
@@ -8,23 +9,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"real-estate-system/pkg/rabbitmq/rabbitmq_producer"
-
-	// "log"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-// RabbitMQLinkQueueAdapter реализует интерфейс PropertyLinkQueuePort для RabbitMQ.
+// RabbitMQLinkQueueAdapter реализует интерфейс LinksQueuePort для RabbitMQ
 type RabbitMQLinkQueueAdapter struct {
 	producer *rabbitmq_producer.Publisher
-
-	// Можно добавить ExchangeName, если он не задан глобально в producer'е
-	// exchangeName string
 }
 
-// NewRabbitMQLinkQueueAdapter создает новый экземпляр RabbitMQLinkQueueAdapter.
-// producer - это уже инициализированный экземпляр вашего rabbitmq_producer.Publisher.
+// NewRabbitMQLinkQueueAdapter создает новый экземпляр RabbitMQLinkQueueAdapter
+// producer - это уже инициализированный экземпляр rabbitmq_producer.Publisher
 // routingKey - ключ, с которым будут публиковаться сообщения
 func NewRabbitMQLinkQueueAdapter(producer *rabbitmq_producer.Publisher) (*RabbitMQLinkQueueAdapter, error) {
 	if producer == nil {
@@ -41,10 +37,18 @@ func (a *RabbitMQLinkQueueAdapter) PublishTask(ctx context.Context, task domain.
 	logger := contextkeys.LoggerFromContext(ctx)
 	adapterLogger := logger.WithFields(port.Fields{
 		"component":   "RabbitMQLinkQueueAdapter",
-		"routing_key": task.RoutingKey,
+		"source": 	   task.Source,
 		"ad_url":      task.Task.Link,
 		"task_id":     task.Task.TaskID.String(),
 	})
+
+	var routingKey string
+	if task.Source == domain.KUFAR_SOURCE {
+		routingKey = constants.RoutingKeyLinkTasksKufar
+	}
+	if task.Source == domain.REALT_SOURCE {
+		routingKey = constants.RoutingKeyLinkTasksRealt
+	}
 
 	taskJSON, err := json.Marshal(task.Task)
 	if err != nil {
@@ -66,12 +70,11 @@ func (a *RabbitMQLinkQueueAdapter) PublishTask(ctx context.Context, task domain.
 		msg.Headers["x-trace-id"] = traceID
 	}
 
-	// Устанавливаем таймаут на операцию публикации, если контекст его не предоставляет
 	publishCtx, cancel := context.WithTimeout(ctx, 10*time.Second) // Таймаут 10 секунд на публикацию
 	defer cancel()
 
-	adapterLogger.Info("Publishing actualization task", nil)
-	err = a.producer.Publish(publishCtx, task.RoutingKey, msg)
+	adapterLogger.Debug("Publishing actualization task", nil)
+	err = a.producer.Publish(publishCtx, routingKey, msg)
 	if err != nil {
 		adapterLogger.Error("Failed to publish actualization task", err, nil)
 		return fmt.Errorf("rabbitmq adapter: failed to publish task for %s: %w", task.Task.Link, err)

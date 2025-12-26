@@ -59,6 +59,7 @@ type ApartmentDetailsDTO struct {
     BathroomType        *string  `json:"bathroomType,omitempty"`
     BalconyType         *string  `json:"balconyType,omitempty"` // Исправил имя поля на 'balcony'
     PricePerSquareMeter *float64 `json:"pricePerSquareMeter,omitempty"`
+	IsNewCondition		*bool	 `json:"isNewCondition,omitempty"` 
     Parameters          json.RawMessage `json:"parameters"`
 }
 
@@ -80,5 +81,21 @@ type HouseDetailsDTO struct {
     RoofMaterial      *string  `json:"roofMaterial,omitempty"`
     HouseType         *string  `json:"houseType,omitempty"`
     CompletionPercent *int8    `json:"completionPercent,omitempty"`
+	IsNewCondition		*bool	`json:"isNewCondition,omitempty"` 
     Parameters       json.RawMessage `json:"parameters"`
+}
+
+type CommercialDetailsDTO struct {
+    IsNewCondition              *bool        `json:"isNewCondition,omitempty"` 
+	PropertyType                *string      `json:"propertyType,omitempty"`       
+	FloorNumber                 *int8        `json:"floorNumber,omitempty"`
+	BuildingFloors              *int8        `json:"buildingFloors,omitempty"`           
+	TotalArea                   *float64     `json:"totalArea,omitempty"`      
+	CommercialImprovements      []string     `json:"commercialImprovements,omitempty"`             
+	CommercialRepair            *string      `json:"commercialRepair,omitempty"`         	
+	PricePerSquareMeter         *float64     `json:"pricePerSquareMeter,omitempty"`       
+	RoomsRange                  []int8       `json:"roomsRange,omitempty"`           
+	CommercialBuildingLocation  *string      `json:"commercialBuildingLocation,omitempty"`             
+	CommercialRentType		    *string		 `json:"commercialRentType,omitempty"`    
+	Parameters                  json.RawMessage  `json:"parameters"`
 }

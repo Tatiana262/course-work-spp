@@ -89,6 +89,6 @@ func (a *RabbitMQLinkQueueAdapter) Enqueue(ctx context.Context, link domain.Prop
 		return fmt.Errorf("rabbitmq adapter: failed to publish link with AdID %d: %w", link.AdID, err)
 	}
 
-	adapterLogger.Info("Successfully published link", port.Fields{"ad_id": link.AdID})
+	adapterLogger.Debug("Successfully published link", port.Fields{"ad_id": link.AdID})
 	return nil
 }

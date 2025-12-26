@@ -4,7 +4,8 @@ import type { IFilterState } from "../types/filter";
 export const ARRAY_KEYS: (keyof IFilterState)[] = [
     'rooms', 'wallMaterials', 'repairState', 'bathroomType', 'balconyType',
     'houseTypes', 'totalFloors', 'roofMaterials', 'waterConditions', 
-    'heatingConditions', 'electricityConditions', 'sewageConditions', 'gazConditions'
+    'heatingConditions', 'electricityConditions', 'sewageConditions', 'gazConditions',
+    'commercialTypes', 'commercialBuildingLocations', 'commercialImprovements', 'commercialRepairs'
 ];
 
 export const INITIAL_FILTERS: IFilterState = {
@@ -38,4 +39,11 @@ export const INITIAL_FILTERS: IFilterState = {
     electricityConditions: [],
     sewageConditions: [],
     gazConditions: [],
+
+    commercialTypes: [],
+    commercialImprovements: [],
+    commercialRepairs: [],
+    commercialBuildingLocations: [],
+    roomsMin: '',
+    roomsMax: '',
 };

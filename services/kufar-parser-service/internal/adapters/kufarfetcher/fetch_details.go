@@ -33,7 +33,7 @@ func (a *KufarFetcherAdapter) FetchAdDetails(ctx context.Context, adID int64) (*
 	var criticalError error
 
 	collector.OnRequest(func(r *colly.Request) {
-		fetchDetailsLogger.Info("Making request to fetch ad details", port.Fields{
+		fetchDetailsLogger.Debug("Making request to fetch ad details", port.Fields{
 			"url":   r.URL.String(),
 			"ad_id": adID,
 		})
@@ -57,13 +57,7 @@ func (a *KufarFetcherAdapter) FetchAdDetails(ctx context.Context, adID int64) (*
 	})
 
 	 // Этот колбэк будет вызван для ошибок, специфичных для этого запроса
-	collector.OnError(func(r *colly.Response, err error) {
-
-		fetchDetailsLogger.Error("Failed to fetch ad details", err, port.Fields{
-			"ad_id":  adID,
-			"url":    r.Request.URL.String(),
-			"status": r.StatusCode,
-		})
+	collector.OnError(func(r *colly.Response, err error) {	
 
 		// Если страница не найдена (404) или удалена (410), это не ошибка парсинга.
 		// Это информация о том, что объявление нужно архивировать.
@@ -79,6 +73,12 @@ func (a *KufarFetcherAdapter) FetchAdDetails(ctx context.Context, adID int64) (*
 			// Важно! Не устанавливаем `criticalError`, так как мы успешно обработали этот случай.
 			return 
 		}
+
+		fetchDetailsLogger.Error("Failed to fetch ad details", err, port.Fields{
+			"ad_id":  adID,
+			"url":    r.Request.URL.String(),
+			"status": r.StatusCode,
+		})
 
 		criticalError = fmt.Errorf("FetchAdDetails: colly error on %d: status %d: %w", adID, r.StatusCode, err)
     })

@@ -150,11 +150,17 @@ func (a *TasksConsumerAdapter) translateDTOToInternalTasks(dto TaskInfo) ([]doma
 
 			// FOR DEBUG
 			// для квартир
-			Rooms: []int{5},
+			// Rooms: []int{1},
 			// для домов
 			// Price: Price{
 			// 	From: 1000,
 			// 	To: 20000,
+			// 	Currency: 840,
+			// },
+			// для коммерческой
+			// Price: Price{
+			// 	From: 1000,
+			// 	To: 100000,
 			// 	Currency: 840,
 			// },
 			// Генерируем имя для логов

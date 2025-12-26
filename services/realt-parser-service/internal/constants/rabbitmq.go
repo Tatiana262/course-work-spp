@@ -20,7 +20,17 @@ const (
     FinalDLQ           = "link_parsing_tasks_final_dlq"
     FinalDLQRoutingKey = "links.dlq.key"
 
-	FinalDLXExchangeForSearchTasks = "search_tasks_final_dlx"
-	FinalDLQForSearchTasks = "search_tasks_final_dlq"
+	// FinalDLXExchangeForSearchTasks = "search_tasks_final_dlx"	 
+	FinalDLXExchangeForSearchTasks = "tasks_for_search_final_dlx"
+	// FinalDLQForSearchTasks = "search_tasks_final_dlq"
+	FinalDLQForSearchTasks = "tasks_for_search_final_dlq"
 	FinalDLQRoutingKeyForSearchTasks = "search_tasks.dlq.key"
+)
+
+const MainExchange = "main_exchange"
+
+const (
+	RetryExchange = "shared_retry_exchange"
+	WaitQueue     = "shared_wait_10s"
+	RetryTTL      = 10000 // 10 секунд
 )

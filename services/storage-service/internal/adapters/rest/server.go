@@ -39,6 +39,7 @@ func NewServer(port string,
 
         r.Get("/filters/options", filters_handlers.GetFilterOptions)
         r.Get("/dictionaries", filters_handlers.GetDictionaries)
+        r.Get("/stats", actualiztion_handlers.GetActualizationStats)
 	})
     
     

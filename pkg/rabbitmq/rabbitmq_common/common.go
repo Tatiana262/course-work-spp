@@ -6,7 +6,7 @@ import (
 
 // Config общая конфигурация для подключения к RabbitMQ
 type Config struct {
-	URL            string        // AMQP URL, например "amqp://guest:guest@localhost:5672/"
+	URL            string        // "amqp://guest:guest@localhost:5672/"
 }
 
 // Validate проверяет базовую конфигурацию

@@ -5,6 +5,6 @@ import (
 	"context"
 )
 
-type LinkSearchQueuePort interface {
+type LinksSearchQueuePort interface {
 	PublishTask(ctx context.Context, task domain.FindNewLinksTask) error
 }

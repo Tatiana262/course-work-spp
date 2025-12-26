@@ -76,7 +76,7 @@ func (a *LinkConsumerAdapter) messageHandler(d amqp.Delivery) (err error) {
 	ctx = contextkeys.ContextWithLogger(ctx, msgLogger)
 	ctx = contextkeys.ContextWithTraceID(ctx, traceID)
 
-	msgLogger.Info("Received new link task", nil)
+	msgLogger.Debug("Received new link task", nil)
 
 	var taskDTO LinkTaskDTO
 	if err := json.Unmarshal(d.Body, &taskDTO); err != nil {
@@ -106,7 +106,7 @@ func (a *LinkConsumerAdapter) messageHandler(d amqp.Delivery) (err error) {
 		return err // Requeue=true
 	}
 
-	taskLogger.Info("Link task processed successfully", nil)
+	taskLogger.Debug("Link task processed successfully", nil)
 	return nil
 }
 

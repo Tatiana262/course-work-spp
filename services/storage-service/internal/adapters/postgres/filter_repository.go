@@ -74,6 +74,49 @@ func (r *FilterRepository) getDistinctValues(ctx context.Context, tableName, col
 	return values, rows.Err()
 }
 
+func (r *FilterRepository) getDistinctArrayValues(ctx context.Context, tableName, columnName string) ([]interface{}, error) {
+	query := fmt.Sprintf(`
+		WITH latest_visible_objects AS (
+			SELECT
+				gp.id,
+				ROW_NUMBER() OVER(PARTITION BY gp.master_object_id ORDER BY gp.updated_at DESC) as rn
+			FROM
+				general_properties gp
+			WHERE
+				gp.is_source_duplicate = false AND gp.status = 'active'
+		)
+		SELECT DISTINCT unnest(d.%s) AS value
+		FROM %s d
+		JOIN latest_visible_objects lvo ON d.property_id = lvo.id
+		WHERE
+			lvo.rn = 1
+			AND d.%s IS NOT NULL 
+			AND cardinality(d.%s) > 0
+		ORDER BY value ASC
+	`, columnName, tableName, columnName, columnName)
+	
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		// Здесь можно добавить логирование
+		return nil, fmt.Errorf("failed to get distinct array values for %s.%s: %w", tableName, columnName, err)
+	}
+	defer rows.Close()
+
+	// Мы знаем, что результат будет списком строк, поэтому используем `[]string`
+	var values []interface{}
+	for rows.Next() {
+		var val string // Сканируем в `string`, а не `interface{}`
+		if err := rows.Scan(&val); err == nil {
+			values = append(values, val)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		// Здесь тоже можно добавить логирование
+		return nil, err
+	}
+	return values, nil
+}
+
 // getRange - для получения MIN/MAX.
 func (r *FilterRepository) getRange(ctx context.Context, tableName, columnName string) (*domain.RangeResult, error) {
 	// query := fmt.Sprintf(`
@@ -105,6 +148,39 @@ func (r *FilterRepository) getRange(ctx context.Context, tableName, columnName s
 			lvo.rn = 1
 			AND d.%s IS NOT NULL
 	`, columnName, columnName, tableName, columnName)
+
+	var res domain.RangeResult
+	err := r.pool.QueryRow(ctx, query).Scan(&res.Min, &res.Max)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get range for %s.%s: %w", tableName, columnName, err)
+	}
+	return &res, nil
+}
+
+func (r *FilterRepository) getRangeFromArrayValues(ctx context.Context, tableName, columnName string) (*domain.RangeResult, error) {
+	query := fmt.Sprintf(`
+		WITH latest_visible_objects AS (
+			SELECT
+				gp.id,
+				ROW_NUMBER() OVER(PARTITION BY gp.master_object_id ORDER BY gp.updated_at DESC) as rn
+			FROM
+				general_properties gp
+			WHERE
+				gp.is_source_duplicate = false AND gp.status = 'active'
+		)
+		SELECT
+			COALESCE(MIN(val), 0),
+			COALESCE(MAX(val), 0)
+		FROM (
+			SELECT unnest(d.%s) AS val
+			FROM %s d
+			JOIN latest_visible_objects lvo ON d.property_id = lvo.id
+			WHERE
+				lvo.rn = 1
+				AND d.%s IS NOT NULL
+				AND cardinality(d.%s) > 0 
+		) AS unnested_values
+	`, columnName, tableName, columnName, columnName)
 
 	var res domain.RangeResult
 	err := r.pool.QueryRow(ctx, query).Scan(&res.Min, &res.Max)
@@ -295,6 +371,8 @@ func translateDealType(systemName string) string {
 		return "Продажа"
 	case "rent":
 		return "Аренда"
+	case "daily_rent":
+		return "Посуточно"
 	default:
 		return systemName
 	}
@@ -406,6 +484,40 @@ func (r *FilterRepository) GetHouseDistinctSewageTypes(ctx context.Context) ([]i
 
 func (r *FilterRepository) GetHouseDistinctGazTypes(ctx context.Context) ([]interface{}, error) {
 	return r.getDistinctValues(ctx, "houses", "gaz")
+}
+
+
+
+func (r *FilterRepository) GetCommercialDistinctTypes(ctx context.Context) ([]interface{}, error) {
+	return r.getDistinctValues(ctx, "commercial", "property_type")
+}
+
+func (r *FilterRepository) GetCommercialFloorsRange(ctx context.Context) (*domain.RangeResult, error) {
+	return r.getRange(ctx, "commercial", "floor_number")
+}
+
+func (r *FilterRepository) GetCommercialBuildingFloorsRange(ctx context.Context) (*domain.RangeResult, error) {
+	return r.getRange(ctx, "commercial", "building_floors")
+}
+
+func (r *FilterRepository) GetCommercialTotalAreaRange(ctx context.Context) (*domain.RangeResult, error) {
+	return r.getRange(ctx, "commercial", "total_area")
+}
+
+func (r *FilterRepository) GetCommercialImprovements(ctx context.Context) ([]interface{}, error) {
+	return  r.getDistinctArrayValues(ctx, "commercial", "commercial_improvements")
+}
+
+func (r *FilterRepository) GetCommercialRepairs(ctx context.Context) ([]interface{}, error) {
+	return r.getDistinctValues(ctx, "commercial", "commercial_repair")
+}
+
+func (r *FilterRepository) GetCommercialLocations(ctx context.Context) ([]interface{}, error) {
+	return r.getDistinctValues(ctx, "commercial", "commercial_building_location")
+}
+
+func (r *FilterRepository) GetCommercialRoomsRange(ctx context.Context) (*domain.RangeResult, error) {
+	return r.getRangeFromArrayValues(ctx, "commercial", "rooms_range")
 }
 
 // // buildBaseQuery - хелпер для построения WHERE clause.

@@ -62,7 +62,7 @@ func (c *StorageServiceAPIClient) GetBestObjectsByMasterIDs(ctx context.Context,
 	})
 	
 	if len(masterIDs) == 0 {
-		clientLogger.Info("Received empty list of master IDs, returning empty result.", nil)
+		clientLogger.Debug("Received empty list of master IDs, returning empty result.", nil)
 		return []domain.ObjectCard{}, nil
 	}
 
@@ -120,7 +120,7 @@ func (c *StorageServiceAPIClient) GetBestObjectsByMasterIDs(ctx context.Context,
 		clientLogger.Error("Failed to decode response from storage service", err, nil)
 		return nil, fmt.Errorf("failed to decode response from storage service: %w", err)
 	}
-	clientLogger.Info("Successfully received and decoded response from storage service.", port.Fields{"objects_found": len(apiResponse.Data)})
+	clientLogger.Debug("Successfully received and decoded response from storage service.", port.Fields{"objects_found": len(apiResponse.Data)})
 	
 	// 6. Маппим DTO ответа в нашу доменную модель
 	// Это важный шаг, который изолирует наше ядро от деталей API другого сервиса.

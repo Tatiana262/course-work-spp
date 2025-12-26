@@ -47,6 +47,53 @@ func (c *Client) doRequest(ctx context.Context, method, url string, body io.Read
 	return c.httpClient.Do(req)
 }
 
+
+func (c *Client) GetCategories(ctx context.Context) ([]domain.DictionaryItem, error) {
+	// 1. Извлекаем и обогащаем логгер
+	logger := contextkeys.LoggerFromContext(ctx)
+	clientLogger := logger.WithFields(port.Fields{
+		"component": "StorageApiClient",
+		"method":    "GetCategories",
+	})
+
+	url := fmt.Sprintf("%s/api/v1/dictionaries?names=categories", c.baseURL)
+	clientLogger.Debug("Sending request to storage-service", port.Fields{"url": url})
+
+	resp, err := c.doRequest(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		clientLogger.Error("Failed to perform request to storage-service", err, nil)
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		err := fmt.Errorf("storage service returned non-success status code %d: %s", resp.StatusCode, string(bodyBytes))
+		clientLogger.Error("Received error response from storage-service", err, port.Fields{"status_code": resp.StatusCode})
+		return nil, err
+	}
+
+	var dictionaries DictionaryItemsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&dictionaries); err != nil {
+		clientLogger.Error("Failed to decode response from storage-service", err, nil)
+		return nil, err
+	}
+
+	clientLogger.Info("Successfully received and decoded response", port.Fields{"categories_count": len(dictionaries["categories"])})
+
+	// Маппим DTO ответа в нашу доменную модель
+	// Это важный шаг, который изолирует наше ядро от деталей API другого сервиса.
+	result := make([]domain.DictionaryItem, len(dictionaries["categories"]))
+	for i, category := range dictionaries["categories"] {
+		result[i] = domain.DictionaryItem{
+			SystemName: category.SystemName,
+			DisplayName: category.DisplayName,
+		}
+	}
+
+	return result, nil
+}
+
 func (c *Client) GetActiveObjects(ctx context.Context, category string, limit int) ([]domain.PropertyInfo, error) {
 
 	// 1. Извлекаем и обогащаем логгер
@@ -57,7 +104,7 @@ func (c *Client) GetActiveObjects(ctx context.Context, category string, limit in
 	})
 
 	url := fmt.Sprintf("%s/api/v1/active-objects?category=%s&limit=%d", c.baseURL, category, limit)
-	clientLogger.Info("Sending request to storage-service", port.Fields{"url": url})
+	clientLogger.Debug("Sending request to storage-service", port.Fields{"url": url})
 
 	// Используем наш новый хелпер
 	resp, err := c.doRequest(ctx, http.MethodGet, url, nil)
@@ -115,7 +162,7 @@ func (c *Client) GetArchivedObjects(ctx context.Context, category string, limit 
 	})
 
 	url := fmt.Sprintf("%s/api/v1/archived-objects?category=%s&limit=%d", c.baseURL, category, limit)
-	clientLogger.Info("Sending request to storage-service", port.Fields{"url": url})
+	clientLogger.Debug("Sending request to storage-service", port.Fields{"url": url})
 
 	// Используем наш новый хелпер
 	resp, err := c.doRequest(ctx, http.MethodGet, url, nil)
@@ -174,7 +221,7 @@ func (c *Client) GetObjectsByMasterID(ctx context.Context, master_id string) ([]
 	})
 
 	url := fmt.Sprintf("%s/api/v1/object?id=%s", c.baseURL, master_id)
-	clientLogger.Info("Sending request to storage-service", port.Fields{"url": url})
+	clientLogger.Debug("Sending request to storage-service", port.Fields{"url": url})
 
 	// Используем наш новый хелпер
 	resp, err := c.doRequest(ctx, http.MethodGet, url, nil)

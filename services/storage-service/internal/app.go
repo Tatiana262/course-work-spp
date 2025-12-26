@@ -99,7 +99,7 @@ func NewApp() (*App, error) {
 	})
 
 	appLogger := baseLogger.WithFields(port.Fields{"component": "app"})
-	appLogger.Info("Logger system initialized", port.Fields{
+	appLogger.Debug("Logger system initialized", port.Fields{
 		"active_loggers": len(activeLoggers), "fluent_enabled": appConfig.FluentBit.Enabled,
 	})
 
@@ -109,7 +109,7 @@ func NewApp() (*App, error) {
 		appLogger.Error("Failed to connect to PostgreSQL", err, nil)
 		return nil, fmt.Errorf("failed to connect to PostgreSQL: %w", err)
 	}
-	appLogger.Info("Successfully connected to PostgreSQL pool!", nil)
+	appLogger.Debug("Successfully connected to PostgreSQL pool!", nil)
 
 	postgresStorageAdapter, err := postgres_adapter.NewPostgresStorageAdapter(dbPool)
 	if err != nil {
@@ -125,7 +125,7 @@ func NewApp() (*App, error) {
 		return nil, fmt.Errorf("failed to create postgres filter repository: %w", err)
 	}
 
-	appLogger.Info("Postgres storage adapters initialized.", nil)
+	appLogger.Debug("Postgres storage adapters initialized.", nil)
 
 	producerLogger := baseLogger.WithFields(port.Fields{"component": "rabbitmq_producer"})
 	pkgLoggerBridge := rabbitmq_adapter.NewPkgLoggerBridge(producerLogger)
@@ -138,11 +138,11 @@ func NewApp() (*App, error) {
 		dbPool.Close()
 		return nil, fmt.Errorf("failed to create connection manager: %w", err)
 	}
-	appLogger.Info("RabbitMQ Connection Manager initialized.", nil)
+	appLogger.Debug("RabbitMQ Connection Manager initialized.", nil)
 
 	producerCfg := rabbitmq_producer.PublisherConfig{
 		Config:                   rabbitmq_common.Config{URL: appConfig.RabbitMQ.URL},
-		ExchangeName:             "parser_exchange",
+		ExchangeName:             constants.MainExchange,
 		ExchangeType:             "direct",
 		DurableExchange:          true,
 		DeclareExchangeIfMissing: true,
@@ -155,16 +155,17 @@ func NewApp() (*App, error) {
 		dbPool.Close()
 		return nil, fmt.Errorf("failed to create event producer: %w", err)
 	}
-	appLogger.Info("RabbitMQ Event Producer initialized.", nil)
+	appLogger.Debug("RabbitMQ Event Producer initialized.", nil)
 
 	tasksResultsQueueAdapter, _ := rabbitmq_adapter.NewTaskReporterAdapter(eventProducer, constants.RoutingKeyTaskResults)
-	appLogger.Info("All outgoing adapters initialized.", nil)
+	appLogger.Debug("All outgoing adapters initialized.", nil)
 
 	// ИНИЦИАЛИЗАЦИЯ USE CASES (ядра бизнес-логики)
 	savePropertyUseCase := usecase.NewSavePropertyUseCase(postgresStorageAdapter, tasksResultsQueueAdapter)
 	getActiveObjectsUseCase := usecase.NewGetActiveObjectsUseCase(postgresStorageAdapter)
 	getArchivedObjectsUseCase := usecase.NewGetArchivedObjectsUseCase(postgresStorageAdapter)
 	getObjectByIDUseCase := usecase.NewGetObjectsByIDUseCase(postgresStorageAdapter)
+	getActualizationStatsUseCase := usecase.NewGetActualizationStatsUseCase(postgresStorageAdapter)
 
 	findObjectsUseCase := usecase.NewFindObjectsUseCase(postgresStorageAdapter)
 	getObjectDetailsUseCase := usecase.NewGetObjectDetailsUseCase(postgresStorageAdapter)
@@ -173,14 +174,14 @@ func NewApp() (*App, error) {
 	getFilterOptionsUseCase := usecase.NewGetFilterOptionsUseCase(filterRepository)
 	getDictionariesUseCase := usecase.NewGetDictionariesUseCase(filterRepository)
 
-	appLogger.Info("All use cases initialized.", nil)
+	appLogger.Debug("All use cases initialized.", nil)
 
 	// 4. ИНИЦИАЛИЗАЦИЯ ВХОДЯЩИХ АДАПТЕРОВ (те, которые ВЫЗЫВАЮТ наше ядро)
 	processedConsumerCfg := rabbitmq_consumer.ConsumerConfig{
 		Config:              rabbitmq_common.Config{URL: appConfig.RabbitMQ.URL},
 		QueueName:           constants.QueueProcessedProperties,
 		DurableQueue:        true,
-		ExchangeNameForBind: "parser_exchange",
+		ExchangeNameForBind: constants.MainExchange,
 		RoutingKeyForBind:   constants.RoutingKeyProcessedProperties,
 		PrefetchCount:       1,
 		ConsumerTag:         "property-saver-adapter",
@@ -190,9 +191,13 @@ func NewApp() (*App, error) {
 		EnableRetryMechanism: true,
 
 		// 2. Настраиваем уникальные "сателлиты" для этой очереди
-		RetryExchange: constants.QueueProcessedProperties + "_retry_ex",
-		RetryQueue:    constants.QueueProcessedProperties + "_retry_wait_10s",
-		RetryTTL:      10000, // 10 секунд в миллисекундах
+		// RetryExchange: constants.QueueProcessedProperties + "_retry_ex",
+		// RetryQueue:    constants.QueueProcessedProperties + "_retry_wait_10s",
+		// RetryTTL:      10000, // 10 секунд в миллисекундах
+
+		RetryExchange: constants.RetryExchange,
+		RetryQueue: constants.WaitQueue,
+		RetryTTL: constants.RetryTTL,
 
 		// 3. Используем тот же самый общий финальный DLQ
 		FinalDLXExchange:   constants.FinalDLXExchange,
@@ -208,15 +213,15 @@ func NewApp() (*App, error) {
 		dbPool.Close()
 		return nil, err
 	}
-	appLogger.Info("Processed Property Events Listener initialized.", nil)
+	appLogger.Debug("Processed Property Events Listener initialized.", nil)
 
 	// REST API Server
-	apiActualizationHandlers := rest.NewActualizationHandlers(getActiveObjectsUseCase, getArchivedObjectsUseCase, getObjectByIDUseCase)
+	apiActualizationHandlers := rest.NewActualizationHandlers(getActiveObjectsUseCase, getArchivedObjectsUseCase, getObjectByIDUseCase, getActualizationStatsUseCase)
 	apiGetInfoHandlers := rest.NewGetInfoHandler(findObjectsUseCase, getObjectDetailsUseCase, getBestObjectsByMasterIDsUseCase)
 	filtersHandlers := rest.NewFilterHandler(getFilterOptionsUseCase, getDictionariesUseCase)
 
 	apiServer := rest.NewServer(appConfig.Rest.PORT, apiActualizationHandlers, apiGetInfoHandlers, filtersHandlers, baseLogger)
-	appLogger.Info("REST API server configured.", nil)
+	appLogger.Debug("REST API server configured.", nil)
 
 	// 5. Собираем приложение
 	application := &App{
@@ -243,12 +248,12 @@ func (a *App) Run() error {
 	var wg sync.WaitGroup
 
 	defer func() {
-		a.logger.Info("Shutdown sequence initiated...", nil)
+		a.logger.Debug("Shutdown sequence initiated...", nil)
 
 		// Ждем завершения всех запущенных горутин (слушателей)
-		a.logger.Info("Waiting for background processes to finish...", nil)
+		a.logger.Debug("Waiting for background processes to finish...", nil)
 		wg.Wait()
-		a.logger.Info("All background processes finished.", nil)
+		a.logger.Debug("All background processes finished.", nil)
 
 		if a.apiServer != nil {
 			if err := a.apiServer.Stop(context.Background()); err != nil {
@@ -271,7 +276,7 @@ func (a *App) Run() error {
 
 		if a.dbPool != nil {
 			a.dbPool.Close()
-			a.logger.Info("PostgreSQL pool closed.", nil)
+			a.logger.Debug("PostgreSQL pool closed.", nil)
 		}
 
 		a.logger.Info("Application shut down gracefully.", nil)
@@ -307,7 +312,7 @@ func (a *App) Run() error {
 	go startListener("Processed Property Events Listener", a.processedPropEventsListener)
 
 	go func() {
-		a.logger.Info("Starting HTTP server...", port.Fields{"port": a.config.Rest.PORT})
+		a.logger.Debug("Starting HTTP server...", port.Fields{"port": a.config.Rest.PORT})
 		if err := a.apiServer.Start(); err != nil && err != http.ErrServerClosed {
 			errorsCh <- fmt.Errorf("failed to start HTTP server: %w", err)
 		}
@@ -317,7 +322,7 @@ func (a *App) Run() error {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	a.logger.Info("Application running. Waiting for signals or server error...", nil)
+	a.logger.Debug("Application running. Waiting for signals or server error...", nil)
 	select {
 	case receivedSignal := <-quit:
 		a.logger.Warn("Received OS signal, shutting down...", port.Fields{"signal": receivedSignal.String()})

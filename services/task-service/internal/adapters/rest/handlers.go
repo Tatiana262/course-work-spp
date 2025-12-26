@@ -61,10 +61,6 @@ func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger.Info("CREATE TASK", port.Fields{
-		"CreateTaskRequest": req,
-	})
-
 	if req.Name == "" || req.Type == "" || req.CreatedByUserID == "" {
 		logger.Warn("Fields 'name', 'type', and 'created_by_user_id' are required", nil)
 		WriteJSONError(w, http.StatusBadRequest, "Fields 'name', 'type', and 'created_by_user_id' are required")
@@ -119,14 +115,14 @@ func (h *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	var summary domain.ResultSummary
-	if req.ResultSummary != nil {
-		if err := json.Unmarshal(*req.ResultSummary, &summary); err != nil {
-			logger.Warn("Invalid 'result_summary' format", port.Fields{"error": err.Error()})
-			WriteJSONError(w, http.StatusBadRequest, "Invalid 'result_summary' format")
-			return
-		}
-	}
+	// var summary domain.ResultSummary
+	// if req.ResultSummary != nil {
+	// 	if err := json.Unmarshal(*req.ResultSummary, &summary); err != nil {
+	// 		logger.Warn("Invalid 'result_summary' format", port.Fields{"error": err.Error()})
+	// 		WriteJSONError(w, http.StatusBadRequest, "Invalid 'result_summary' format")
+	// 		return
+	// 	}
+	// }
 
 	handlerLogger := logger.WithFields(port.Fields{
 		"task_id":  taskID.String(),
@@ -134,7 +130,7 @@ func (h *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 	})
 	handlerLogger.Info("Processing request to update task", nil)
 
-	task, err := h.updateTaskUC.Execute(r.Context(), taskID, req.Status, &summary)
+	task, err := h.updateTaskUC.Execute(r.Context(), taskID, req.Status)
 	if err != nil {
 		if errors.Is(err, domain.ErrTaskNotFound) {
 			handlerLogger.Warn("Update failed: task not found", nil)
@@ -277,7 +273,7 @@ func (h *TaskHandler) SubscribeToTasks(w http.ResponseWriter, r *http.Request) {
 	if f, ok := w.(http.Flusher); ok { f.Flush() }
 
 	// Отправляем пустой комментарий каждые 30 секунд
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(15 * time.Second)
     defer ticker.Stop()
 
 	for {
@@ -290,7 +286,7 @@ func (h *TaskHandler) SubscribeToTasks(w http.ResponseWriter, r *http.Request) {
 			if f, ok := w.(http.Flusher); ok {
 				f.Flush()
 			}
-			handlerLogger.Debug("Sent SSE event to client", nil)
+			handlerLogger.Info("Sent SSE event to client", nil)
 
 		case <-ticker.C:
             // PING

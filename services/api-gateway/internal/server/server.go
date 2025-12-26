@@ -4,16 +4,13 @@ import (
 	"api-gateway/internal/auth"
 	"api-gateway/internal/configs"
 	"api-gateway/internal/port"
-	// "log"
 	"net/http"
-	// "time"
-
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 )
 
-// NewServer создает и настраивает главный роутер и HTTP-сервер.
+// NewServer создает и настраивает главный роутер и HTTP-сервер
 func NewServer(cfg *configs.Config, authClient *auth.Client, baseLogger port.LoggerPort) *http.Server {
 	r := chi.NewRouter()
 
@@ -25,11 +22,11 @@ func NewServer(cfg *configs.Config, authClient *auth.Client, baseLogger port.Log
         // AllowedOrigins - список доменов, с которых разрешены запросы
         AllowedOrigins:   []string{"http://localhost:5173"},
         
-        // AllowedMethods - список разрешенных HTTP-методов.
+        // AllowedMethods - список разрешенных HTTP-методов
         AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
         
         // AllowedHeaders - список разрешенных заголовков в запросе
-        AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+        AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
                 
         // AllowCredentials - разрешает отправку cookies и Authorization хедера
         AllowCredentials: true,
@@ -41,10 +38,10 @@ func NewServer(cfg *configs.Config, authClient *auth.Client, baseLogger port.Log
 	// Создаем middleware для аутентификации
 	authMiddleware := NewAuthMiddleware(authClient)
 
-	// --- Префикс для всех внутренних API ---
+	// Префикс для всех внутренних API
 	const internalApiPrefix = "/api/v1"
 
-	// --- Публичные маршруты ---
+	// Публичные маршруты
 	r.Group(func(r chi.Router) {
 		// /auth/* -> authentication-service/api/v1/auth/*
 		r.Mount("/auth", CreateProxy(cfg.AuthServiceURL, internalApiPrefix))
@@ -53,9 +50,10 @@ func NewServer(cfg *configs.Config, authClient *auth.Client, baseLogger port.Log
 		r.Mount("/objects", CreateProxy(cfg.StorageServiceURL, internalApiPrefix))
 		r.Mount("/filters/options", CreateProxy(cfg.StorageServiceURL, internalApiPrefix))
 		r.Mount("/dictionaries", CreateProxy(cfg.StorageServiceURL, internalApiPrefix))
+		r.Mount("/stats", CreateProxy(cfg.StorageServiceURL, internalApiPrefix))
 	})
 
-	// --- Приватные маршруты (для всех авторизованных) ---
+	// Приватные маршруты (для всех авторизованных)
 	r.Group(func(r chi.Router) {
 		r.Use(authMiddleware.Authenticate)
 		
@@ -68,15 +66,12 @@ func NewServer(cfg *configs.Config, authClient *auth.Client, baseLogger port.Log
 		r.Mount("/tasks/subscribe", CreateSSEProxy(cfg.TasksServiceURL, internalApiPrefix))
 	})
 
-	// --- Приватные маршруты (только для админов) ---
+	// Приватные маршруты (только для админов)
 	r.Group(func(r chi.Router) {
 		r.Use(authMiddleware.Authenticate)
 		r.Use(authMiddleware.RequireRole("admin"))
 
-		// log.Println("middlewares passed")
-
-		// /actualize/* -> actualization-service/api/v1/actualize/*
-		// после более специфичного /actualize/object
+		// после более специфичных
 		r.Mount("/actualize", CreateProxy(cfg.ActualizationServiceURL, internalApiPrefix))
 		r.Mount("/tasks", CreateProxy(cfg.TasksServiceURL, internalApiPrefix))
 	})

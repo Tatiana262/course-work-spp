@@ -20,3 +20,11 @@ type BatchSaveStats struct {
 	Updated   int // Количество существующих записей, которые были обновлены (UPDATE)
 	Archived  int // Количество записей, которые были переведены в статус "archived"
 }
+
+
+type StatsByCategory struct {
+	DisplayName   string 
+	SystemName    string 
+	ActiveCount   int64  
+	ArchivedCount int64  
+}

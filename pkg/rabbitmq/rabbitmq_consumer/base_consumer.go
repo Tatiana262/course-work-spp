@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"real-estate-system/pkg/rabbitmq/rabbitmq_common"
 	"real-estate-system/pkg/rabbitmq/rabbitmq_producer"
-
-	// "log"
 	"sync"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -17,7 +15,7 @@ type baseConsumer struct {
 	connection        *amqp.Connection
 	channel           *amqp.Channel
 	actualQueueName   string                       // Для хранения имени очереди, особенно если оно генерируется сервером
-	finalDlxPublisher *rabbitmq_producer.Publisher // <<-- ПЕРЕНОСИМ СЮДА
+	finalDlxPublisher *rabbitmq_producer.Publisher 
 	wg                sync.WaitGroup               // Нужен для graceful shutdown
 
 	Logger rabbitmq_common.Logger
@@ -50,20 +48,20 @@ type ConsumerConfig struct {
 	ConsumerTag       string // Тег потребителя (если пустой, генерируется RabbitMQ)
 	ExclusiveConsumer bool
 
-	// --- НОВЫЕ ПОЛЯ ДЛЯ ИЗОЛИРОВАННЫХ РЕТРАЕВ ---
+	// поля для ретраев
 	EnableRetryMechanism bool   // Главный флаг для включения
-	RetryExchange        string // Имя retry-обменника (e.g., "my_queue_retry_ex")
-	RetryQueue           string // Имя wait-очереди (e.g., "my_queue_retry_wait_10s")
+	RetryExchange        string // Имя retry-обменника
+	RetryQueue           string // Имя wait-очереди
 	RetryTTL             int    // TTL для wait-очереди в миллисекундах
-	FinalDLXExchange     string // Имя финального DLX (может быть общим)
-	FinalDLQ             string // Имя финальной DLQ (может быть общим)
+	FinalDLXExchange     string // Имя финального DLX
+	FinalDLQ             string // Имя финальной DLQ
 	FinalDLQRoutingKey   string // Ключ для привязки финальной DLQ
-	MaxRetries           int    // Максимальное количество попыток (1 + N ретраев)
+	MaxRetries           int    // Максимальное количество попыток
 
 	Logger rabbitmq_common.Logger
 }
 
-// newBaseConsumer инкапсулирует всю логику из вашего connectAndSetup
+
 func newBaseConsumer(cfg ConsumerConfig, connManager *rabbitmq_common.ConnectionManager) (*baseConsumer, error) {
 
 	logger := cfg.Logger
@@ -93,7 +91,7 @@ func newBaseConsumer(cfg ConsumerConfig, connManager *rabbitmq_common.Connection
 	}
 	c.connection = conn // Сохраняем ссылку для NotifyClose
 	c.channel = ch
-	c.Logger.Info("Channel obtained from ConnectionManager")
+	c.Logger.Debug("Channel obtained from ConnectionManager")
 
 	if err := c.connectAndSetup(); err != nil {
 		return nil, fmt.Errorf("base Consumer: initial connection and setup failed: %w", err)
@@ -118,24 +116,9 @@ func newBaseConsumer(cfg ConsumerConfig, connManager *rabbitmq_common.Connection
 // connectAndSetup устанавливает соединение, канал и настраивает сущности RabbitMQ
 func (c *baseConsumer) connectAndSetup() error {
 
-	// c.Logger.Info("Attempting to connect to RabbitMQ", "url", c.config.URL)
-	// conn, err := amqp.Dial(c.config.URL)
-	// if err != nil {
-	// 	return fmt.Errorf("base Consumer: failed to dial RabbitMQ: %w", err)
-	// }
-	// c.connection = conn
-
-	// ch, err := conn.Channel()
-	// if err != nil {
-	// 	_ = conn.Close()
-	// 	return fmt.Errorf("failed to open a channel: %w", err)
-	// }
-	// c.channel = ch
-	// c.Logger.Info("Channel opened")
-
-	// 1. Настройка QoS (должна быть до Consume)
+	// Настройка QoS
 	if c.config.PrefetchCount > 0 || c.config.PrefetchSize > 0 {
-		c.Logger.Info("Setting QoS",
+		c.Logger.Debug("Setting QoS",
 			"prefetch_count", c.config.PrefetchCount,
 			"prefetch_size", c.config.PrefetchSize,
 			"global", c.config.QosGlobal,
@@ -157,15 +140,15 @@ func (c *baseConsumer) connectAndSetup() error {
 		if c.config.QueueArgs == nil {
 			c.config.QueueArgs = amqp.Table{}
 		}
-		// Указываем, что "мертвые" сообщения из основной очереди должны идти в retry-exchange
+		// "мертвые" сообщения из основной очереди должны идти в retry-exchange
 		c.config.QueueArgs["x-dead-letter-exchange"] = c.config.RetryExchange
 	}
 
 	c.actualQueueName = c.config.QueueName
-	// 2. Объявление очереди (если нужно)
+	// Объявление очереди (если нужно)
 	if c.config.DeclareQueue {
 
-		c.Logger.Info("Declaring queue",
+		c.Logger.Debug("Declaring queue",
 			"name", c.config.QueueName,
 			"durable", c.config.DurableQueue,
 			"exclusive", c.config.ExclusiveQueue,
@@ -187,10 +170,10 @@ func (c *baseConsumer) connectAndSetup() error {
 		c.actualQueueName = q.Name // Используем имя, возвращенное сервером
 	}
 
-	// 4. Объявление обменника (если нужно для привязки)
+	// Объявление обменника (если нужно для привязки)
 	if c.config.DeclareExchangeForBind {
 
-		c.Logger.Info("Declaring exchange",
+		c.Logger.Debug("Declaring exchange",
 			"name", c.config.ExchangeNameForBind,
 			"type", c.config.ExchangeTypeForBind,
 			"durable", c.config.DurableExchangeForBind,
@@ -211,10 +194,10 @@ func (c *baseConsumer) connectAndSetup() error {
 		}
 	}
 
-	// 5. Привязка очереди к обменнику (если нужно)
+	// Привязка очереди к обменнику (если нужно)
 	if c.config.ExchangeNameForBind != "" {
 
-		c.Logger.Info("Binding queue to exchange",
+		c.Logger.Debug("Binding queue to exchange",
 			"queue_name", c.actualQueueName,
 			"exchange_name", c.config.ExchangeNameForBind,
 			"routing_key", c.config.RoutingKeyForBind,
@@ -233,27 +216,27 @@ func (c *baseConsumer) connectAndSetup() error {
 		}
 	}
 
-	// --- НОВЫЙ БЛОК: ОБЪЯВЛЕНИЕ ИНФРАСТРУКТУРЫ РЕТРАЕВ ---
+	// инфраструктура ретраев
 	if c.config.EnableRetryMechanism {
 
-		c.Logger.Info("Setting up isolated retry mechanism...")
+		c.Logger.Debug("Setting up isolated retry mechanism...")
 
-		// A. Объявляем финальный DLX и DLQ (куда попадают сообщения после всех ретраев)
-		c.Logger.Info("Declaring final DLX", "name", c.config.FinalDLXExchange)
+		// финальный DLX и DLQ (куда попадают сообщения после всех ретраев)
+		c.Logger.Debug("Declaring final DLX", "name", c.config.FinalDLXExchange)
 
 		err := c.channel.ExchangeDeclare(c.config.FinalDLXExchange, "direct", true, false, false, false, nil)
 		if err != nil {
 			return fmt.Errorf("failed to declare final DLX: %w", err)
 		}
 
-		c.Logger.Info("Declaring final DLQ", "name", c.config.FinalDLQ)
+		c.Logger.Debug("Declaring final DLQ", "name", c.config.FinalDLQ)
 		_, err = c.channel.QueueDeclare(c.config.FinalDLQ, true, false, false, false, nil)
 		if err != nil {
 			return fmt.Errorf("failed to declare final DLQ: %w", err)
 		}
 
 		// Привязываем финальную DLQ к финальному DLX
-		c.Logger.Info("Binding final DLQ to DLX",
+		c.Logger.Debug("Binding final DLQ to DLX",
 			"dlq_name", c.config.FinalDLQ,
 			"dlx_name", c.config.FinalDLXExchange,
 			"routing_key", c.config.FinalDLQRoutingKey,
@@ -263,15 +246,15 @@ func (c *baseConsumer) connectAndSetup() error {
 			return fmt.Errorf("failed to bind final DLQ: %w", err)
 		}
 
-		// B. Объявляем обменник для ретраев (fanout - самый простой и надежный тип)
-		c.Logger.Info("Declaring retry exchange", "name", c.config.RetryExchange)
+		// Объявляем обменник для ретраев (fanout)
+		c.Logger.Debug("Declaring retry exchange", "name", c.config.RetryExchange)
 		err = c.channel.ExchangeDeclare(c.config.RetryExchange, "fanout", true, false, false, false, nil)
 		if err != nil {
 			return fmt.Errorf("failed to declare retry exchange: %w", err)
 		}
 
-		// C. Объявляем очередь ожидания с TTL, которая возвращает сообщения в основной обменник
-		c.Logger.Info("Declaring retry-wait queue with TTL",
+		// Объявляем очередь ожидания с TTL, которая возвращает сообщения в основной обменник
+		c.Logger.Debug("Declaring retry-wait queue with TTL",
 			"name", c.config.RetryQueue,
 			"ttl", c.config.RetryTTL,
 		)
@@ -283,26 +266,26 @@ func (c *baseConsumer) connectAndSetup() error {
 			false, // noWait
 			amqp.Table{
 				"x-message-ttl":             int32(c.config.RetryTTL),
-				"x-dead-letter-exchange":    c.config.ExchangeNameForBind, // Возвращаем в ОСНОВНОЙ обменник
-				"x-dead-letter-routing-key": c.config.RoutingKeyForBind,   // С ОСНОВНЫМ ключом
+				"x-dead-letter-exchange":    c.config.ExchangeNameForBind, // Возвращаем в основной обменник
+				// "x-dead-letter-routing-key": c.config.RoutingKeyForBind,
 			},
 		)
 		if err != nil {
 			return fmt.Errorf("failed to declare retry-wait queue: %w", err)
 		}
 
-		// D. Привязываем очередь ожидания к retry-обменнику
+		// Привязываем очередь ожидания к retry-обменнику
 		err = c.channel.QueueBind(c.config.RetryQueue, "", c.config.RetryExchange, false, nil)
 		if err != nil {
 			return fmt.Errorf("failed to bind retry-wait queue: %w", err)
 		}
 	}
 
-	c.Logger.Info("Setup complete", "queue", c.actualQueueName)
+	c.Logger.Debug("Setup complete", "queue", c.actualQueueName)
 	return nil
 }
 
-// getDeathCount - ОБНОВЛЕННАЯ ВЕРСИЯ, чтобы корректно работать с x-death
+// getDeathCount - работа с x-death
 func (c *baseConsumer) getDeathCount(d amqp.Delivery, queueName string) int64 {
 	if d.Headers == nil {
 		return 0
@@ -316,8 +299,8 @@ func (c *baseConsumer) getDeathCount(d amqp.Delivery, queueName string) int64 {
 		return 0
 	}
 
-	// x-death - это массив "смертей". Последняя "смерть" была в retry-очереди,
-	// а нас интересует, сколько раз сообщение "умирало" в основной очереди.
+	// x-death - это массив смертей. Последняя смерть была в retry-очереди,
+	// а нас интересует, сколько раз сообщение умирало в основной очереди
 	for _, death := range deaths {
 		if tbl, ok := death.(amqp.Table); ok {
 			// Ищем запись, где причиной смерти была наша основная очередь
@@ -331,16 +314,16 @@ func (c *baseConsumer) getDeathCount(d amqp.Delivery, queueName string) int64 {
 	return 0
 }
 
-// Close закрывает соединение потребителя
+// Close закрывает канал потребителя
 func (c *baseConsumer) Close() error {
 
-	c.Logger.Info("Waiting for message handlers to finish...")
+	c.Logger.Debug("Waiting for message handlers to finish...")
 	c.wg.Wait()
-	c.Logger.Info("All message handlers finished")
+	c.Logger.Debug("All message handlers finished")
 
 	var firstErr error
 
-	// ЗАКРЫВАЕМ ИЗДАТЕЛЯ
+	// закрытие издателя в dlx
 	if c.finalDlxPublisher != nil {
 		if err := c.finalDlxPublisher.Close(); err != nil {
 			c.Logger.Error(err, "Error closing final DLX publisher")
@@ -368,40 +351,3 @@ func (c *baseConsumer) Close() error {
 	c.Logger.Info("Consumer closed")
 	return firstErr
 }
-
-// // 3. Объявление Dead Letter Exchange и Queue (если включено)
-// if c.config.EnableDLQ {
-// 	log.Printf("Consumer: Declaring Dead Letter Exchange '%s'\n", c.config.DLXName)
-// 	err = c.channel.ExchangeDeclare(
-// 		c.config.DLXName,
-// 		"direct", // DLX обычно типа direct
-// 		true,     // durable
-// 		false,
-// 		false,
-// 		false,
-// 		nil,
-// 	)
-// 	if err != nil {
-// 		// ... (закрытие соединений и возврат ошибки) ...
-// 		return fmt.Errorf("failed to declare DLX '%s': %w", c.config.DLXName, err)
-// 	}
-
-// 	dlqName := c.config.QueueName + "_dlq"
-// 	dlqRoutingKey := fmt.Sprintf("%s.%s", c.config.DLQRoutingKeyPrefix, c.config.QueueName)
-
-// 	log.Printf("Consumer: Declaring Dead Letter Queue '%s'\n", dlqName)
-// 	_, err = c.channel.QueueDeclare(dlqName, true, false, false, false, nil)
-// 	if err != nil {
-// 		_ = c.channel.Close()
-// 		_ = c.connection.Close()
-// 		return fmt.Errorf("failed to declare DLQ '%s': %w", dlqName, err)
-// 	}
-
-// 	log.Printf("Consumer: Binding DLQ '%s' to DLX '%s' with key '%s'\n", dlqName, c.config.DLXName, dlqRoutingKey)
-// 	err = c.channel.QueueBind(dlqName, dlqRoutingKey, c.config.DLXName, false, nil)
-// 	if err != nil {
-// 		_ = c.channel.Close()
-// 		_ = c.connection.Close()
-// 		return fmt.Errorf("failed to bind DLQ: %w", err)
-// 	}
-// }

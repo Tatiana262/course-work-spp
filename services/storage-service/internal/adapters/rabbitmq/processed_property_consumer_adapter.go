@@ -52,6 +52,16 @@ func (u *HouseUnmarshaler) UnmarshalDetails(data json.RawMessage) (interface{}, 
 	return toDomainHouse(&detailsDTO), nil
 }
 
+type CommercialUnmarshaler struct{}
+
+func (u *CommercialUnmarshaler) UnmarshalDetails(data json.RawMessage) (interface{}, error) {
+	var detailsDTO CommercialDetailsDTO
+	if err := json.Unmarshal(data, &detailsDTO); err != nil {
+		return nil, err
+	}
+	return toDomainCommercial(&detailsDTO), nil
+}
+
 // GenericUnmarshaler для типов, не требующих DTO-трансляции
 type GenericUnmarshaler[T any] struct{}
 
@@ -92,7 +102,7 @@ func NewProcessedPropertyConsumerAdapter(
 
 	adapter.detailsRegistry["apartment"] = &ApartmentUnmarshaler{}
 	adapter.detailsRegistry["house"] = &HouseUnmarshaler{}
-	adapter.detailsRegistry["commercial"] = &GenericUnmarshaler[domain.Commercial]{}
+	adapter.detailsRegistry["commercial"] = &CommercialUnmarshaler{}
 	adapter.detailsRegistry["garage_and_parking"] = &GenericUnmarshaler[domain.GarageAndParking]{}
 	adapter.detailsRegistry["room"] = &GenericUnmarshaler[domain.Room]{}
 	adapter.detailsRegistry["plot"] = &GenericUnmarshaler[domain.Plot]{}
@@ -297,6 +307,7 @@ func toDomainApartment(dto *ApartmentDetailsDTO) *domain.Apartment {
 		BathroomType:        dto.BathroomType,
 		BalconyType:         dto.BalconyType,
 		PricePerSquareMeter: dto.PricePerSquareMeter,
+		IsNewCondition:		dto.IsNewCondition,
 		Parameters:          dto.Parameters,
 	}
 }
@@ -319,7 +330,25 @@ func toDomainHouse(dto *HouseDetailsDTO) *domain.House {
 		RoofMaterial:      dto.RoofMaterial,
 		HouseType:         dto.HouseType,
 		CompletionPercent: dto.CompletionPercent,
+		IsNewCondition:		dto.IsNewCondition,
 		Parameters:        dto.Parameters,
+	}
+}
+
+func toDomainCommercial(dto *CommercialDetailsDTO) *domain.Commercial {
+	return &domain.Commercial{
+		IsNewCondition: dto.IsNewCondition,
+		PropertyType: dto.PropertyType,
+		FloorNumber: dto.FloorNumber,
+		BuildingFloors: dto.BuildingFloors,
+		TotalArea: dto.TotalArea,
+		CommercialImprovements: dto.CommercialImprovements,
+		CommercialRepair: dto.CommercialRepair,
+		PricePerSquareMeter: dto.PricePerSquareMeter,
+		RoomsRange: dto.RoomsRange,
+		CommercialBuildingLocation: dto.CommercialBuildingLocation,
+		CommercialRentType: dto.CommercialRentType,
+		Parameters: dto.Parameters,
 	}
 }
 

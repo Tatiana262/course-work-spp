@@ -5,6 +5,6 @@ import (
 	"context"
 )
 
-type ParsingTaskQueuePort interface {
+type LinksQueuePort interface {
 	PublishTask(ctx context.Context, task domain.ActualizationTask) error
 }

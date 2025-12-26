@@ -15,13 +15,13 @@ import (
 )
 
 type FindNewObjectsUseCase struct {
-	taskQueue   port.LinkSearchQueuePort
+	taskQueue   port.LinksSearchQueuePort
 	taskService port.UserTaskServicePort
 	taskResults port.TaskResultsPort
 }
 
 func NewFindNewObjectsUseCase(
-	taskQueue port.LinkSearchQueuePort,
+	taskQueue port.LinksSearchQueuePort,
 	taskService port.UserTaskServicePort,
 	taskResults port.TaskResultsPort) *FindNewObjectsUseCase {
 	return &FindNewObjectsUseCase{
@@ -90,7 +90,10 @@ func (uc *FindNewObjectsUseCase) runInBackground(ctx context.Context, taskID uui
 
 		completionCmd := domain.TaskCompletionCommand{
 			TaskID:               taskID,
-			ExpectedResultsCount: 0,
+			Results: map[string]int{
+				"expected_results_count": 0,
+			},
+			// ExpectedResultsCount: 0,
 		}
 		if err := uc.taskResults.PublishCompletionCommand(ctx, completionCmd); err != nil {
 			taskLogger.Error("Failed to publish zero-count completion command", err, nil)
@@ -107,11 +110,14 @@ func (uc *FindNewObjectsUseCase) runInBackground(ctx context.Context, taskID uui
 		}
 	}
 
-	taskLogger.Info("All sub-tasks for search new objects dispatched. Sending completion command for user task", port.Fields{"dispatched_count": totalTasksToDispatch})
+	// taskLogger.Info("All sub-tasks for search new objects dispatched. Sending completion command for user task", port.Fields{"dispatched_count": totalTasksToDispatch})
 
 	completionCmd := domain.TaskCompletionCommand{
 		TaskID:               taskID,
-		ExpectedResultsCount: totalTasksToDispatch,
+		Results: map[string]int{
+			"expected_results_count": totalTasksToDispatch,
+		},
+		// ExpectedResultsCount: totalTasksToDispatch,
 	}
 	if err := uc.taskResults.PublishCompletionCommand(ctx, completionCmd); err != nil {
 		taskLogger.Error("Failed to publish completion command", err, nil)
@@ -146,6 +152,7 @@ func (uc *FindNewObjectsUseCase) generateAllTasks(categories []string, regions [
 						TaskID:   taskID,
 					},
 					RoutingKey: routingKey,
+					Priority: domain.FIND_NEW_OBJECTS,
 				}
 
 				searchTasks = append(searchTasks, task)

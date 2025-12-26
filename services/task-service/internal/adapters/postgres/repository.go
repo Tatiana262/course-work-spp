@@ -37,7 +37,7 @@ func (r *PostgresTaskRepository) Create(ctx context.Context, task *domain.Task) 
 		"task": *task,
 	})
 	
-	repoLogger.Info("Creating new task in DB", nil)
+	repoLogger.Debug("Creating new task in DB", nil)
 
 	query := `
 		INSERT INTO tasks (id, name, type, status, created_at, created_by_user_id, result_summary)
@@ -60,7 +60,7 @@ func (r *PostgresTaskRepository) Create(ctx context.Context, task *domain.Task) 
 		return fmt.Errorf("failed to create task: %w", err)
 	}
 
-	repoLogger.Info("Task created successfully", nil)
+	repoLogger.Debug("Task created successfully", nil)
 	return nil
 }
 
@@ -73,13 +73,13 @@ func (r *PostgresTaskRepository) Update(ctx context.Context, task *domain.Task) 
 		"task_id":   task.ID.String(),
 	})
 
-	repoLogger.Info("Updating task in DB", port.Fields{"new_status": task.Status})
+	repoLogger.Debug("Updating task in DB", port.Fields{"new_status": task.Status})
 
-	summaryJSON, err := json.Marshal(task.ResultSummary)
-	if err != nil {
-		repoLogger.Error("Failed to marshal result summary for update", err, nil)
-		return fmt.Errorf("failed to marshal result summary: %w", err)
-	}
+	// summaryJSON, err := json.Marshal(task.ResultSummary)
+	// if err != nil {
+	// 	repoLogger.Error("Failed to marshal result summary for update", err, nil)
+	// 	return fmt.Errorf("failed to marshal result summary: %w", err)
+	// }
 
 	query := `
 		UPDATE tasks
@@ -87,9 +87,8 @@ func (r *PostgresTaskRepository) Update(ctx context.Context, task *domain.Task) 
 			name = $2,
 			type = $3,
 			status = $4,
-			result_summary = $5,
-			started_at = $6,
-			finished_at = $7
+			started_at = $5,
+			finished_at = $6
 		WHERE id = $1
 	`
 	cmdTag, err := r.pool.Exec(ctx, query,
@@ -97,7 +96,6 @@ func (r *PostgresTaskRepository) Update(ctx context.Context, task *domain.Task) 
 		task.Name,
 		task.Type,
 		task.Status,
-		summaryJSON,
 		task.StartedAt,
 		task.FinishedAt,
 	)
@@ -110,7 +108,7 @@ func (r *PostgresTaskRepository) Update(ctx context.Context, task *domain.Task) 
 		return domain.ErrTaskNotFound
 	}
 
-	repoLogger.Info("Task updated successfully", nil)
+	repoLogger.Debug("Task updated successfully", nil)
 	return nil
 }
 
@@ -123,7 +121,7 @@ func (r *PostgresTaskRepository) FindByID(ctx context.Context, taskID uuid.UUID)
 		"task_id":   taskID.String(),
 	})
 
-	repoLogger.Info("Finding task by ID.", nil)
+	repoLogger.Debug("Finding task by ID.", nil)
 
 	query := `
 		SELECT id, name, type, status, result_summary, created_at, started_at, finished_at, created_by_user_id
@@ -158,7 +156,7 @@ func (r *PostgresTaskRepository) FindByID(ctx context.Context, taskID uuid.UUID)
 		return nil, fmt.Errorf("failed to unmarshal result summary: %w", err)
 	}
 
-	repoLogger.Info("Task found successfully.", nil)
+	repoLogger.Debug("Task found successfully.", nil)
 	return &task, nil
 }
 
@@ -174,7 +172,7 @@ func (r *PostgresTaskRepository) FindAll(ctx context.Context, createdByUserID uu
 		"offset":   offset,
 	})
 
-	repoLogger.Info("Starting transaction to find all tasks for user.", nil)
+	repoLogger.Debug("Starting transaction to find all tasks for user.", nil)
     tx, err := r.pool.Begin(ctx)
     if err != nil {
 		repoLogger.Error("Failed to begin transaction", err, nil)
@@ -241,7 +239,61 @@ func (r *PostgresTaskRepository) FindAll(ctx context.Context, createdByUserID uu
 }
 
 // IncrementSummary атомарно обновляет числовые значения в JSONB поле result_summary.
-func (r *PostgresTaskRepository) IncrementSummary(ctx context.Context, taskID uuid.UUID, results map[string]int) error {
+// func (r *PostgresTaskRepository) IncrementSummary(ctx context.Context, taskID uuid.UUID, results map[string]int) error {
+// 	logger := contextkeys.LoggerFromContext(ctx)
+// 	repoLogger := logger.WithFields(port.Fields{
+// 		"component": "PostgresTaskRepository",
+// 		"method":    "IncrementSummary",
+// 		"task_id":   taskID.String(),
+// 	})
+
+// 	repoLogger.Debug("Starting transaction to increment summary", port.Fields{"updates": results})
+// 	// Этот метод будет выполнять несколько UPDATE операций в одной транзакции
+// 	// для каждого ключа в `results`.
+// 	tx, err := r.pool.Begin(ctx)
+// 	if err != nil {
+// 		repoLogger.Error("Failed to begin transaction", err, nil)
+// 		return fmt.Errorf("failed to begin transaction for incrementing summary: %w", err)
+// 	}
+// 	defer tx.Rollback(ctx)
+
+// 	for key, incrementValue := range results {
+// 		// if incrementValue == 0 {
+// 		// 	continue // Пропускаем нулевые инкременты
+// 		// }
+
+// 		// Этот SQL - магия работы с JSONB в PostgreSQL
+// 		query := `
+// 			UPDATE tasks
+// 			SET result_summary = jsonb_set(
+// 				result_summary,
+// 				'{%s}', -- Путь к ключу, например, '{"processed_count"}'
+// 				(COALESCE(result_summary->>'%s', '0')::int + %d)::text::jsonb
+// 			)
+// 			WHERE id = '%s'
+// 		`
+// 		// Формируем безопасный запрос
+// 		// ВАЖНО: Мы используем Sprintf здесь, потому что имена ключей (`key`) не могут быть параметризованы.
+// 		// Мы доверяем этим ключам, так как они приходят из нашей же системы.
+// 		// `incrementValue` и `taskID` также можно было бы передать как параметры, но для простоты
+// 		// и из-за динамического построения, используем Sprintf.
+// 		formattedQuery := fmt.Sprintf(query, key, key, incrementValue, taskID)
+
+// 		repoLogger.Debug("Executing summary increment", port.Fields{"key": key, "value": incrementValue})
+
+// 		_, err := tx.Exec(ctx, formattedQuery)
+// 		if err != nil {
+// 			repoLogger.Error("Failed to increment summary key", err, port.Fields{"key": key, "query": query})
+// 			return fmt.Errorf("failed to increment summary key '%s' for task %s: %w", key, taskID, err)
+// 		}
+// 	}
+
+// 	repoLogger.Debug("Committing summary increments.", nil)
+// 	return tx.Commit(ctx)
+// }
+
+
+func (r *PostgresTaskRepository) IncrementSummary(ctx context.Context, taskID uuid.UUID, results map[string]int) (*domain.Task, error) {
 	logger := contextkeys.LoggerFromContext(ctx)
 	repoLogger := logger.WithFields(port.Fields{
 		"component": "PostgresTaskRepository",
@@ -249,47 +301,67 @@ func (r *PostgresTaskRepository) IncrementSummary(ctx context.Context, taskID uu
 		"task_id":   taskID.String(),
 	})
 
-	repoLogger.Info("Starting transaction to increment summary", port.Fields{"updates": results})
-	// Этот метод будет выполнять несколько UPDATE операций в одной транзакции
-	// для каждого ключа в `results`.
-	tx, err := r.pool.Begin(ctx)
+	if len(results) == 0 {
+		return r.FindByID(ctx, taskID)
+	}
+
+	resultsJSON, err := json.Marshal(results)
 	if err != nil {
-		repoLogger.Error("Failed to begin transaction", err, nil)
-		return fmt.Errorf("failed to begin transaction for incrementing summary: %w", err)
-	}
-	defer tx.Rollback(ctx)
-
-	for key, incrementValue := range results {
-		// if incrementValue == 0 {
-		// 	continue // Пропускаем нулевые инкременты
-		// }
-
-		// Этот SQL - магия работы с JSONB в PostgreSQL
-		query := `
-			UPDATE tasks
-			SET result_summary = jsonb_set(
-				result_summary,
-				'{%s}', -- Путь к ключу, например, '{"processed_count"}'
-				(COALESCE(result_summary->>'%s', '0')::int + %d)::text::jsonb
-			)
-			WHERE id = '%s'
-		`
-		// Формируем безопасный запрос
-		// ВАЖНО: Мы используем Sprintf здесь, потому что имена ключей (`key`) не могут быть параметризованы.
-		// Мы доверяем этим ключам, так как они приходят из нашей же системы.
-		// `incrementValue` и `taskID` также можно было бы передать как параметры, но для простоты
-		// и из-за динамического построения, используем Sprintf.
-		formattedQuery := fmt.Sprintf(query, key, key, incrementValue, taskID)
-
-		repoLogger.Debug("Executing summary increment", port.Fields{"key": key, "value": incrementValue})
-
-		_, err := tx.Exec(ctx, formattedQuery)
-		if err != nil {
-			repoLogger.Error("Failed to increment summary key", err, port.Fields{"key": key, "query": query})
-			return fmt.Errorf("failed to increment summary key '%s' for task %s: %w", key, taskID, err)
-		}
+		repoLogger.Error("Failed to marshal task result", err, nil)
+		return nil, fmt.Errorf("failed to marshal results for increment: %w", err)
 	}
 
-	repoLogger.Info("Committing summary increments.", nil)
-	return tx.Commit(ctx)
+    // ---> УПРОЩЕННЫЙ, НО АТОМАРНЫЙ SQL <---
+	query := `
+        WITH
+        -- 1. Превращаем JSON с инкрементами в таблицу (ключ, значение)
+        increments(key, value) AS (
+            SELECT key, value::bigint FROM jsonb_each_text($2::jsonb)
+        ),
+        -- 2. Загружаем и блокируем текущую задачу
+        current_task AS (
+            SELECT * FROM tasks WHERE id = $1 FOR UPDATE
+        ),
+        -- 3. Вычисляем новый JSONB
+        new_summary AS (
+            SELECT
+                (
+                    SELECT COALESCE(result_summary, '{}'::jsonb) FROM current_task
+                ) || (
+                    SELECT jsonb_object_agg(
+                        inc.key,
+                        COALESCE((SELECT result_summary FROM current_task)->>inc.key, '0')::bigint + inc.value
+                    )
+                    FROM increments inc
+                ) AS final_summary
+        )
+        -- 4. Обновляем и возвращаем
+        UPDATE tasks
+        SET result_summary = (SELECT final_summary FROM new_summary)
+        WHERE id = $1
+        RETURNING id, name, type, status, result_summary, created_at, started_at, finished_at, created_by_user_id;
+    `
+    
+    var task domain.Task
+	var summaryJSON []byte
+
+	err = r.pool.QueryRow(ctx, query, taskID, resultsJSON).Scan(
+		&task.ID, &task.Name, &task.Type, &task.Status, &summaryJSON,
+		&task.CreatedAt, &task.StartedAt, &task.FinishedAt, &task.CreatedByUserID,
+	)
+    if err != nil {
+        if errors.Is(err, pgx.ErrNoRows) {
+			repoLogger.Warn("Task not found.", nil)
+            return nil, domain.ErrTaskNotFound
+        }
+		repoLogger.Error("failed to increment summary and return task", err, nil)
+        return nil, fmt.Errorf("failed to increment summary and return task: %w", err)
+    }
+    
+    if err := json.Unmarshal(summaryJSON, &task.ResultSummary); err != nil {
+		repoLogger.Error("failed to unmarshal updated result summary", err, nil)
+        return nil, fmt.Errorf("failed to unmarshal updated result summary: %w", err)
+    }
+
+	return &task, nil
 }

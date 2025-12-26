@@ -62,7 +62,7 @@ func (uc *SavePropertyUseCase) BatchSave(ctx context.Context, records []domain.R
         return fmt.Errorf("failed to save %d property records: %w", len(records), err)
     }
 
-	ucLogger.Info("Storage batch save completed successfully", port.Fields{"stats": stats})
+	// ucLogger.Info("Storage batch save completed successfully", port.Fields{"stats": stats})
 
 	// 2. Если статистика не пустая, отправляем отчет
     if stats != nil && (stats.Created > 0 || stats.Updated > 0 || stats.Archived > 0) {

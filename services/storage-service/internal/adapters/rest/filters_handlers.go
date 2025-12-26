@@ -74,6 +74,14 @@ func (h *FilterHandler) GetFilterOptions(w http.ResponseWriter, r *http.Request)
 		ElectricityConditions: parseStringSlice(query, "electricityConditions"),
 		SewageConditions:  parseStringSlice(query, "sewageConditions"),
 		GazConditions:     parseStringSlice(query, "gazConditions"),
+
+        // Для коммерции
+        PropertyType: parseString(query, "commercialTypes"),
+        CommercialImprovements: parseStringSlice(query, "commercialImprovements"),
+        CommercialRepairs: parseStringSlice(query, "commercialRepairs"),
+        CommercialLocation: parseStringSlice(query, "commercialBuildingLocations"),
+        CommercialRoomsMin: parseInt(query, "roomsMin"),
+        CommercialRoomsMax: parseInt(query, "roomsMax"),
 	}
     
     // log.Println(filters.WallMaterials)

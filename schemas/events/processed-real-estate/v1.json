@@ -85,6 +85,15 @@
           "properties": { "details": { "$ref": "#/$defs/houseDetailsSchema" } },
           "required": ["details"]
         }
+      },
+      {
+        "if": {
+          "properties": { "details_type": { "const": "commercial" } }
+        },
+        "then": {
+          "properties": { "details": { "$ref": "#/$defs/commercialDetailsSchema" } },
+          "required": ["details"]
+        }
       }  
     ],
 
@@ -104,6 +113,7 @@
           "bathroomType": { "type": ["string", "null"] },
           "balconyType": { "type": ["string", "null"] },
           "pricePerSquareMeter": { "type": ["number", "null"] },
+          "isNewCondition": {"type": ["boolean", "null"] },
           "parameters": { "type": "object", "default": {} }
         },
         "additionalProperties": false
@@ -127,9 +137,40 @@
           "roofMaterial": { "type": ["string", "null"] },
           "houseType": { "type": ["string", "null"] },
           "completionPercent": { "type": ["integer", "null"] },
+          "isNewCondition": {"type": ["boolean", "null"] },
           "parameters": { "type": "object", "default": {} }
         },
+        
+        "additionalProperties": false
+      },
+      "commercialDetailsSchema": {
+        "type": "object",
+        "properties": {
+          "isNewCondition": {"type": ["boolean", "null"] },
+          "propertyType": {"type": ["string", "null"] },
+          "floorNumber": {"type": ["integer", "null"] },
+          "buildingFloors": {"type": ["integer", "null"] },
+          "totalArea": { "type": ["number", "null"] },
+          "commercialImprovements": {
+            "type": ["array", "null"],
+            "items": {
+              "type": "string"
+            }
+          },
+          "commercialRepair": {"type": ["string", "null"] },
+          "pricePerSquareMeter": {"type": ["number", "null"] },
+          "roomsRange": {
+            "type": ["array", "null"],
+            "items": {
+              "type": "integer"
+            }
+          },
+          "commercialBuildingLocation": {"type": ["string", "null"] },
+          "commercialRentType": {"type": ["string", "null"] },
+          "parameters": { "type": "object", "default": {} }
+        },
+        
         "additionalProperties": false
       }
     }
-  }
+}

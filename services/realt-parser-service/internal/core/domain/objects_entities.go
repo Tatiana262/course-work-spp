@@ -65,7 +65,7 @@ type Apartment struct {
 	BalconyType             *string 
 	PricePerSquareMeter     *float64 	
 
-	//Condition               *string   	// непонятно, что с этим делать (скорее всего в параметры)     
+	IsNewCondition                     *bool   	
 	//ContractNumberAndDate   *string     // agencyContract.contract надо вынести в параметры  
 	Parameters              map[string]interface{} 
 }
@@ -92,11 +92,29 @@ type House struct {
 
 	Parameters            map[string]interface{} 
 
-	// Condition             *string 
+	IsNewCondition                     *bool   	
 	// InGardeningCommunity  *bool  
 	// ContractNumberAndDate *string
 }
 
+
+type Commercial struct {
+	IsNewCondition             *bool          
+	PropertyType               *string         
+	FloorNumber                *int8          
+	BuildingFloors             *int8          
+	TotalArea                  *float64        
+	CommercialImprovements     []string        
+	CommercialRepair           *string         	
+	PricePerSquareMeter        *float64        
+	RoomsRange                []int8          
+	CommercialBuildingLocation *string         
+	CommercialRentType		   *string		   
+	Parameters                 map[string]interface{} 
+
+	// IsPartlySellOrRent         *bool       
+	// ContractNumberAndDate      *string           
+}
 
 
 // GarageAndParking представляет детали для гаражей и стоянок.
@@ -140,24 +158,6 @@ type Room struct {
 	Parameters                map[string]interface{}
 }
 
-// Commercial представляет детали для коммерческой недвижимости.
-// Соответствует таблице `commercial`.
-type Commercial struct {
-	Condition                  *string         //
-	PropertyType               *string         //
-	FloorNumber                *int16          //
-	BuildingFloors             *int16          //
-	TotalArea                  *float64        //
-	CommercialImprovements     []string        //
-	CommercialRepair           *string         //
-	IsPartlySellOrRent         *bool         //
-	PricePerSquareMeter        *float64        //
-	ContractNumberAndDate      *string         //
-	RoomsAmount                *int16          //
-	CommercialBuildingLocation *string         //
-	CommercialRentType		   *string		   //
-	Parameters                 map[string]interface{} 
-}
 
 
 // Plot представляет детали для земельных участков.

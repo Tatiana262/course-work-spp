@@ -1,7 +1,7 @@
 package usecase
 
 import (
-	"actualization-service/internal/constants"
+	// "actualization-service/internal/constants"
 	"actualization-service/internal/contextkeys"
 	"actualization-service/internal/core/domain"
 	"actualization-service/internal/core/port" // Используем порты
@@ -13,13 +13,13 @@ import (
 
 type ActualizeObjectsByIdUseCase struct {
 	storage     port.StoragePort
-	taskQueue   port.ParsingTaskQueuePort
+	taskQueue   port.LinksQueuePort
 	taskService port.UserTaskServicePort
 	taskResults port.TaskResultsPort
 }
 
 func NewActualizeObjectsByIdUseCase(storage port.StoragePort,
-	taskQueue port.ParsingTaskQueuePort,
+	taskQueue port.LinksQueuePort,
 	taskService port.UserTaskServicePort,
 	taskResults port.TaskResultsPort) *ActualizeObjectsByIdUseCase {
 	return &ActualizeObjectsByIdUseCase{
@@ -82,7 +82,7 @@ func (uc *ActualizeObjectsByIdUseCase) runInBackground(ctx context.Context, task
 
 	// Шаг 3.2: Выполняем старую логику
 	// 1. Получаем список объектов от storage-service
-	taskLogger.Info("Fetching objects from storage", nil)
+	taskLogger.Debug("Fetching objects from storage", nil)
 	objects, err := uc.storage.GetObjectsByMasterID(ctx, id)
 	if err != nil {
 		taskLogger.Error("Failed to get objects from storage", err, nil)
@@ -96,7 +96,10 @@ func (uc *ActualizeObjectsByIdUseCase) runInBackground(ctx context.Context, task
 		taskLogger.Info("No active objects to actualize. Sending completion command.", nil)
 		completionCmd := domain.TaskCompletionCommand{
 			TaskID:               taskID,
-			ExpectedResultsCount: 0,
+			Results: map[string]int{
+				"expected_results_count": 0,
+			},
+			// ExpectedResultsCount: 0,
 		}
 		if err := uc.taskResults.PublishCompletionCommand(ctx, completionCmd); err != nil {
 			taskLogger.Error("Failed to publish zero-count completion command", err, nil)
@@ -114,14 +117,9 @@ func (uc *ActualizeObjectsByIdUseCase) runInBackground(ctx context.Context, task
 		task := domain.ActualizationTask{
 			Task:     obj,
 			Priority: domain.ACTUALIZE_OBJECT,
+			Source: obj.Source,
 		}
 
-		if obj.Source == domain.KUFAR_SOURCE {
-			task.RoutingKey = constants.RoutingKeyLinkTasksKufar
-		}
-		if obj.Source == domain.REALT_SOURCE {
-			task.RoutingKey = constants.RoutingKeyLinkTasksRealt
-		}
 		if err := uc.taskQueue.PublishTask(ctx, task); err != nil {
 			taskLogger.Error("Failed to publish actualization object sub-task", err, port.Fields{"link": obj.Link})
 			uc.taskService.UpdateTaskStatus(ctx, taskID, "failed")
@@ -129,10 +127,13 @@ func (uc *ActualizeObjectsByIdUseCase) runInBackground(ctx context.Context, task
 	}
 
 	
-	taskLogger.Info("All sub-tasks for active objects dispatched. Sending completion command for user task", port.Fields{"dispatched_count": totalTasksToDispatch})
+	// taskLogger.Info("All sub-tasks for active objects dispatched. Sending completion command for user task", port.Fields{"dispatched_count": totalTasksToDispatch})
 	completionCmd := domain.TaskCompletionCommand{
 		TaskID:               taskID,
-		ExpectedResultsCount: totalTasksToDispatch,
+		Results: map[string]int{
+			"expected_results_count": totalTasksToDispatch,
+		},
+		// ExpectedResultsCount: totalTasksToDispatch,
 	}
 	if err := uc.taskResults.PublishCompletionCommand(ctx, completionCmd); err != nil {
 		taskLogger.Error("Failed to publish completion command", err, nil)

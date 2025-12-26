@@ -36,4 +36,5 @@ api_responses_2/
 *.txt
 data.json
 *.log
+*.bat
 tmp/

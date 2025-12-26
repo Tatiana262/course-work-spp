@@ -1,1 +1,0 @@
-ALTER TABLE general_properties ADD COLUMN is_active BOOLEAN DEFAULT TRUE;

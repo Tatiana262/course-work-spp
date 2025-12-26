@@ -11,99 +11,100 @@ type PredefinedSearch struct {
 	Criteria domain.SearchCriteria
 }
 
-
 // PropertyType - наш внутренний "enum" для типов недвижимости.
 type PropertyType int
+
 const (
-	
-	PropertyTypeApartment = "flats"      // Квартира (вторичка)
-	PropertyTypeNewBuilding = "zhiloy-kompleks"     // Квартира (новостройка)
-	PropertyTypeCountryHouse = ""   // Дом, дача, коттедж
-	PropertyTypePlot = ""           // Участок
-	PropertyTypeRoom = ""           // Комната
+	PropertyTypeApartment    = "flats"           // Квартира (вторичка)
+	PropertyTypeNewBuilding  = "zhiloy-kompleks" // Квартира (новостройка)
+	PropertyTypeCountryHouse = ""                // Дом, дача, коттедж
+	PropertyTypePlot         = ""                // Участок
+	PropertyTypeRoom         = ""                // Комната
 )
 
 // DealType - наш внутренний "enum" для типов сделок.
 type DealType int
+
 const (
 	DealTypeSale = "sale"
 	DealTypeRent = ""
 )
 
-
 const (
-	ApartmentSaleCategory = 5
-	ApartmentRentCategory = 2
+	ApartmentSaleCategory       = 5
+	ApartmentRentCategory       = 2
 	ApartmentRentForDayCategory = 1
-	NewBuildingSaleCategory = 12
+	NewBuildingSaleCategory     = 12
 
-	CountryEstateSaleCategory = 11
-	CountryEstateRentCategory = 7
+	CountryEstateSaleCategory       = 11
+	CountryEstateRentCategory       = 7
 	CountryEstateRentForDayCategory = 10
-	DachaSaleCategory = 13
-	PlotSaleCategory = 14
+	AgroEstateRentForDayCategory    = 9
+	DachaBathRentForDayCategory     = 8
+	DachaSaleCategory               = 13
+	PlotSaleCategory                = 14
 
-	RoomSaleCategory = 6
-	RoomRentCategory = 4
+	RoomSaleCategory       = 6
+	RoomRentCategory       = 4
 	RoomRentForDayCategory = 3
 
-	OfficeSaleCategory = 20
-	OfficeRentCategory = 19
-	WarehouseSaleCategory = 28
-	WarehouseRentCategory = 22
-	ShopSaleCategory = 18
-	ShopRentCategory = 17
+	OfficeSaleCategory         = 20
+	OfficeRentCategory         = 19
+	WarehouseSaleCategory      = 28
+	WarehouseRentCategory      = 22
+	ShopSaleCategory           = 18
+	ShopRentCategory           = 17
 	RestaurantCafeSaleCategory = 32
 	RestaurantCafeRentCategory = 26
-	ServicesSaleCategory = 31
-	ServicesRentCategory = 25
-	BusinessSaleCategory = 30
-	BusinessRentCategory = 24
-	PomeschenieSaleCategory = 27
-	PomeschenieRentCategory = 21
-	ProizvodstvoSaleCategory = 29
-	ProizvodstvoRentCategory = 23
+	ServicesSaleCategory       = 31
+	ServicesRentCategory       = 25
+	BusinessSaleCategory       = 30
+	BusinessRentCategory       = 24
+	PomeschenieSaleCategory    = 27
+	PomeschenieRentCategory    = 21
+	ProizvodstvoSaleCategory   = 29
+	ProizvodstvoRentCategory   = 23
 
 	GarageSaleCategory = 16
 	GarageRentCategory = 15
 )
 
-
-
 // searchConfigs - "словарь-переводчик" с языка домена на язык API Realt.by
 var SearchConfigs = map[int]string{
-	ApartmentSaleCategory: "sale-flats",
-	ApartmentRentCategory: "rent-flat-for-long",
+	ApartmentSaleCategory:       "sale-flats",
+	ApartmentRentCategory:       "rent-flat-for-long",
 	ApartmentRentForDayCategory: "rent-flat-for-day",
-	NewBuildingSaleCategory: "zhiloy-kompleks",
+	NewBuildingSaleCategory:     "zhiloy-kompleks",
 
-	CountryEstateSaleCategory: "sale-cottages",
-	CountryEstateRentCategory: "rent-cottage-for-long",
+	CountryEstateSaleCategory:       "sale-cottages",
+	CountryEstateRentCategory:       "rent-cottage-for-long",
 	CountryEstateRentForDayCategory: "rent-cottage-for-day",
-	DachaSaleCategory: "sale-dachi",
-	PlotSaleCategory: "sale-plots",
+	DachaSaleCategory:               "sale-dachi",
+	AgroEstateRentForDayCategory:    "rent-agrousadba-for-day",
+	DachaBathRentForDayCategory:     "rent-countryside-for-day",
+	PlotSaleCategory:                "sale-plots",
 
-	RoomSaleCategory:  "sale-rooms",
-	RoomRentCategory: "rent-rooms-for-long", 
-	RoomRentForDayCategory: "rent-rooms-for-day", 
+	RoomSaleCategory:       "sale-rooms",
+	RoomRentCategory:       "rent-rooms-for-long",
+	RoomRentForDayCategory: "rent-rooms-for-day",
 
 	OfficeSaleCategory: "sale-offices",
 	OfficeRentCategory: "rent-offices",
 
-	WarehouseSaleCategory: "sale-warehouses",
-	WarehouseRentCategory: "rent-warehouses",
-	ShopSaleCategory: "sale-shops",
-	ShopRentCategory: "rent-shops",
+	WarehouseSaleCategory:      "sale-warehouses",
+	WarehouseRentCategory:      "rent-warehouses",
+	ShopSaleCategory:           "sale-shops",
+	ShopRentCategory:           "rent-shops",
 	RestaurantCafeSaleCategory: "sale-restorant-cafe",
 	RestaurantCafeRentCategory: "rent-restorant-cafe",
-	ServicesSaleCategory: "sale-services",
-	ServicesRentCategory: "rent-services",
-	BusinessSaleCategory: "sale-business",
-	BusinessRentCategory: "rent-business",
-	PomeschenieSaleCategory: "sale-pomeschenie",
-	PomeschenieRentCategory: "rent-pomeschenie",
-	ProizvodstvoSaleCategory: "sale-proizvodstvo",
-	ProizvodstvoRentCategory: "rent-proizvodstvo",
+	ServicesSaleCategory:       "sale-services",
+	ServicesRentCategory:       "rent-services",
+	BusinessSaleCategory:       "sale-business",
+	BusinessRentCategory:       "rent-business",
+	PomeschenieSaleCategory:    "sale-pomeschenie",
+	PomeschenieRentCategory:    "rent-pomeschenie",
+	ProizvodstvoSaleCategory:   "sale-proizvodstvo",
+	ProizvodstvoRentCategory:   "rent-proizvodstvo",
 
 	GarageSaleCategory: "sale-garage",
 	GarageRentCategory: "rent-garage",
@@ -111,12 +112,19 @@ var SearchConfigs = map[int]string{
 
 // Константы для UUID городов (их можно вынести и в отдельный файл constants)
 const (
-	CityMinskUUID    = "4cb07174-7b00-11eb-8943-0cc47adabd66"
-	CityBrestUUID    = "4c8f8db2-7b00-11eb-8943-0cc47adabd66"
-	CityVitebskUUID  = "4c9236d8-7b00-11eb-8943-0cc47adabd66"
-	CityGomelUUID    = "4c95d414-7b00-11eb-8943-0cc47adabd66"
-	CityGrodnoUUID   = "4c97eac6-7b00-11eb-8943-0cc47adabd66"
-	CityMogilevUUID  = "4cb0e950-7b00-11eb-8943-0cc47adabd66"
+	// CityMinskUUID    = "4cb07174-7b00-11eb-8943-0cc47adabd66"
+	// CityBrestUUID    = "4c8f8db2-7b00-11eb-8943-0cc47adabd66"
+	// CityVitebskUUID  = "4c9236d8-7b00-11eb-8943-0cc47adabd66"
+	// CityGomelUUID    = "4c95d414-7b00-11eb-8943-0cc47adabd66"
+	// CityGrodnoUUID   = "4c97eac6-7b00-11eb-8943-0cc47adabd66"
+	// CityMogilevUUID  = "4cb0e950-7b00-11eb-8943-0cc47adabd66"
+
+	BrestRegionUUID   = "499ef96d-7b00-11eb-8943-0cc47adabd66"
+	MinskRegionUUID   = "499f06b8-7b00-11eb-8943-0cc47adabd66"
+	VitebskRegionUUID = "499eff50-7b00-11eb-8943-0cc47adabd66"
+	GomelRegionUUID   = "499f02f0-7b00-11eb-8943-0cc47adabd66"
+	GrodnoRegionUUID  = "499f04f0-7b00-11eb-8943-0cc47adabd66"
+	MogilevRegionUUID = "499f085c-7b00-11eb-8943-0cc47adabd66"
 )
 
 const PageSize = 50
@@ -125,25 +133,24 @@ const SortOrder = "DESC"
 
 // BusinessSearch описывает бизнес-задачу, которая может состоять из нескольких API-запросов.
 type BusinessSearch struct {
-	Name             string
-	LocationUUID     string
+	Name         string
+	LocationUUID string
 
 	PropertyType string
 	DealType     string
 
-	Page         int    
-	PageSize     int
-	SortBy 		string
-	SortOrder 	string
+	Page      int
+	PageSize  int
+	SortBy    string
+	SortOrder string
 	// API-категории, которые соответствуют этой бизнес-задаче
-	ApiCategories    []int
+	ApiCategories []int
 	// ApiObjectCategory нужен для новостроек
 	ApiObjectCategory []int
-	ApiObjectType	[]int
+	ApiObjectType     []int
 
 	Rooms []int
 }
-
 
 type SearchTaskTemplate struct {
 	Name           string // Для логов, например "Продажа_ОфисныеЗдания"
@@ -153,12 +160,12 @@ type SearchTaskTemplate struct {
 }
 
 var RegionToRealtMap = map[string]string{
-	"Минская область":       CityMinskUUID, 
-	"Брестская область":       CityBrestUUID,     
-	"Витебская область":     CityVitebskUUID,
-	"Гомельская область":      CityGomelUUID,
-	"Гродненская область":      CityGrodnoUUID,
-	"Могилёвская область":     CityMogilevUUID,
+	"Минская область":     MinskRegionUUID,
+	"Брестская область":   BrestRegionUUID,
+	"Витебская область":   VitebskRegionUUID,
+	"Гомельская область":  GomelRegionUUID,
+	"Гродненская область": GrodnoRegionUUID,
+	"Могилёвская область": MogilevRegionUUID,
 }
 
 var BusinessCategoryToTemplatesMap = map[string][]SearchTaskTemplate{
@@ -175,10 +182,12 @@ var BusinessCategoryToTemplatesMap = map[string][]SearchTaskTemplate{
 		{Name: "Продажа_Дачи", Category: DachaSaleCategory},
 		{Name: "Аренда_Коттеджи", Category: CountryEstateRentCategory},
 		{Name: "АрендаНаСутки_Коттеджи", Category: CountryEstateRentForDayCategory},
+		{Name: "АрендаНаСутки_Агроусадьбы", Category: AgroEstateRentForDayCategory},
+		{Name: "АрендаНаСутки_ДачаБаняБаза", Category: DachaBathRentForDayCategory},
 	},
-    "plot": {
-        {Name: "Продажа_Участки", Category: PlotSaleCategory},
-    },
+	"plot": {
+		{Name: "Продажа_Участки", Category: PlotSaleCategory},
+	},
 	"room": {
 		{Name: "Продажа_Комнаты", Category: RoomSaleCategory},
 		{Name: "Аренда_Комнаты", Category: RoomRentCategory},
@@ -191,26 +200,25 @@ var BusinessCategoryToTemplatesMap = map[string][]SearchTaskTemplate{
 		{Name: "Продажа_ОфисныеЗдания", Category: OfficeSaleCategory, ObjectType: []int{36, 21, 53, 40}},
 		{Name: "Аренда_ОфисныеЗдания", Category: OfficeRentCategory, ObjectType: []int{36, 21, 53, 40}},
 		{Name: "Продажа_СкладскиеЗдания", Category: WarehouseSaleCategory, ObjectType: []int{25, 26, 42, 43, 19, 48}},
-        {Name: "Аренда_СкладскиеЗдания", Category: WarehouseRentCategory, ObjectType: []int{25, 26, 42, 43, 19, 48}},
+		{Name: "Аренда_СкладскиеЗдания", Category: WarehouseRentCategory, ObjectType: []int{25, 26, 42, 43, 19, 48}},
 
 		{Name: "Продажа_ТорговыеПомещения", Category: ShopSaleCategory, ObjectType: []int{27, 33, 15, 34, 22, 46, 47, 18, 31}},
-        {Name: "Аренда_ТорговыеПомещения", Category: ShopRentCategory, ObjectType: []int{27, 33, 15, 34, 22, 46, 47, 18, 31}},
+		{Name: "Аренда_ТорговыеПомещения", Category: ShopRentCategory, ObjectType: []int{27, 33, 15, 34, 22, 46, 47, 18, 31}},
 
 		{Name: "Продажа_РестораныКафе", Category: RestaurantCafeSaleCategory, ObjectType: []int{28, 38, 41}},
-        {Name: "Аренда_РестораныКафе", Category: RestaurantCafeRentCategory, ObjectType: []int{28, 38, 41}},
+		{Name: "Аренда_РестораныКафе", Category: RestaurantCafeRentCategory, ObjectType: []int{28, 38, 41}},
 
 		{Name: "Продажа_СфераУслуг", Category: ServicesSaleCategory, ObjectType: []int{30, 24, 29, 7, 39, 51, 49, 35, 9}},
-        {Name: "Аренда_СфераУслуг", Category: ServicesRentCategory, ObjectType: []int{30, 24, 29, 7, 39, 51, 49, 35, 9}},
+		{Name: "Аренда_СфераУслуг", Category: ServicesRentCategory, ObjectType: []int{30, 24, 29, 7, 39, 51, 49, 35, 9}},
 
 		{Name: "Продажа_Бизнес", Category: BusinessSaleCategory, ObjectType: []int{37, 20, 44, 32, 45}},
-        {Name: "Аренда_Бизнес", Category: BusinessRentCategory, ObjectType: []int{37, 20, 44, 32, 45}},
+		{Name: "Аренда_Бизнес", Category: BusinessRentCategory, ObjectType: []int{37, 20, 44, 32, 45}},
 
 		{Name: "Продажа_Здание", Category: PomeschenieSaleCategory, ObjectType: []int{16}},
-        {Name: "Аренда_Здание", Category: PomeschenieRentCategory, ObjectType: []int{16}},
+		{Name: "Аренда_Здание", Category: PomeschenieRentCategory, ObjectType: []int{16}},
 
 		{Name: "Продажа_Производство", Category: ProizvodstvoSaleCategory},
-        {Name: "Аренда_Производство", Category: ProizvodstvoRentCategory},
-
+		{Name: "Аренда_Производство", Category: ProizvodstvoRentCategory},
 	},
 	"garage_parking": {
 		{Name: "Продажа_ГаражМашиноместо", Category: GarageSaleCategory, ObjectType: []int{13, 14}},
@@ -229,7 +237,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{ApartmentSaleCategory},
 		// 	Rooms: []int{5},
 		// },
@@ -241,12 +249,10 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{ApartmentRentCategory, ApartmentRentForDayCategory},
 		// 	Rooms: []int{5},
 		// },
-
-
 
 		// {
 		// 	Name:              "Продажа_Новостройки_Минск",
@@ -262,7 +268,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	ApiCategories:     []int{NewBuildingSaleCategory},
 		// 	ApiObjectCategory: []int{1},
 		// },
-		
+
 		// {
 		// 	Name:          "Продажа_КоттеджДомПолдомаДачаТаунхаус_Минск",
 		// 	LocationUUID:  CityMinskUUID,
@@ -270,7 +276,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{CountryEstateSaleCategory, DachaSaleCategory},
 		// },
 		// {
@@ -280,7 +286,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{PlotSaleCategory},
 		// },
 		// {
@@ -290,7 +296,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{CountryEstateRentCategory, CountryEstateRentForDayCategory},
 		// },
 		// {
@@ -300,7 +306,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{RoomSaleCategory},
 		// },
 		// {
@@ -310,7 +316,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{RoomRentCategory, RoomRentForDayCategory},
 		// },
 
@@ -321,7 +327,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{OfficeSaleCategory},
 		// },
 
@@ -332,7 +338,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{OfficeSaleCategory},
 		// 	ApiObjectType: []int{36, 21, 53, 40},
 		// },
@@ -343,7 +349,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{OfficeRentCategory},
 		// 	ApiObjectType: []int{36, 21, 53, 40},
 		// },
@@ -355,7 +361,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{WarehouseSaleCategory},
 		// 	ApiObjectType: []int{25, 26, 42, 43, 19, 48},
 		// },
@@ -367,7 +373,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{WarehouseRentCategory},
 		// 	ApiObjectType: []int{25, 26, 42, 43, 19, 48},
 		// },
@@ -379,7 +385,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{ShopSaleCategory},
 		// 	ApiObjectType: []int{27, 33, 15, 34, 22, 46, 47, 18, 31},
 		// },
@@ -391,7 +397,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{ShopRentCategory},
 		// 	ApiObjectType: []int{27, 33, 15, 34, 22, 46, 47, 18, 31},
 		// },
@@ -403,7 +409,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{RestaurantCafeSaleCategory},
 		// 	ApiObjectType: []int{28, 38, 41},
 		// },
@@ -415,7 +421,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{RestaurantCafeRentCategory},
 		// 	ApiObjectType: []int{28, 38, 41},
 		// },
@@ -427,7 +433,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{ServicesSaleCategory},
 		// 	ApiObjectType: []int{30, 24, 29, 7, 39, 51, 49, 35, 9},
 		// },
@@ -439,7 +445,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{ServicesRentCategory},
 		// 	ApiObjectType: []int{30, 24, 29, 7, 39, 51, 49, 35, 9},
 		// },
@@ -451,7 +457,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{BusinessSaleCategory},
 		// 	ApiObjectType: []int{37, 20, 44, 32, 45},
 		// },
@@ -463,7 +469,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{BusinessRentCategory},
 		// 	ApiObjectType: []int{37, 20, 44, 32, 45},
 		// },
@@ -475,7 +481,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{GarageSaleCategory},
 		// 	ApiObjectType: []int{13, 14},
 		// },
@@ -487,7 +493,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{GarageRentCategory},
 		// 	ApiObjectType: []int{13, 14},
 		// },
@@ -499,7 +505,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{PomeschenieSaleCategory},
 		// 	ApiObjectType: []int{16},
 		// },
@@ -511,7 +517,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{PomeschenieRentCategory},
 		// 	ApiObjectType: []int{16},
 		// },
@@ -523,7 +529,7 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{ProizvodstvoSaleCategory},
 		// },
 
@@ -534,16 +540,12 @@ func getBusinessSearches() []BusinessSearch {
 		// 	PageSize: PageSize,
 		// 	SortBy: SortBy,
 		// 	SortOrder: SortOrder,
-			
+
 		// 	ApiCategories: []int{ProizvodstvoRentCategory},
 		// },
 
 	}
 }
-
-
-
-
 
 // GetSearchTasks - это ЕДИНСТВЕННАЯ функция, которую будет вызывать main.
 // Она возвращает готовый список конкретных задач для адаптера.
@@ -556,7 +558,7 @@ func GetSearchTasks() []domain.SearchCriteria {
 			// Создаем уникальное имя для каждой подзадачи для логов
 			// Создаем уникальное имя для каждой подзадачи для логов
 			taskName := fmt.Sprintf("%s (cat: %d)", bs.Name, category)
-			
+
 			task := domain.SearchCriteria{
 				Name:           taskName,
 				LocationUUID:   bs.LocationUUID,

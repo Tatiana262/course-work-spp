@@ -9,7 +9,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// Config хранит всю конфигурацию приложения.
+// Config хранит всю конфигурацию приложения
 type Config struct {
 	Port string // Порт, на котором будет работать сам Gateway
 
@@ -36,8 +36,7 @@ type FluentBitConfig struct {
 	Level   string `mapstructure:"FLUENTBIT_LOG_LEVEL" default:"info"` // По умолчанию INFO
 }
 
-// LoadConfig загружает конфигурацию из переменных окружения.
-// Рекомендуется использовать .env файл для локальной разработки.
+// LoadConfig загружает конфигурацию из переменных окружения .env
 func LoadConfig(envPath ...string) (*Config, error) {
 	var err error
 	if len(envPath) > 0 {

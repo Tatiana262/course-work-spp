@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"encoding/json"
 	"task-service/internal/core/domain"
 	"time"
 )
@@ -15,7 +14,7 @@ type CreateTaskRequest struct {
 
 type UpdateTaskRequest struct {
 	Status        domain.TaskStatus `json:"status"`
-	ResultSummary *json.RawMessage  `json:"result_summary"`
+	// ResultSummary *json.RawMessage  `json:"result_summary"`
 }
 
 // TaskResponse - DTO для ответа с одной задачей.

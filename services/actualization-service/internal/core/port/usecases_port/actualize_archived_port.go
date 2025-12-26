@@ -7,5 +7,5 @@ import (
 )
 
 type ActualizeArchivedObjectsUseCase interface {
-	Execute(ctx context.Context, userID uuid.UUID, category string, limit int) (uuid.UUID, error)
+	Execute(ctx context.Context, userID uuid.UUID, category *string, limit int) (uuid.UUID, error)
 }

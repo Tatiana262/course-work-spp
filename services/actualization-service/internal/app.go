@@ -89,7 +89,7 @@ func NewApp() (*App, error) {
 	})
 
 	appLogger := baseLogger.WithFields(port.Fields{"component": "app"})
-	appLogger.Info("Logger system initialized", port.Fields{
+	appLogger.Debug("Logger system initialized", port.Fields{
 		"active_loggers": len(activeLoggers), "fluent_enabled": appConfig.FluentBit.Enabled,
 	})
 
@@ -103,11 +103,11 @@ func NewApp() (*App, error) {
 		appLogger.Error("Failed to create connection manager", err, nil)
 		return nil, fmt.Errorf("failed to create connection manager: %w", err)
 	}
-	appLogger.Info("RabbitMQ Connection Manager initialized.", nil)
+	appLogger.Debug("RabbitMQ Connection Manager initialized.", nil)
 
 	producerCfg := rabbitmq_producer.PublisherConfig{
 		Config:                   rabbitmq_common.Config{URL: appConfig.RabbitMQ.URL},
-		ExchangeName:             "parser_exchange",
+		ExchangeName:             constants.MainExchange,
 		ExchangeType:             "direct",
 		DurableExchange:          true,
 		DeclareExchangeIfMissing: true,
@@ -117,9 +117,9 @@ func NewApp() (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create event producer: %w", err)
 	}
-	appLogger.Info("RabbitMQ Event Producer initialized.", nil)
+	appLogger.Debug("RabbitMQ Event Producer initialized.", nil)
 
-	tasksQueueAdapter, _ := rabbitmq_adapter.NewRabbitMQLinkQueueAdapter(eventProducer)
+	linksQueueAdapter, _ := rabbitmq_adapter.NewRabbitMQLinkQueueAdapter(eventProducer)
 	tasksResultsAdapter, _ := rabbitmq_adapter.NewTaskManagerPublisher(eventProducer, constants.RoutingKeyTasksResults)
 	storageClient := storage_api_client.NewClient(appConfig.ApiClient.STORAGE_URL)
 	userTasksClient := task_api_client.NewClient(appConfig.ApiClient.TASKS_SERVICE_URL)
@@ -127,13 +127,13 @@ func NewApp() (*App, error) {
 	linksSearchQueueAdapter, _ := rabbitmq_adapter.NewRabbitMQLinksSearchQueueAdapter(eventProducer)
 
 	// ИНИЦИАЛИЗАЦИЯ USE CASES (ядра бизнес-логики)
-	actualizeActiveObjectsUseCase := usecase.NewActualizeActiveObjectsUseCase(storageClient, tasksQueueAdapter, userTasksClient, tasksResultsAdapter)
-	actualizeArchivedObjectsUseCase := usecase.NewActualizeArchivedObjectsUseCase(storageClient, tasksQueueAdapter, userTasksClient, tasksResultsAdapter)
-	actualizeObjectByIdUseCase := usecase.NewActualizeObjectsByIdUseCase(storageClient, tasksQueueAdapter, userTasksClient, tasksResultsAdapter)
+	actualizeActiveObjectsUseCase := usecase.NewActualizeActiveObjectsUseCase(storageClient, linksQueueAdapter, userTasksClient, tasksResultsAdapter)
+	actualizeArchivedObjectsUseCase := usecase.NewActualizeArchivedObjectsUseCase(storageClient, linksQueueAdapter, userTasksClient, tasksResultsAdapter)
+	actualizeObjectByIdUseCase := usecase.NewActualizeObjectsByIdUseCase(storageClient, linksQueueAdapter, userTasksClient, tasksResultsAdapter)
 	findNewObjectsUseCase := usecase.NewFindNewObjectsUseCase(linksSearchQueueAdapter, userTasksClient, tasksResultsAdapter)
 	// findNewObjectsUseCase := usecase.NewFindNewObjectsUseCase(storageClient, tasksQueueAdapter)
 
-	appLogger.Info("All use cases initialized", nil)
+	appLogger.Debug("All use cases initialized", nil)
 
 	apiHandlers := rest.NewActualizationHandlers(actualizeActiveObjectsUseCase, actualizeArchivedObjectsUseCase, actualizeObjectByIdUseCase, findNewObjectsUseCase)
 	apiServer := rest.NewServer(appConfig.Rest.PORT, apiHandlers, baseLogger)
@@ -157,7 +157,7 @@ func (a *App) Run() error {
 	//defer cancelApp()
 
 	defer func() {
-		a.logger.Info("Shutdown sequence initiated...", nil)
+		a.logger.Debug("Shutdown sequence initiated...", nil)
 
 		if a.apiServer != nil {
 			if err := a.apiServer.Stop(context.Background()); err != nil {
@@ -185,7 +185,7 @@ func (a *App) Run() error {
 
 	serverErrors := make(chan error, 1)
 	go func() {
-		a.logger.Info("Starting HTTP server...", port.Fields{"port": a.config.Rest.PORT})
+		a.logger.Debug("Starting HTTP server...", port.Fields{"port": a.config.Rest.PORT})
 		if err := a.apiServer.Start(); err != nil && err != http.ErrServerClosed {
 			serverErrors <- fmt.Errorf("failed to start HTTP server: %w", err)
 		}
@@ -195,7 +195,7 @@ func (a *App) Run() error {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	a.logger.Info("Application running. Waiting for signals or server error...", nil)
+	a.logger.Debug("Application running. Waiting for signals or server error...", nil)
 	select {
 	case receivedSignal := <-quit:
 		a.logger.Warn("Received OS signal, shutting down...", port.Fields{"signal": receivedSignal.String()})
@@ -210,7 +210,6 @@ func (a *App) Run() error {
 
 	return nil
 }
-
 
 func parseLogLevel(levelStr string) slog.Level {
 	switch strings.ToLower(levelStr) {

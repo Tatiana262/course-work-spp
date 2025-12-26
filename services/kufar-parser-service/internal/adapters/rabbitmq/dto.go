@@ -99,3 +99,19 @@ type HouseDetailsDTO struct {
     CompletionPercent *int8    `json:"completionPercent,omitempty"`
     Parameters        map[string]interface{} `json:"parameters"`
 }
+
+
+type CommercialDetailsDTO struct {
+    IsNewCondition              *bool        `json:"isNewCondition,omitempty"` 
+	PropertyType                *string      `json:"propertyType,omitempty"`       
+	FloorNumber                 *int8        `json:"floorNumber,omitempty"`
+	BuildingFloors              *int8        `json:"buildingFloors,omitempty"`           
+	TotalArea                   *float64     `json:"totalArea,omitempty"`      
+	CommercialImprovements      []string     `json:"commercialImprovements,omitempty"`             
+	CommercialRepair            *string      `json:"commercialRepair,omitempty"`         	
+	PricePerSquareMeter         *float64     `json:"pricePerSquareMeter,omitempty"`       
+	RoomsRange                  []int8       `json:"roomsRange,omitempty"`           
+	CommercialBuildingLocation  *string      `json:"commercialBuildingLocation,omitempty"`             
+	CommercialRentType		    *string		 `json:"commercialRentType,omitempty"`    
+	Parameters                  map[string]interface{}  `json:"parameters"`
+}

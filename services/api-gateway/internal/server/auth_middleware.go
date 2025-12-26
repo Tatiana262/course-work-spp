@@ -16,10 +16,10 @@ func NewAuthMiddleware(authClient *auth.Client) *AuthMiddleware {
 	return &AuthMiddleware{authClient: authClient}
 }
 
-// Authenticate - middleware для проверки JWT.
+// Authenticate - middleware для проверки JWT
 func (am *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// 1. Извлекаем токен из заголовка Authorization
+		// Извлекаем токен из заголовка Authorization
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			http.Error(w, "Authorization header required", http.StatusUnauthorized)
@@ -32,16 +32,15 @@ func (am *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 			return
 		}
 
-		// 2. Валидируем токен, делая запрос к auth-service
+		// Валидируем токен, делая запрос к auth-service
 		claims, err := am.authClient.ValidateToken(r.Context(), tokenString)
 		if err != nil {
 			http.Error(w, "Invalid token", http.StatusUnauthorized)
 			return
 		}
 		
-		// 3. ИНЪЕКЦИЯ ДАННЫХ!
 		// Добавляем информацию о пользователе в контекст запроса,
-		// чтобы следующие middleware и прокси могли ее использовать.
+		// чтобы следующие middleware и прокси могли ее использовать
 		ctx := context.WithValue(r.Context(), "user_claims", claims)
 		
 		// 4. Модифицируем запрос, добавляя заголовок для внутренних сервисов
@@ -52,19 +51,16 @@ func (am *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 	})
 }
 
-// RequireRole - middleware для проверки роли пользователя.
+// RequireRole - middleware для проверки роли пользователя
 func (am *AuthMiddleware) RequireRole(requiredRole string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Извлекаем claims, которые были добавлены middleware Authenticate
 			claims, ok := r.Context().Value("user_claims").(*auth.Claims)
 			if !ok {
-				// Этого не должно случиться, если Authenticate отработал
 				http.Error(w, "Internal server error", http.StatusInternalServerError)
 				return
 			}
-
-			// log.Println(claims.Role)
 			
 			// Проверяем роль
 			if claims.Role != requiredRole {

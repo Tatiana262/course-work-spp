@@ -38,7 +38,7 @@ func (r *PostgresLastRunRepository) GetLastRunTimestamp(ctx context.Context, par
 	var lastRun time.Time
 	query := `SELECT last_run_timestamp FROM parser_last_runs WHERE parser_name = $1`
 
-	repoLogger.Info("Getting last run timestamp", port.Fields{"parser_name": parserName})
+	repoLogger.Debug("Getting last run timestamp", port.Fields{"parser_name": parserName})
 
 	// Выполняем запрос и сканируем результат в переменную lastRun
 	err := r.dbPool.QueryRow(ctx, query, parserName).Scan(&lastRun)
@@ -57,7 +57,7 @@ func (r *PostgresLastRunRepository) GetLastRunTimestamp(ctx context.Context, par
 		return time.Time{}, fmt.Errorf("error querying last run for parser '%s': %w", parserName, err)
 	}
 
-	repoLogger.Info("Found last run timestamp", port.Fields{
+	repoLogger.Debug("Found last run timestamp", port.Fields{
 		"parser_name":        parserName,
 		"last_run_timestamp": lastRun,
 	})
@@ -78,7 +78,7 @@ func (r *PostgresLastRunRepository) SetLastRunTimestamp(ctx context.Context, par
         VALUES ($1, $2)
         ON CONFLICT (parser_name) DO UPDATE SET last_run_timestamp = EXCLUDED.last_run_timestamp
     `
-	repoLogger.Info("Setting last run timestamp", port.Fields{
+	repoLogger.Debug("Setting last run timestamp", port.Fields{
 		"parser_name":   parserName,
 		"new_timestamp": t,
 	})
@@ -90,7 +90,7 @@ func (r *PostgresLastRunRepository) SetLastRunTimestamp(ctx context.Context, par
 		return fmt.Errorf("error setting last run for parser '%s': %w", parserName, err)
 	}
 
-	repoLogger.Info("Successfully set last run timestamp", port.Fields{"parser_name": parserName})
+	repoLogger.Debug("Successfully set last run timestamp", port.Fields{"parser_name": parserName})
 	return nil
 }
 

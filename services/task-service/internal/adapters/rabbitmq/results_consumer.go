@@ -79,7 +79,7 @@ func (a *ResultsConsumerAdapter) messageHandler(d amqp.Delivery) error {
 	// Обновляем контекст с более детальным логгером
 	ctx = contextkeys.ContextWithLogger(ctx, handlerLogger)
 
-	handlerLogger.Info("Processing task result.", port.Fields{"results": dto.Results})
+	handlerLogger.Debug("Processing task result.", port.Fields{"results": dto.Results})
 
 	// Вызываем Use Case для инкрементации счетчиков
 	if err := a.useCase.Execute(ctx, dto.TaskID, dto.Results); err != nil {
@@ -87,7 +87,7 @@ func (a *ResultsConsumerAdapter) messageHandler(d amqp.Delivery) error {
 		return err // Возвращаем ошибку, чтобы RabbitMQ попробовал снова
 	}
 
-	handlerLogger.Info("Successfully processed task result.", nil)
+	handlerLogger.Debug("Successfully processed task result.", nil)
 	return nil
 }
 

@@ -22,7 +22,7 @@ func NewUpdateTaskStatusUseCase(repo port.TaskRepositoryPort, notifier port.Noti
 	}
 }
 
-func (uc *UpdateTaskStatusUseCase) Execute(ctx context.Context, taskID uuid.UUID, status domain.TaskStatus, summary *domain.ResultSummary) (*domain.Task, error) {
+func (uc *UpdateTaskStatusUseCase) Execute(ctx context.Context, taskID uuid.UUID, status domain.TaskStatus) (*domain.Task, error) {
 	logger := contextkeys.LoggerFromContext(ctx)
 	ucLogger := logger.WithFields(port.Fields{"use_case": "UpdateTaskStatus", "task_id": taskID.String(), "new_status": status})
 
@@ -42,8 +42,8 @@ func (uc *UpdateTaskStatusUseCase) Execute(ctx context.Context, taskID uuid.UUID
 	if status == domain.StatusCompleted || status == domain.StatusFailed {
 		task.FinishedAt = &now
 	}
-	// if summary != nil && *summary != nil {
-	// 	task.ResultSummary = *summary
+	// if summary != nil {
+	// 	task.ResultSummary = summary
 	// }
 
 	if err := uc.repo.Update(ctx, task); err != nil {
@@ -51,7 +51,7 @@ func (uc *UpdateTaskStatusUseCase) Execute(ctx context.Context, taskID uuid.UUID
 		return nil, err
 	}
 
-	ucLogger.Info("Task status updated, notifying clients", nil)
+	ucLogger.Debug("Task status updated, notifying clients", nil)
 	// Отправляем уведомление об обновлении
 	uc.notifier.Notify(ctx, port.TaskEvent{Type: "task_updated", Data: *task})
 	ucLogger.Info("Use case finished successfully", nil)

@@ -1,8 +1,15 @@
 import { $authHost } from "./index";
 import type { ITask, ITasksResponse } from "../types/task";
 import { fetchEventSource } from '@microsoft/fetch-event-source';
+import type { IStatItem } from "../types/actualization";
 
 // --- ЗАПУСК ЗАДАЧ (Actualization Service) ---
+
+// Получение статистики
+export const fetchStats = async (): Promise<IStatItem[]> => {
+    const { data } = await $authHost.get<IStatItem[]>('stats');
+    return data;
+}
 
 export const findNewObjects = async (categories: string[], regions: string[]) => {
     // POST /api/v1/actualize/new-objects
@@ -10,9 +17,13 @@ export const findNewObjects = async (categories: string[], regions: string[]) =>
     return data;
 };
 
-export const actualizeActive = async (category = "Квартиры", limit = 100) => {
-    // POST /api/v1/actualize/active
-    const { data } = await $authHost.post('actualize/active', { category, limit });
+export const actualizeActive = async (category: string, limit: number) => {
+    const { data } = await $authHost.post('actualize/active', { category, limit_per_category: limit });
+    return data;
+};
+
+export const actualizeArchived = async (category: string, limit: number) => {
+    const { data } = await $authHost.post('actualize/archived', { category, limit_per_category: limit });
     return data;
 };
 

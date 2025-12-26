@@ -53,7 +53,7 @@ func NewSSENotifier(baseLogger port.LoggerPort) *SSENotifier {
 
 // dispatcher - это сердце нотификатора. Он работает в фоне и никогда не завершается.
 func (n *SSENotifier) dispatcher() {
-	n.logger.Info("Notifier dispatcher started.", nil)
+	n.logger.Debug("Notifier dispatcher started.", nil)
 	for {
 		
 		// Блокируемся, пока не придет новое событие из Use Case
@@ -95,7 +95,7 @@ func (n *SSENotifier) dispatcher() {
 		
 		// Находим все активные соединения для этого пользователя
 		if clientChannels, found := n.clients[userID]; found {
-			eventLogger.Info("Dispatching event to clients", port.Fields{"user_id": userID, "channels_count": len(clientChannels)})
+			eventLogger.Debug("Dispatching event to clients", port.Fields{"user_id": userID, "channels_count": len(clientChannels)})
 			// Отправляем сообщение в каждый канал (в каждую открытую вкладку)
 			for _, ch := range clientChannels {
 				// Используем select с default, чтобы не заблокироваться,
@@ -107,7 +107,7 @@ func (n *SSENotifier) dispatcher() {
 				}
 			}
 		} else {
-			eventLogger.Info("No active clients for user, event dropped.", port.Fields{"user_id": userID})
+			eventLogger.Debug("No active clients for user, event dropped.", port.Fields{"user_id": userID})
 		}
 		
 		n.mu.RUnlock()
@@ -132,7 +132,7 @@ func (n *SSENotifier) AddClient(userID string) clientChannel {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
-	ch := make(clientChannel, 10) // Канал с небольшим буфером для одного клиента
+	ch := make(clientChannel, 100) // Канал с небольшим буфером для одного клиента
 	n.clients[userID] = append(n.clients[userID], ch)
 
 	n.logger.Info("Client connected for user", port.Fields{
@@ -160,7 +160,7 @@ func (n *SSENotifier) RemoveClient(userID string, ch clientChannel) {
 
 		if len(newChannels) == 0 {
 			delete(n.clients, userID)
-			n.logger.Info("Last client disconnected for user. User removed.", port.Fields{"user_id": userID})
+			n.logger.Debug("Last client disconnected for user. User removed.", port.Fields{"user_id": userID})
 		} else {
 			n.clients[userID] = newChannels
 			n.logger.Info("Client disconnected for user.", port.Fields{

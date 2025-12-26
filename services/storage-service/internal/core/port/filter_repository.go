@@ -59,4 +59,14 @@ type FilterOptionsRepositoryPort interface {
     GetHouseDistinctElectricityTypes(ctx context.Context) ([]interface{}, error)
     GetHouseDistinctSewageTypes(ctx context.Context) ([]interface{}, error)
     GetHouseDistinctGazTypes(ctx context.Context) ([]interface{}, error)
+
+    // коммерция
+    GetCommercialDistinctTypes(ctx context.Context) ([]interface{}, error)
+    GetCommercialFloorsRange(ctx context.Context) (*domain.RangeResult, error)
+    GetCommercialBuildingFloorsRange(ctx context.Context) (*domain.RangeResult, error)
+    GetCommercialTotalAreaRange(ctx context.Context) (*domain.RangeResult, error)
+    GetCommercialImprovements(ctx context.Context) ([]interface{}, error)
+    GetCommercialRepairs(ctx context.Context) ([]interface{}, error)
+    GetCommercialLocations(ctx context.Context) ([]interface{}, error)
+    GetCommercialRoomsRange(ctx context.Context) (*domain.RangeResult, error) 
 }

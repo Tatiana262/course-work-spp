@@ -193,6 +193,45 @@ func (uc *GetFilterOptionsUseCase) Execute(ctx context.Context, req domain.FindO
         if err == nil {
             resultOptions["gaz_types"] = domain.FilterOption{Options: gazTypes}
         }
+    case "commercial":
+        commercialTypes, err := uc.storage.GetCommercialDistinctTypes(ctx)
+        if err == nil {
+            resultOptions["commercial_types"] = domain.FilterOption{Options: commercialTypes}
+        }
+        // Этаж
+        floor, err := uc.storage.GetCommercialFloorsRange(ctx)
+        if err == nil {
+            resultOptions["floor"] = domain.FilterOption{ Min: floor.Min, Max: floor.Max}
+        }
+        // Этажность здания
+        buildingFloor, err := uc.storage.GetCommercialBuildingFloorsRange(ctx)
+        if err == nil {
+            resultOptions["building_floor"] = domain.FilterOption{ Min: buildingFloor.Min, Max: buildingFloor.Max}
+        }
+        // Общая площадь
+        totalArea, err := uc.storage.GetCommercialTotalAreaRange(ctx)
+        if err == nil {
+            resultOptions["total_area"] = domain.FilterOption{Min: totalArea.Min, Max: totalArea.Max}
+        }
+        commercialImprovements, err := uc.storage.GetCommercialImprovements(ctx)
+        if err == nil {
+            resultOptions["commercial_improvements"] = domain.FilterOption{Options: commercialImprovements}
+        }
+        // Ремонт
+        commercialRepair, err := uc.storage.GetCommercialRepairs(ctx)
+        if err == nil {
+            resultOptions["commercial_repairs"] = domain.FilterOption{ Options: commercialRepair}
+        }
+        // Местоположение
+        commercialLocation, err := uc.storage.GetCommercialLocations(ctx)
+        if err == nil {
+            resultOptions["commercial_locations"] = domain.FilterOption{Options: commercialLocation}
+        }
+        // Раздельные помещения
+        commercialRooms, err := uc.storage.GetCommercialRoomsRange(ctx)
+        if err == nil {
+            resultOptions["commercial_rooms"] = domain.FilterOption{Min: commercialRooms.Min, Max: commercialRooms.Max}
+        }
     }
     
     // не возвращаем ошибку, если не удалось получить один из фильтров

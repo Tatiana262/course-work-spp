@@ -24,6 +24,13 @@ import (
 const (
 	Sale = "sale"
 	Rent = "rent"
+	DailyRent = "daily_rent"
+)
+
+const (
+	DailyRentApartmentCategory = "5"
+	DailyRentHousesCategory = "10"
+	DailyRentAgroCategory = "15"
 )
 
 // apiResponse - структура для разбора всего JSON ответа.
@@ -67,6 +74,7 @@ type apiImage struct {
 
 // toDomainRecord - главный метод-трансформер
 func toDomainRecord(jsonData []byte, source string, logger port.LoggerPort) (*domain.RealEstateRecord, error) {
+
 	var resp apiResponse
 	if err := json.Unmarshal(jsonData, &resp); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal api response: %w", err)
@@ -90,12 +98,6 @@ func toDomainRecord(jsonData []byte, source string, logger port.LoggerPort) (*do
 		Images:     []string{},
 
 		Status:           domain.StatusActive,
-	}
-
-	if resp.Result.Type == "sell" {
-		general.DealType = Sale
-	} else {
-		general.DealType = Rent
 	}
 
 	// Заполняем цены
@@ -132,9 +134,31 @@ func toDomainRecord(jsonData []byte, source string, logger port.LoggerPort) (*do
 	}
 
 	general.RemunerationType, _ = adParams["remuneration_type"].ParamAltValue.(string)
-	general.CityOrDistrict, _ = adParams["area"].ParamAltValue.(string)
+	city, _ := adParams["area"].ParamAltValue.(string)
+	general.CityOrDistrict= NormalizeFilterValue(city)
 	region, _ := adParams["region"].ParamAltValue.(string)
 	general.Region = NormalizeRegion(region)
+
+	
+    rawRegion, _ := adParams["region"].ParamAltValue.(string)
+    rawArea, _ := adParams["area"].ParamAltValue.(string)
+    normalizedRegion := NormalizeRegion(rawRegion)
+    if normalizedRegion == "Минск" {
+        // Если Kufar вернул `region: "Минск"`, это особый случай.
+        // Это значит, что `area` содержит район города.
+        
+        general.Region = "Минская область"
+        
+        if rawArea != "" {
+            general.CityOrDistrict = fmt.Sprintf("Минск (%s)", rawArea)
+        } else {
+            general.CityOrDistrict = "Минск"
+        }
+        
+    } else {
+        general.Region = normalizedRegion
+        general.CityOrDistrict = rawArea
+    }
 	// general.Category, _ = adParams["category"].ParamAltValue.(string)
 
 	// Заполняем данные о продавце из accountParams
@@ -143,13 +167,24 @@ func toDomainRecord(jsonData []byte, source string, logger port.LoggerPort) (*do
 
 	general.SellerDetails = buildSellerDetails(accountParams)
 	
+	dailyRentType := getStringPtr(adParams["booking_building_type"].ParamValue)
 
 	// --- 2. Определяем категорию и создаем Details ---
 	var details interface{}
 	category, _ := adParams["category"].ParamValue.(float64) // Категория приходит как число
 
-	switch int(category) {
-	case 1010: // Квартиры
+	if (category == 25010 || category == 13140) {
+		general.DealType = DailyRent
+	} else {
+		if resp.Result.Type == "sell" {
+			general.DealType = Sale
+		} else {
+			general.DealType = Rent
+		}
+	}
+
+	switch{
+	case category == 1010 || category == 25010 && *dailyRentType == DailyRentApartmentCategory: // Квартиры
 		apt := &domain.Apartment{
 			RoomsAmount:           getInt8Ptr(adParams["rooms"].ParamValue),
 			// Condition:             getStringPtr(adParams["condition"].ParamAltValue),
@@ -160,39 +195,49 @@ func toDomainRecord(jsonData []byte, source string, logger port.LoggerPort) (*do
 			PricePerSquareMeter:   getFloat64Ptr(adParams["square_meter"].ParamValue),
 			LivingSpaceArea:       getFloat64Ptr(adParams["size_living_space"].ParamValue),
 			KitchenArea:           getFloat64Ptr(adParams["size_kitchen"].ParamValue),
-			WallMaterial:          getStringPtr(adParams["house_type"].ParamAltValue),
-			Balcony:               getStringPtr(adParams["balcony"].ParamAltValue),
-			BathroomType:              getStringPtr(adParams["bathroom"].ParamAltValue),
-			RepairState:            getStringPtr(adParams["flat_repair"].ParamAltValue),
+			WallMaterial:          NormalizeStringPtr(getStringPtr(adParams["house_type"].ParamAltValue)),
+			Balcony:               NormalizeStringPtr(getStringPtr(adParams["balcony"].ParamAltValue)),
+			BathroomType:          NormalizeStringPtr(getStringPtr(adParams["bathroom"].ParamAltValue)),
+			RepairState:           NormalizeStringPtr(getStringPtr(adParams["flat_repair"].ParamAltValue)),
 			// ContractNumberAndDate: getStringPtr(adParams["re_contract"].ParamValue),
 		}
+
+		if val := getStringPtr(adParams["condition"].ParamAltValue); val != nil {
+			isNewCondition := *val == "Новое"
+			apt.IsNewCondition = &isNewCondition
+		}
+
 		// Собираем оставшиеся параметры в map
 		apt.Parameters = getRemainingParams(adParams, "coordinates", "remuneration_type", "area", "region",
 			"category", "rooms", "re_number_floors", "size", "year_built", "floor", "square_meter",
-			"size_living_space", "size_kitchen", "house_type", "balcony", "bathroom", "flat_repair")
+			"size_living_space", "size_kitchen", "house_type", "balcony", "bathroom", "flat_repair", "condition")
 		details = apt
 
-	case 1020: // Дома
+	case category == 1020 || category == 25010 && (*dailyRentType == DailyRentHousesCategory || *dailyRentType == DailyRentAgroCategory): // Дома
 		house := &domain.House{
 			TotalArea:             getFloat64Ptr(adParams["size"].ParamValue),
 			PlotArea:              getFloat64Ptr(adParams["size_area"].ParamValue),
-			WallMaterial:          getStringPtr(adParams["wall_material"].ParamAltValue),
-			// Condition:             getStringPtr(adParams["condition"].ParamAltValue),
+			WallMaterial:          NormalizeStringPtr(getStringPtr(adParams["wall_material"].ParamAltValue)),
 			YearBuilt:             getInt16Ptr(adParams["year_built"].ParamValue),
 			LivingSpaceArea:       getFloat64Ptr(adParams["size_living_space"].ParamValue),
 			BuildingFloors:        getInt8Ptr(adParams["house_number_floors"].ParamValue),
 			KitchenArea:           getFloat64Ptr(adParams["size_kitchen"].ParamValue),
-			Electricity:           getStringPtr(adParams["electricity"].ParamAltValue),
-			Water:                 getStringPtr(adParams["re_water"].ParamAltValue),
-			Heating:               getStringPtr(adParams["re_heating"].ParamAltValue),
-			Sewage:                getStringPtr(adParams["re_sewage"].ParamAltValue),
-			Gaz:                   getStringPtr(adParams["house_gaz"].ParamAltValue),
-			RoofMaterial:          getStringPtr(adParams["house_roof_material"].ParamAltValue),
+			Electricity:           NormalizeStringPtr(getStringPtr(adParams["electricity"].ParamAltValue)),
+			Water:                 NormalizeStringPtr(getStringPtr(adParams["re_water"].ParamAltValue)),
+			Heating:               NormalizeStringPtr(getStringPtr(adParams["re_heating"].ParamAltValue)),
+			Sewage:                NormalizeStringPtr(getStringPtr(adParams["re_sewage"].ParamAltValue)),
+			Gaz:                   NormalizeStringPtr(getStringPtr(adParams["house_gaz"].ParamAltValue)),
+			RoofMaterial:          NormalizeStringPtr(getStringPtr(adParams["house_roof_material"].ParamAltValue)),
 			// ContractNumberAndDate: getStringPtr(adParams["re_contract"].ParamValue),
 		}
 
+		if val := getStringPtr(adParams["condition"].ParamAltValue); val != nil {
+			isNewCondition := *val == "Новое"
+			house.IsNewCondition = &isNewCondition
+		}
+
 		if house.Gaz == nil {
-			house.Gaz = getStringPtr(adParams["gaz"].ParamAltValue)
+			house.Gaz = NormalizeStringPtr(getStringPtr(adParams["gaz"].ParamAltValue))
 		}
 
 		if general.DealType == Sale {
@@ -214,19 +259,19 @@ func toDomainRecord(jsonData []byte, source string, logger port.LoggerPort) (*do
 		
 
 		if general.DealType == Sale {
-			house.HouseType = getStringPtr(adParams["house_type_for_sell"].ParamAltValue)
+			house.HouseType = NormalizeStringPtr(getStringPtr(adParams["house_type_for_sell"].ParamAltValue))
 		} else {
-			house.HouseType = getStringPtr(adParams["house_type_for_rent"].ParamAltValue)
+			house.HouseType = NormalizeStringPtr(getStringPtr(adParams["house_type_for_rent"].ParamAltValue))
 		}
 
 		house.Parameters = getRemainingParams(adParams, "coordinates", "remuneration_type", "area", "region",
 			"category", "size", "size_area", "wall_material", "year_built",
 			"size_living_space", "house_number_floors", "size_kitchen", "electricity", "re_water", "re_heating", "re_sewage",
 			"house_gaz", "house_roof_material", "gaz", "rooms", "house_rent_rooms", "re_garden_community",
-			"house_type_for_sell", "house_type_for_rent", "house_readiness")
+			"house_type_for_sell", "house_type_for_rent", "house_readiness", "condition")
 		details = house
 
-	case 1030: // гаражи и стоянки
+	case category == 1030: // гаражи и стоянки TODO
 		garage_or_parking := &domain.GarageAndParking{
 			PropertyType:        getStringPtr(adParams["property_type"].ParamAltValue),
 			ParkingPlacesAmount: getInt16Ptr(adParams["garage_parking_place"].ParamValue),
@@ -241,7 +286,7 @@ func toDomainRecord(jsonData []byte, source string, logger port.LoggerPort) (*do
 			"garage_improvements", "re_heating", "garage_parking_type")
 		details = garage_or_parking
 
-	case 1040:	//комнаты
+	case category == 1040:	//комнаты TODO
 		room := &domain.Room{
 			RoomsAmount:              getInt16Ptr(adParams["rooms"].ParamValue),
 			SuggestedRoomsAmount:     getInt16Ptr(adParams["rental_rooms"].ParamValue),
@@ -283,34 +328,42 @@ func toDomainRecord(jsonData []byte, source string, logger port.LoggerPort) (*do
 			"is_balcony", "is_furniture")
 		details = room
 
-	case 1050:	//коммерция
+	case category == 1050:	//коммерция
 		commercial := &domain.Commercial{
-			Condition:                getStringPtr(adParams["condition"].ParamAltValue),
 			TotalArea:                getFloat64Ptr(adParams["size"].ParamValue),
-			PropertyType:        	  getStringPtr(adParams["property_type"].ParamAltValue),
+			PropertyType:        	  NormalizeStringPtr(getStringPtr(adParams["property_type"].ParamAltValue)),
 			PricePerSquareMeter:   	  getFloat64Ptr(adParams["square_meter"].ParamValue),
-			FloorNumber:              getInt16Ptr(adParams["floor"].ParamValue),
-			BuildingFloors:           getInt16Ptr(adParams["re_number_floors"].ParamValue),
-			RoomsAmount:              getInt16Ptr(adParams["commercial_rooms"].ParamValue),
-			ContractNumberAndDate:    getStringPtr(adParams["re_contract"].ParamValue),
-			CommercialImprovements:   getStringSlice(adParams["commercial_improvements"].ParamAltValue),
-			CommercialRepair:         getStringPtr(adParams["commercial_repair"].ParamAltValue),
-			CommercialBuildingLocation: getStringPtr(adParams["commercial_building"].ParamAltValue),
-			CommercialRentType:			getStringPtr(adParams["commercial_rent_type"].ParamAltValue),
+			FloorNumber:              getInt8Ptr(adParams["floor"].ParamValue),
+			BuildingFloors:           getInt8Ptr(adParams["re_number_floors"].ParamValue),
+			CommercialImprovements:   NormalizeStringSlice(getStringSlice(adParams["commercial_improvements"].ParamAltValue)),
+			CommercialRepair:         NormalizeStringPtr(getStringPtr(adParams["commercial_repair"].ParamAltValue)),
+			CommercialBuildingLocation: NormalizeStringPtr(getStringPtr(adParams["commercial_building"].ParamAltValue)),
+			CommercialRentType:			NormalizeStringPtr(getStringPtr(adParams["commercial_rent_type"].ParamAltValue)),
+			// ContractNumberAndDate:    getStringPtr(adParams["re_contract"].ParamValue),
 		}
 
-		if val := getInt16Ptr(adParams["commercial_partly_sell"].ParamValue); val != nil {
-			isPartlySellOrRent := *val == 1
-			commercial.IsPartlySellOrRent = &isPartlySellOrRent
+		// if val := getInt16Ptr(adParams["commercial_partly_sell"].ParamValue); val != nil {
+		// 	isPartlySellOrRent := *val == 1
+		// 	commercial.IsPartlySellOrRent = &isPartlySellOrRent
+		// }
+
+		if val := getStringPtr(adParams["condition"].ParamAltValue); val != nil {
+			isNewCondition := *val == "Новое"
+			commercial.IsNewCondition = &isNewCondition
+		}
+
+		if val := getInt8Ptr(adParams["commercial_rooms"].ParamValue); val != nil {
+			var rng []int8
+			rng = append(rng, *val)
+			commercial.RoomsRange = rng
 		}
 
 		commercial.Parameters = getRemainingParams(adParams, "coordinates", "remuneration_type", "area", "region",
 		"category", "condition", "size", "property_type", "square_meter", "floor", "re_number_floors", "commercial_rooms",
-		"re_contract", "commercial_improvements", "commercial_repair", "commercial_building", "commercial_rent_type",
-		"commercial_partly_sell")
+		"commercial_improvements", "commercial_repair", "commercial_building", "commercial_rent_type")
 		details = commercial
 
-	case 1080:	//участки
+	case category == 1080:	//участки TODO
 		plot := &domain.Plot{	
 			PlotArea:              getFloat64Ptr(adParams["size_area"].ParamValue),
 			PropertyRights:        getStringPtr(adParams["re_property_rights"].ParamAltValue),
@@ -333,7 +386,7 @@ func toDomainRecord(jsonData []byte, source string, logger port.LoggerPort) (*do
 		"re_sewage", "re_outbuildings", "re_outbuildings_type")
 		details = plot
 
-	case 1120:	//новостройки
+	case category == 1120:	//новостройки TODO
 		newBuilding := &domain.NewBuilding{
 			Deadline:           getStringPtr(adParams["new_buildings_year_built"].ParamAltValue),
 			RoomOptions:        getInt16Slice(adParams["new_buildings_rooms"].ParamValue),
@@ -591,23 +644,4 @@ func getRemainingParams(params map[string]parameterValues, usedKeys ...string) m
 	}
 
 	return remaining
-}
-
-
-
-func NormalizeRegion(rawRegion string) string {
-	// 1. Убираем лишние пробелы в начале и в конце
-	cleanRegion := strings.TrimSpace(rawRegion)
-	
-	// Убираем точки
-	region := strings.ReplaceAll(cleanRegion, ".", "")
-
-	// Заменяем сокращения
-	if strings.HasSuffix(region, "обл") {
-		// Обрезаем "обл" и добавляем " область"
-		baseName := strings.TrimSpace(strings.TrimSuffix(region, "обл"))
-		region = baseName + " область"
-	}
-
-	return region
 }

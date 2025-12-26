@@ -11,6 +11,9 @@ const (
     CommercialCategory = "1050"
     PlotCategory = "1080"
     NewBuildingCategory = "1120"
+
+    TravelsCategory = "25010"
+    // TourismCategory = "13140"
 )
 
 // Deal Types
@@ -49,14 +52,14 @@ type PredefinedSearch struct {
 
 // BusinessCategoryToKufarMap - наш главный "словарь-переводчик" для Kufar.
 // Ключ - бизнес-категория, значение - технический ID категории на Kufar.
-var BusinessCategoryToKufarMap = map[string]string{
-	"apartment":    ApartmentCategory,
-	"house":        HouseCategory,
-	"garage_parking": GarageAndParkingCategory,
-	"room":         RoomCategory,
-	"commercial":   CommercialCategory,
-	"plot":     PlotCategory,
-	"new_building": NewBuildingCategory,
+var BusinessCategoryToKufarMap = map[string][]string{
+	"apartment":    {ApartmentCategory, TravelsCategory},
+	"house":        {HouseCategory, TravelsCategory},
+	"garage_parking": {GarageAndParkingCategory},
+	"room":         {RoomCategory},
+	"commercial":   {CommercialCategory},
+	"plot":     {PlotCategory},
+	"new_building": {NewBuildingCategory},
 }
 
 // RegionToKufarMap - теперь сопоставляет бизнес-регион со СРЕЗОМ технических локаций Kufar
@@ -68,6 +71,11 @@ var RegionToKufarMap = map[string][]string{
 	"Гродненская область":      {GrodnoRegion},
 	"Могилёвская область":     {MogilevRegion},
 	"Вся Беларусь": {Belarus},
+}
+
+var Queries = map[string]string{
+    "apartment": "v.or:5",
+    "house": "v.or:10,15",
 }
 
 var DealTypes = []string{DealTypeSell, DealTypeRent}

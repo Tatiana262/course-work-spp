@@ -75,7 +75,7 @@ func (a *TaskReporterAdapter) ReportResults(ctx context.Context, taskID uuid.UUI
 	publishCtx, cancel := context.WithTimeout(ctx, 10*time.Second) // Таймаут 10 секунд на публикацию
 	defer cancel()
 
-	adapterLogger.Info("Publishing report for task", nil)
+	adapterLogger.Debug("Publishing report for task", nil)
 	err := a.producer.Publish(publishCtx, a.routingKey, msg)
 	if err != nil {
 		adapterLogger.Error("Failed to publish report for task", err, nil)

@@ -41,6 +41,16 @@ func (t *HouseTranslator) Translate(details interface{}) (string, interface{}, e
 	return "house", toHouseDetailsDTO(house), nil
 }
 
+type CommercialTranslator struct{}
+
+func (t *CommercialTranslator) Translate(details interface{}) (string, interface{}, error) {
+	commercial, ok := details.(*domain.Commercial)
+	if !ok {
+		return "", nil, fmt.Errorf("expected *domain.Commercial, got %T", details)
+	}
+	return "commercial", toCommercialDTO(commercial), nil
+}
+
 type PassthroughTranslator struct {
 	TypeName string
 }
@@ -74,7 +84,7 @@ func NewRabbitMQProcessedPropertyQueueAdapter(producer *rabbitmq_producer.Publis
 
 	adapter.detailsRegistry[reflect.TypeOf(&domain.Apartment{})] = &ApartmentTranslator{}
 	adapter.detailsRegistry[reflect.TypeOf(&domain.House{})] = &HouseTranslator{}
-	adapter.detailsRegistry[reflect.TypeOf(&domain.Commercial{})] = &PassthroughTranslator{TypeName: "commercial"}
+	adapter.detailsRegistry[reflect.TypeOf(&domain.Commercial{})] = &CommercialTranslator{}
 	adapter.detailsRegistry[reflect.TypeOf(&domain.GarageAndParking{})] = &PassthroughTranslator{TypeName: "garage_and_parking"}
 	adapter.detailsRegistry[reflect.TypeOf(&domain.Room{})] = &PassthroughTranslator{TypeName: "room"}
 	adapter.detailsRegistry[reflect.TypeOf(&domain.Plot{})] = &PassthroughTranslator{TypeName: "plot"}
@@ -156,7 +166,7 @@ func (a *RabbitMQProcessedPropertyQueueAdapter) Enqueue(ctx context.Context, rec
 		return err
 	}
 
-	adapterLogger.Info("Successfully published processed record", port.Fields{"details_type": eventDTO.DetailsType})
+	adapterLogger.Debug("Successfully published processed record", port.Fields{"source": eventDTO.General.Source, "ad_id": eventDTO.General.SourceAdID})
 	return nil
 }
 
@@ -230,5 +240,23 @@ func toHouseDetailsDTO(d *domain.House) HouseDetailsDTO {
 		HouseType:         d.HouseType,
 		CompletionPercent: d.CompletionPercent,
 		Parameters:        d.Parameters,
+	}
+}
+
+
+func toCommercialDTO(d *domain.Commercial) CommercialDetailsDTO {
+	return CommercialDetailsDTO {
+		IsNewCondition: d.IsNewCondition,
+		PropertyType: d.PropertyType,
+		FloorNumber: d.FloorNumber,
+		BuildingFloors: d.BuildingFloors,
+		TotalArea: d.TotalArea,
+		CommercialImprovements: d.CommercialImprovements,
+		CommercialRepair: d.CommercialRepair,
+		PricePerSquareMeter: d.PricePerSquareMeter,
+		RoomsRange: d.RoomsRange,
+		CommercialBuildingLocation: d.CommercialBuildingLocation,
+		CommercialRentType: d.CommercialRentType,
+		Parameters: d.Parameters,
 	}
 }

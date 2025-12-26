@@ -79,7 +79,7 @@ func (a *RealtFetcherAdapter) FetchLinks(ctx context.Context, criteria domain.Se
 	if err != nil { return nil, 0, fmt.Errorf("realt adapter: failed to marshal variables: %w", err) }
 
 	collector.OnRequest(func(r *colly.Request) { 
-		fetchLinksLogger.Info("Making request to fetch links", port.Fields{
+		fetchLinksLogger.Debug("Making request to fetch links", port.Fields{
 			"url": r.URL.String(),
 		})
 
@@ -101,7 +101,7 @@ func (a *RealtFetcherAdapter) FetchLinks(ctx context.Context, criteria domain.Se
 
 			// Если объявление старше или равно 'since', устанавливаем флаг остановки и прекращаем цикл.
 			if !since.IsZero() && (ad.UpdatedAt.Before(since) || ad.UpdatedAt.Equal(since)) {
-				fetchLinksLogger.Info("Reached the 'since' date cutoff", port.Fields{ // <-- Используем logger
+				fetchLinksLogger.Debug("Reached the 'since' date cutoff", port.Fields{ // <-- Используем logger
 					"since_date": since.Format(time.RFC3339),
 					"ad_code":    ad.Code,
 				})

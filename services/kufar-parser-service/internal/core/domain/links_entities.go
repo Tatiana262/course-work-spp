@@ -22,6 +22,7 @@ type SearchCriteria struct {
 	Location		string
 	SortBy			string
 
+	Query			string
 	// Пагинация
 	Cursor string 
 }

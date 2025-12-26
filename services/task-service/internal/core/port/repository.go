@@ -12,5 +12,5 @@ type TaskRepositoryPort interface {
     FindByID(ctx context.Context, taskID uuid.UUID) (*domain.Task, error)
     FindAll(ctx context.Context, createdByUserID uuid.UUID, limit, offset int) ([]domain.Task, int64, error)
     // Метод для инкрементального обновления результатов
-    IncrementSummary(ctx context.Context, taskID uuid.UUID, results map[string]int) error
+    IncrementSummary(ctx context.Context, taskID uuid.UUID, results map[string]int) (*domain.Task, error)
 }

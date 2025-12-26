@@ -2,13 +2,13 @@ package rest
 
 import (
 	"encoding/json"
-	// "log"
 	"net/http"
 	"storage-service/internal/contextkeys"
 	"storage-service/internal/core/domain"
 	"storage-service/internal/core/port"
 	"storage-service/internal/core/port/usecases_port"
 	"strconv"
+
 	// "strings"
 
 	"github.com/go-chi/chi/v5"
@@ -97,6 +97,14 @@ func (h *GetInfoHandler) FindObjects(w http.ResponseWriter, r *http.Request) {
 		ElectricityConditions: parseStringSlice(query, "electricityConditions"),
 		SewageConditions:  parseStringSlice(query, "sewageConditions"),
 		GazConditions:     parseStringSlice(query, "gazConditions"),
+
+		// Для коммерции
+        PropertyType: parseString(query, "commercialTypes"),
+        CommercialImprovements: parseStringSlice(query, "commercialImprovements"),
+        CommercialRepairs: parseStringSlice(query, "commercialRepairs"),
+        CommercialLocation: parseStringSlice(query, "commercialBuildingLocations"),
+        CommercialRoomsMin: parseInt(query, "roomsMin"),
+        CommercialRoomsMax: parseInt(query, "roomsMax"),
 	}
 
 	handlerLogger := logger.WithFields(port.Fields{
@@ -105,7 +113,7 @@ func (h *GetInfoHandler) FindObjects(w http.ResponseWriter, r *http.Request) {
 		"per_page": perPage,
 		"filters": filters, // `filters` будет красиво сериализован в JSON
 	})
-	handlerLogger.Info("Processing request to find objects", nil)
+	handlerLogger.Debug("Processing request to find objects", nil)
 
 	// --- Шаг 3: Вызываем use-case ---
 	paginatedResult, err := h.findObjectsUC.Execute(r.Context(), filters, limit, offset)
@@ -164,7 +172,7 @@ func (h *GetInfoHandler) GetObjectDetails(w http.ResponseWriter, r *http.Request
 		"handler": "GetObjectDetails",
 		"object_id":    objectIDStr,
 	})
-	handlerLogger.Info("Processing request to find object details", nil)
+	handlerLogger.Debug("Processing request to find object details", nil)
 
 	// --- Шаг 3: Вызываем use-case ---
 	detailsView, err := h.getObjectDetailsUC.Execute(r.Context(), objectID)
@@ -221,6 +229,7 @@ func (h *GetInfoHandler) GetObjectDetails(w http.ResponseWriter, r *http.Request
 		}
 	}
 
+	handlerLogger.Info("Successfully found object details", nil)
 	// --- Шаг 5: Отправляем JSON ---
 	RespondWithJSON(w, http.StatusOK, response)
 }
@@ -246,7 +255,7 @@ func (h *GetInfoHandler) GetBestByMasterIDs(w http.ResponseWriter, r *http.Reque
 		"handler": "GetBestByMasterIDs",
 		"ids_amount":  len(req.MasterIDs),
 	})
-	handlerLogger.Info("Processing request to find objects by master ids", nil)
+	handlerLogger.Debug("Processing request to find objects by master ids", nil)
 
     // Вызываем Use Case, который вызовет наш новый метод репозитория
     objects, err := h.getBestObjectsUC.Execute(r.Context(), req.MasterIDs)
@@ -274,6 +283,10 @@ func (h *GetInfoHandler) GetBestByMasterIDs(w http.ResponseWriter, r *http.Reque
 			DealType: obj.DealType,
 		}
 	}
+
+	handlerLogger.Info("Successfully found objects by master ids", port.Fields{
+		"total_found": len(objects),
+	})
 
 	RespondWithJSON(w, http.StatusOK, response)
 }
