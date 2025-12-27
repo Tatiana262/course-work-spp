@@ -4,13 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	// "log"
 	"sync"
 	"task-service/internal/contextkeys"
 	"task-service/internal/core/port"
 )
 
-// clientChannel - это канал, через который мы будем отправлять события одному конкретному клиенту (браузеру).
+// clientChannel - это канал, через который мы будем отправлять события одному конкретному клиенту (браузеру)
 type clientChannel chan []byte
 
 // структура для передачи в канал
@@ -19,22 +18,22 @@ type eventWithContext struct {
 	event port.TaskEvent
 }
 
-// SSENotifier - это наша реализация NotifierPort.
+// SSENotifier - это реализация NotifierPort
 type SSENotifier struct {
-	// `clients` хранит активные подключения. Ключ - ID пользователя,
-	// значение - срез каналов (один пользователь может открыть несколько вкладок).
+	// clients хранит активные подключения. Ключ - ID пользователя,
+	// значение - срез каналов (один пользователь может открыть несколько вкладок)
 	clients map[string][]clientChannel
-	// `mu` - мьютекс для защиты `clients` от одновременного доступа из разных горутин.
+	// mu - мьютекс для защиты clients от одновременного доступа из разных горутин
 	mu sync.RWMutex
 
-	// `eventChan` - внутренний канал, в который Use Cases будут "бросать" события.
+	// eventChan - внутренний канал, в который Use Cases будут бросать события
 	eventChan chan eventWithContext
 
 	logger    port.LoggerPort
 }
 
 
-// NewSSENotifier создает и запускает новый нотификатор.
+// NewSSENotifier создает и запускает новый нотификатор
 func NewSSENotifier(baseLogger port.LoggerPort) *SSENotifier {
 
 	notifierLogger := baseLogger.WithFields(port.Fields{"component": "SSENotifier"})
@@ -45,13 +44,13 @@ func NewSSENotifier(baseLogger port.LoggerPort) *SSENotifier {
 		logger:    notifierLogger,
 	}
 
-	// Запускаем основную горутину-диспетчер, которая будет слушать события и рассылать их.
+	// Запускаем основную горутину-диспетчер, которая будет слушать события и рассылать их
 	go notifier.dispatcher()
 
 	return notifier
 }
 
-// dispatcher - это сердце нотификатора. Он работает в фоне и никогда не завершается.
+// dispatcher - работает в фоне и никогда не завершается
 func (n *SSENotifier) dispatcher() {
 	n.logger.Debug("Notifier dispatcher started.", nil)
 	for {
@@ -62,11 +61,10 @@ func (n *SSENotifier) dispatcher() {
 		ctx := eventPackage.ctx
 		event := eventPackage.event
 
-		// 1. Извлекаем логгер из ПЕРЕДАННОГО контекста
+		// Извлекаем логгер из переданного контекста
 		loggerFromCtx := contextkeys.LoggerFromContext(ctx)
 
-		// 2. Создаем логгер для этого события, обогащая его данными из события.
-		// Он автоматически унаследует trace_id из loggerFromCtx!
+		// Создаем логгер для этого события, обогащая его данными из события
 		eventLogger := loggerFromCtx.WithFields(port.Fields{
 			"component":  "SSENotifier.dispatcher",
 			"event_type": event.Type,
@@ -75,7 +73,7 @@ func (n *SSENotifier) dispatcher() {
 		
 		eventLogger.Info("Processing new event.", nil)
 
-		// Маршалим событие в JSON один раз для всех получателей
+		// Маршалим событие в JSON
 		eventBytes, err := json.Marshal(event.Data)
 		if err != nil {
 			eventLogger.Error("Failed to marshal event", err, nil)
@@ -86,11 +84,9 @@ func (n *SSENotifier) dispatcher() {
 		sseMessage := []byte(fmt.Sprintf("event: %s\ndata: %s\n\n", event.Type, string(eventBytes)))
 
 		// Получаем ID пользователя, которому адресовано событие
-		// В нашем случае, все задачи создает админ, и он же их смотрит.
-		// Поэтому получатель - это тот, кто создал задачу.
 		userID := event.Data.CreatedByUserID.String()
 
-		// Блокируем `clients` для безопасного чтения
+		// Блокируем clients для безопасного чтения
 		n.mu.RLock()
 		
 		// Находим все активные соединения для этого пользователя
@@ -99,7 +95,7 @@ func (n *SSENotifier) dispatcher() {
 			// Отправляем сообщение в каждый канал (в каждую открытую вкладку)
 			for _, ch := range clientChannels {
 				// Используем select с default, чтобы не заблокироваться,
-				// если канал клиента переполнен или закрыт.
+				// если канал клиента переполнен или закрыт
 				select {
 				case ch <- sseMessage:
 				default:
@@ -114,25 +110,25 @@ func (n *SSENotifier) dispatcher() {
 	}
 }
 
-// Notify - это реализация метода из NotifierPort.
-// Use Cases вызывают этот метод. Он просто отправляет событие во внутренний канал.
+// Notify - это реализация метода из NotifierPort
+// Use Cases вызывают этот метод. Он просто отправляет событие во внутренний канал
 func (n *SSENotifier) Notify(ctx context.Context, event port.TaskEvent) {
 	eventPackage := eventWithContext{
 		ctx:   ctx,
 		event: event,
 	}
 
-	// Отправка в канал неблокирующая, если есть место в буфере.
+	// Отправка в канал неблокирующая, если есть место в буфере
 	n.eventChan <- eventPackage
 }
 
-// AddClient добавляет нового клиента (новое SSE-соединение).
-// Этот метод будет вызываться из HTTP-хендлера.
+// AddClient добавляет нового клиента (новое SSE-соединение)
+// Этот метод вызывается из HTTP-хендлера
 func (n *SSENotifier) AddClient(userID string) clientChannel {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 
-	ch := make(clientChannel, 100) // Канал с небольшим буфером для одного клиента
+	ch := make(clientChannel, 100) // Канал для одного клиента
 	n.clients[userID] = append(n.clients[userID], ch)
 
 	n.logger.Info("Client connected for user", port.Fields{
@@ -143,8 +139,8 @@ func (n *SSENotifier) AddClient(userID string) clientChannel {
 	return ch
 }
 
-// RemoveClient удаляет канал клиента при отключении.
-// Этот метод будет вызываться из HTTP-хендлера, когда клиент закроет соединение.
+// RemoveClient удаляет канал клиента при отключении
+// Этот метод будет вызывается из HTTP-хендлера, когда клиент закрывает соединение
 func (n *SSENotifier) RemoveClient(userID string, ch clientChannel) {
 	n.mu.Lock()
 	defer n.mu.Unlock()

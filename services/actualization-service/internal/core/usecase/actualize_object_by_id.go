@@ -1,10 +1,9 @@
 package usecase
 
 import (
-	// "actualization-service/internal/constants"
 	"actualization-service/internal/contextkeys"
 	"actualization-service/internal/core/domain"
-	"actualization-service/internal/core/port" // Используем порты
+	"actualization-service/internal/core/port"
 	"context"
 	"fmt"
 
@@ -44,7 +43,7 @@ func (uc *ActualizeObjectsByIdUseCase) Execute(ctx context.Context, userID uuid.
 	backgroundCtx = contextkeys.ContextWithLogger(backgroundCtx, logger)
 	backgroundCtx = contextkeys.ContextWithTraceID(backgroundCtx, traceID)
 
-	// Шаг 1: Создаем задачу в task-service
+	// Создаем задачу в task-service
 	taskName := fmt.Sprintf("Актуализация объекта (master_id: %s)", master_id)
 	taskID, err := uc.taskService.CreateTask(ctx, taskName, "ACTUALIZE_BY_ID", userID, master_id)
 	if err != nil {
@@ -54,15 +53,15 @@ func (uc *ActualizeObjectsByIdUseCase) Execute(ctx context.Context, userID uuid.
 
 	ucLogger.Info("User task created successfully, starting background processing", port.Fields{"task_id": taskID.String()})
 
-	// Шаг 2: Запускаем основную логику в фоновой горутине, чтобы немедленно вернуть ответ.
+	// Запускаем основную логику в фоновой горутине, чтобы немедленно вернуть ответ
 	go uc.runInBackground(backgroundCtx, taskID, master_id)
 
-	// Шаг 3: Немедленно возвращаем ID задачи.
+	// возвращаем ID задачи
 	return taskID, nil
 
 }
 
-// runInBackground - приватный метод для выполнения долгой работы.
+// runInBackground - приватный метод для выполнения фоновой работы
 func (uc *ActualizeObjectsByIdUseCase) runInBackground(ctx context.Context, taskID uuid.UUID, id string) {
 
 	logger := contextkeys.LoggerFromContext(ctx)
@@ -72,16 +71,14 @@ func (uc *ActualizeObjectsByIdUseCase) runInBackground(ctx context.Context, task
 		"object_id": id,
 	})
 
-	// Шаг 3.1: Обновляем статус задачи на "running"
+	// Обновляем статус задачи на "running"
 	if err := uc.taskService.UpdateTaskStatus(ctx, taskID, "running"); err != nil {
 		taskLogger.Error("Failed to update task status to 'running'", err, nil)
-		// Можно обновить статус на "failed" здесь же
 		uc.taskService.UpdateTaskStatus(ctx, taskID, "failed")
 		return
 	}
 
-	// Шаг 3.2: Выполняем старую логику
-	// 1. Получаем список объектов от storage-service
+	// Получаем список объектов от storage-service
 	taskLogger.Debug("Fetching objects from storage", nil)
 	objects, err := uc.storage.GetObjectsByMasterID(ctx, id)
 	if err != nil {
@@ -127,7 +124,6 @@ func (uc *ActualizeObjectsByIdUseCase) runInBackground(ctx context.Context, task
 	}
 
 	
-	// taskLogger.Info("All sub-tasks for active objects dispatched. Sending completion command for user task", port.Fields{"dispatched_count": totalTasksToDispatch})
 	completionCmd := domain.TaskCompletionCommand{
 		TaskID:               taskID,
 		Results: map[string]int{

@@ -2,8 +2,6 @@ package rest
 
 import "time"
 
-// import "time"
-
 // Структура для ответа API
 type PropertyInfoResponse struct {
     // ID        string    `json:"id"`
@@ -15,7 +13,7 @@ type PropertyInfoResponse struct {
 }
 
 
-// ObjectCardResponse - DTO для карточки объекта в списке.
+// ObjectCardResponse - DTO для карточки объекта в списке
 type ObjectCardResponse struct {
     ID       string    `json:"id"`
     Title  string    `json:"title"`
@@ -58,7 +56,7 @@ type ObjectGeneralInfoResponse struct {
     Status   string    `json:"status"`
 }
 
-// PaginatedObjectsResponse - DTO для ответа со списком и пагинацией.
+// PaginatedObjectsResponse - DTO для ответа со списком и пагинацией
 type PaginatedObjectsResponse struct {
     Data       []ObjectCardResponse `json:"objects"`
     Total      int                  `json:"total"`
@@ -74,11 +72,11 @@ type DuplicatesInfoResponse struct {
     DealType	 string    `json:"deal_type"`
 }
 
-// ObjectDetailsResponse - DTO для детальной страницы.
+// ObjectDetailsResponse - DTO для детальной страницы
 type ObjectDetailsResponse struct {
-    General ObjectGeneralInfoResponse `json:"general"` // Можно использовать ObjectCardResponse
-    Details interface{} `json:"details"` // Сюда лягут детали (квартира, дом...)
-    RelatedOffers []DuplicatesInfoResponse `json:"related_offers"`// Список всех других предложений
+    General ObjectGeneralInfoResponse `json:"general"` 
+    Details interface{} `json:"details"` 
+    RelatedOffers []DuplicatesInfoResponse `json:"related_offers"`
 }
 
 
@@ -90,7 +88,6 @@ type GetByMasterIDsResponse struct {
     Data []ObjectCardResponse `json:"data"`
 }
 
-// type FilterOptionsResponse map[string]FilterOptionResponse
 
 type FilterResponse struct {
     Filters map[string]FilterOptionResponse `json:"filters"`
@@ -98,7 +95,6 @@ type FilterResponse struct {
 }
 
 type FilterOptionResponse struct {
-    // Type    string        `json:"type"`
     Options []interface{} `json:"options,omitempty"`
     Min     interface{}   `json:"min,omitempty"`
     Max     interface{}   `json:"max,omitempty"`

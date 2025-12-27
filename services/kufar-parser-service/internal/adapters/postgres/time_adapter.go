@@ -13,12 +13,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// PostgresLastRunRepository реализует LastRunRepositoryPort для PostgreSQL.
+// PostgresLastRunRepository реализует LastRunRepositoryPort для PostgreSQL
 type PostgresLastRunRepository struct {
 	dbPool *pgxpool.Pool
 }
 
-// NewPostgresLastRunRepository создает новый экземпляр PostgresLastRunRepository.
+// NewPostgresLastRunRepository создает новый экземпляр PostgresLastRunRepository
 func NewPostgresLastRunRepository(dbPool *pgxpool.Pool) (*PostgresLastRunRepository, error) {
 	if dbPool == nil {
 		return nil, fmt.Errorf("postgres last run repository: dbPool cannot be nil")
@@ -26,9 +26,9 @@ func NewPostgresLastRunRepository(dbPool *pgxpool.Pool) (*PostgresLastRunReposit
 	return &PostgresLastRunRepository{dbPool: dbPool}, nil
 }
 
-// GetLastRunTimestamp извлекает время последнего запуска для указанного парсера.
+// GetLastRunTimestamp извлекает время последнего запуска для указанного парсера
 func (r *PostgresLastRunRepository) GetLastRunTimestamp(ctx context.Context, parserName string) (time.Time, error) {
-	// 1. Извлекаем логгер из контекста и обогащаем его информацией о компоненте
+	// Извлекаем логгер из контекста и обогащаем его информацией о компоненте
 	logger := contextkeys.LoggerFromContext(ctx)
 	repoLogger := logger.WithFields(port.Fields{
 		"component": "PostgresLastRunRepository",
@@ -43,16 +43,14 @@ func (r *PostgresLastRunRepository) GetLastRunTimestamp(ctx context.Context, par
 	// Выполняем запрос и сканируем результат в переменную lastRun
 	err := r.dbPool.QueryRow(ctx, query, parserName).Scan(&lastRun)
 	if err != nil {
-		// ПРАВИЛЬНАЯ проверка на "не найдено" для pgx/v5
+		// проверка на не найдено
 		if errors.Is(err, pgx.ErrNoRows) {
 			repoLogger.Warn("No last run timestamp found", port.Fields{"parser_name": parserName})
-			// Возвращаем нулевое время и специальную ошибку, чтобы UseCase мог ее обработать.
-			// Либо можно просто вернуть time.Time{} и nil, если отсутствие записи не считается ошибкой.
-			// Но лучше вернуть ошибку, это более явно.
+			// Возвращаем нулевое время
 			return time.Time{}, nil
 		}
 		
-		// Если это любая другая ошибка (проблемы с соединением и т.д.)
+		// Если это любая другая ошибка
 		repoLogger.Error("Error getting last run timestamp", err, port.Fields{ "parser_name": parserName, })
 		return time.Time{}, fmt.Errorf("error querying last run for parser '%s': %w", parserName, err)
 	}
@@ -64,9 +62,9 @@ func (r *PostgresLastRunRepository) GetLastRunTimestamp(ctx context.Context, par
 	return lastRun, nil
 }
 
-// SetLastRunTimestamp устанавливает или обновляет время последнего запуска для указанного парсера.
+// SetLastRunTimestamp устанавливает или обновляет время последнего запуска для указанного парсера
 func (r *PostgresLastRunRepository) SetLastRunTimestamp(ctx context.Context, parserName string, t time.Time) error {
-	// 1. Извлекаем и обогащаем логгер
+	//  Извлекаем и обогащаем логгер
 	logger := contextkeys.LoggerFromContext(ctx)
 	repoLogger := logger.WithFields(port.Fields{
 		"component": "PostgresLastRunRepository",
@@ -93,12 +91,3 @@ func (r *PostgresLastRunRepository) SetLastRunTimestamp(ctx context.Context, par
 	repoLogger.Debug("Successfully set last run timestamp", port.Fields{"parser_name": parserName})
 	return nil
 }
-
-
-// CREATE TABLE IF NOT EXISTS parser_last_runs (
-//     parser_name VARCHAR(255) PRIMARY KEY,
-//     last_run_timestamp TIMESTAMPTZ NOT NULL
-// );
-
-// -- Можно добавить индекс для ускорения поиска
-// CREATE INDEX IF NOT EXISTS idx_parser_last_runs_parser_name ON parser_last_runs(parser_name);

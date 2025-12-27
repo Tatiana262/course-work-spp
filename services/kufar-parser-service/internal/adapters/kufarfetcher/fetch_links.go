@@ -8,29 +8,14 @@ import (
 	"kufar-parser-service/internal/core/domain"
 	"kufar-parser-service/internal/core/port"
 
-	// "log"
 	"net/url"
 	"strconv"
 
-	// "parser-project/internal/core/port" // Не нужен здесь, т.к. интерфейс в другом месте
-	// "strings"
 	"time"
 
 	"github.com/gocolly/colly/v2"
 )
 
-// ... (kufarRoot, kufarProps и т.д. остаются такими же) ...
-// type kufarRoot struct {
-// 	Props kufarProps `json:"props"`
-// }
-
-// type kufarProps struct {
-// 	InitialState kufarInitialState `json:"initialState"`
-// }
-
-// type kufarInitialState struct {
-// 	Listings kufarListings `json:"listing"`
-// }
 
 type kufarListings struct {
 	Ads        []kufarAdItem        `json:"ads"`
@@ -103,8 +88,8 @@ func (a *KufarFetcherAdapter) buildURLFromCriteria(criteria domain.SearchCriteri
 }
 
 func (a *KufarFetcherAdapter) FetchLinks(ctx context.Context, criteria domain.SearchCriteria, since time.Time) ([]domain.PropertyLink, string, error) {
-	// Создаем "одноразовый" клон для этого конкретного запроса
-	// Он наследует лимиты, но имеет свои собственные обработчики!
+	
+	// Он наследует лимиты, но имеет свои собственные обработчики
 	logger := contextkeys.LoggerFromContext(ctx)
 	fetchLinksLogger := logger.WithFields(port.Fields{"component": "KufarFetcherAdapter(FetchLinks)"})
 
@@ -143,7 +128,7 @@ func (a *KufarFetcherAdapter) FetchLinks(ctx context.Context, criteria domain.Se
 			for _, ad := range data.Ads {
 				listedAt, parseErr := time.Parse(time.RFC3339, ad.ListTime)
 				if parseErr != nil {
-					fetchLinksLogger.Warn("Failed to parse date, skipping ad", port.Fields{ // <-- Используем logger
+					fetchLinksLogger.Warn("Failed to parse date, skipping ad", port.Fields{
 						"date_string": ad.ListTime,
 						"ad_link":     ad.AdLink,
 						"error":       parseErr.Error(),
@@ -151,9 +136,9 @@ func (a *KufarFetcherAdapter) FetchLinks(ctx context.Context, criteria domain.Se
 					continue
 				}
 
-				// Если объявление старше или равно 'since', устанавливаем флаг остановки и прекращаем цикл.
+				// Если объявление старше или равно since, устанавливаем флаг остановки и прекращаем цикл
 				if !since.IsZero() && (listedAt.Before(since) || listedAt.Equal(since)) {
-					fetchLinksLogger.Debug("Reached the 'since' date cutoff", port.Fields{ // <-- Используем logger
+					fetchLinksLogger.Debug("Reached the 'since' date cutoff", port.Fields{ 
 						"since_date": since.Format(time.RFC3339),
 						"ad_link":    ad.AdLink,
 					})
@@ -183,8 +168,7 @@ func (a *KufarFetcherAdapter) FetchLinks(ctx context.Context, criteria domain.Se
 		responseErr = fmt.Errorf("KufarAdapter: request to %s failed with status %d: %w", r.Request.URL, r.StatusCode, err)
 	})
 	
-	// Ошибки обрабатываются в глобальном OnError, но мы все равно должны
-	// проверить ошибку самого вызова Visit (например, если домен не разрешен)
+
 	visitErr := collector.Visit(targetURL)
 	if visitErr != nil {
 		fetchLinksLogger.Error("Failed to initiate visit for fetching links", visitErr, port.Fields{"url": targetURL})

@@ -33,7 +33,7 @@ const (
 	DailyRentAgroCategory = "15"
 )
 
-// apiResponse - структура для разбора всего JSON ответа.
+// apiResponse - структура для разбора всего JSON ответа
 type apiResponse struct {
 	Result struct {
 		AccountParameters []apiParameter `json:"account_parameters"`
@@ -84,7 +84,7 @@ func toDomainRecord(jsonData []byte, source string, logger port.LoggerPort) (*do
 	adParams := paramsToMap(resp.Result.AdParameters)
 	accountParams := paramsToMap(resp.Result.AccountParameters)
 
-	// --- 1. Заполняем GeneralProperty ---
+	// Заполняем GeneralProperty
 	general := domain.GeneralProperty{
 		Source:     source,
 		SourceAdID: resp.Result.AdID,
@@ -143,10 +143,7 @@ func toDomainRecord(jsonData []byte, source string, logger port.LoggerPort) (*do
     rawRegion, _ := adParams["region"].ParamAltValue.(string)
     rawArea, _ := adParams["area"].ParamAltValue.(string)
     normalizedRegion := NormalizeRegion(rawRegion)
-    if normalizedRegion == "Минск" {
-        // Если Kufar вернул `region: "Минск"`, это особый случай.
-        // Это значит, что `area` содержит район города.
-        
+    if normalizedRegion == "Минск" {        
         general.Region = "Минская область"
         
         if rawArea != "" {
@@ -169,7 +166,7 @@ func toDomainRecord(jsonData []byte, source string, logger port.LoggerPort) (*do
 	
 	dailyRentType := getStringPtr(adParams["booking_building_type"].ParamValue)
 
-	// --- 2. Определяем категорию и создаем Details ---
+	// Определяем категорию и создаем Details
 	var details interface{}
 	category, _ := adParams["category"].ParamValue.(float64) // Категория приходит как число
 
@@ -420,7 +417,7 @@ func toDomainRecord(jsonData []byte, source string, logger port.LoggerPort) (*do
 	return record, nil
 }
 
-// --- Функции-помощники (Helpers) ---
+// хелперы
 
 func buildSellerDetails(accountParams map[string]parameterValues) map[string]interface{}{
 
@@ -454,7 +451,7 @@ func buildSellerDetails(accountParams map[string]parameterValues) map[string]int
 	return sellerDetails
 }
 
-// paramsToMap преобразует срез параметров в удобную карту.
+// paramsToMap преобразует срез параметров в удобную карту
 func paramsToMap(params []apiParameter) map[string]parameterValues {
 	m := make(map[string]parameterValues)
 	for _, p := range params {
@@ -466,7 +463,7 @@ func paramsToMap(params []apiParameter) map[string]parameterValues {
 	return m
 }
 
-// parsePrice преобразует цену из строки (в копейках) в float64.
+// parsePrice преобразует цену из строки (в копейках) в float64
 func parsePrice(s string) (float64, error) {
 	i, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
@@ -475,7 +472,7 @@ func parsePrice(s string) (float64, error) {
 	return float64(i) / 100.0, nil
 }
 
-// getStringPtr - хелпер для безопасного получения *string из карты.
+// getStringPtr - хелпер для безопасного получения *string из карты
 func getStringPtr(value interface{}) *string {
 	if val, ok := value.(string); ok {
 		return &val
@@ -483,7 +480,7 @@ func getStringPtr(value interface{}) *string {
 	return nil
 }
 
-// getInt16Ptr - хелпер для безопасного получения *int16 из карты.
+// getInt16Ptr - хелпер для безопасного получения *int16 из карты
 func getInt16Ptr(value interface{}) *int16 {
 	// JSON числа всегда float64, их нужно конвертировать
 	if val, ok := value.(float64); ok {
@@ -508,7 +505,7 @@ func getInt16Ptr(value interface{}) *int16 {
 	return nil
 }
 
-// getInt16Ptr - хелпер для безопасного получения *int8 из карты.
+// getInt16Ptr - хелпер для безопасного получения *int8 из карты
 func getInt8Ptr(value interface{}) *int8 {
 	// JSON числа всегда float64, их нужно конвертировать
 	if val, ok := value.(float64); ok {
@@ -588,12 +585,12 @@ func getInt16Slice(value interface{}) []int16 {
 	return nil
 }
 
-// getRemainingParams принимает ОРИГИНАЛЬНЫЙ срез параметров и список ключей,
-// которые нужно ИСКЛЮЧИТЬ, потому что мы их уже обработали.
+// getRemainingParams принимает оригинальный срез параметров и список ключей,
+// которые нужно исключить, потому что мы их уже обработали
 func getRemainingParams(params map[string]parameterValues, usedKeys ...string) map[string]interface{} {
 	remaining := make(map[string]interface{})
 
-	// Создаем карту использованных ключей для быстрого поиска (O(1))
+	// Создаем карту использованных ключей
 	used := make(map[string]bool)
 	for _, key := range usedKeys {
 		used[key] = true

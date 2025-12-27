@@ -441,10 +441,10 @@ const ObjectPage = observer(() => {
                                 {general.list_time && (
                                    <div className="d-flex justify-content-between align-items-center mt-3">
                                         <div className="text-muted small">
-                                            Размещено: {new Date(general.list_time).toLocaleDateString()}
+                                            Размещено: {new Date(general.list_time).toLocaleString('ru-RU')}
                                         </div>
                                         <div className="text-muted small">
-                                            Обновлено: {new Date(general.updated_at).toLocaleDateString()}
+                                            Обновлено: {new Date(general.updated_at).toLocaleString('ru-RU')}
                                         </div>
                                         
                                         {/* Вставляем кнопку */}

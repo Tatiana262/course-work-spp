@@ -17,7 +17,7 @@ type UpdateTaskRequest struct {
 	// ResultSummary *json.RawMessage  `json:"result_summary"`
 }
 
-// TaskResponse - DTO для ответа с одной задачей.
+// TaskResponse - DTO для ответа с одной задачей
 type TaskResponse struct {
 	ID              string               `json:"id"`
 	Name            string               `json:"name"`
@@ -30,7 +30,7 @@ type TaskResponse struct {
 	CreatedByUserID string               `json:"created_by_user_id"`
 }
 
-// PaginatedTasksResponse - DTO для ответа со списком задач.
+// PaginatedTasksResponse - DTO для ответа со списком задач
 type PaginatedTasksResponse struct {
 	Data    []TaskResponse `json:"data"`
 	Total   int64          `json:"total"`
@@ -39,7 +39,7 @@ type PaginatedTasksResponse struct {
 }
 
 
-// toTaskResponse - маппер из доменной модели в DTO.
+// toTaskResponse - маппер из доменной модели в DTO
 func toTaskResponse(task *domain.Task) TaskResponse {
 	resp := TaskResponse{
 		ID:              task.ID.String(),

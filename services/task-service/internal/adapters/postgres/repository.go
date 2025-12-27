@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"task-service/internal/contextkeys"
-	"task-service/internal/core/domain" // Убедитесь, что путь верный
+	"task-service/internal/core/domain" 
 	"task-service/internal/core/port"
 
 	"github.com/google/uuid"
@@ -14,12 +14,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// PostgresTaskRepository - реализация порта для PostgreSQL.
+// PostgresTaskRepository - реализация порта для PostgreSQL
 type PostgresTaskRepository struct {
 	pool *pgxpool.Pool
 }
 
-// NewPostgresTaskRepository - конструктор.
+// NewPostgresTaskRepository - конструктор
 func NewPostgresTaskRepository(pool *pgxpool.Pool) (*PostgresTaskRepository, error) {
 	if pool == nil {
 		return nil, fmt.Errorf("pgxpool.Pool cannot be nil")
@@ -27,7 +27,7 @@ func NewPostgresTaskRepository(pool *pgxpool.Pool) (*PostgresTaskRepository, err
 	return &PostgresTaskRepository{pool: pool}, nil
 }
 
-// Create создает новую задачу в БД.
+// Create создает новую задачу в БД
 func (r *PostgresTaskRepository) Create(ctx context.Context, task *domain.Task) error {
 	logger := contextkeys.LoggerFromContext(ctx)
 	repoLogger := logger.WithFields(port.Fields{
@@ -64,7 +64,7 @@ func (r *PostgresTaskRepository) Create(ctx context.Context, task *domain.Task) 
 	return nil
 }
 
-// Update обновляет существующую задачу.
+// Update обновляет существующую задачу
 func (r *PostgresTaskRepository) Update(ctx context.Context, task *domain.Task) error {
 	logger := contextkeys.LoggerFromContext(ctx)
 	repoLogger := logger.WithFields(port.Fields{
@@ -112,7 +112,7 @@ func (r *PostgresTaskRepository) Update(ctx context.Context, task *domain.Task) 
 	return nil
 }
 
-// FindByID находит одну задачу по ее ID.
+// FindByID находит одну задачу по ее ID
 func (r *PostgresTaskRepository) FindByID(ctx context.Context, taskID uuid.UUID) (*domain.Task, error) {
 	logger := contextkeys.LoggerFromContext(ctx)
 	repoLogger := logger.WithFields(port.Fields{
@@ -180,7 +180,7 @@ func (r *PostgresTaskRepository) FindAll(ctx context.Context, createdByUserID uu
     }
     defer tx.Rollback(ctx)
 
-    // 1. Запрос на общее количество С УЧЕТОМ ПОЛЬЗОВАТЕЛЯ
+    // Запрос на общее количество
     var totalCount int64
     countQuery := "SELECT COUNT(*) FROM tasks WHERE created_by_user_id = $1"
     if err := tx.QueryRow(ctx, countQuery, createdByUserID).Scan(&totalCount); err != nil {
@@ -192,7 +192,7 @@ func (r *PostgresTaskRepository) FindAll(ctx context.Context, createdByUserID uu
         return []domain.Task{}, 0, nil
     }
 
-    // 2. Запрос на получение данных С УЧЕТОМ ПОЛЬЗОВАТЕЛЯ
+    // Запрос на получение данных
     dataQuery := `
         SELECT id, name, type, status, result_summary, created_at, started_at, finished_at, created_by_user_id
         FROM tasks
@@ -237,6 +237,86 @@ func (r *PostgresTaskRepository) FindAll(ctx context.Context, createdByUserID uu
 
     return tasks, totalCount, nil
 }
+
+
+
+
+func (r *PostgresTaskRepository) IncrementSummary(ctx context.Context, taskID uuid.UUID, results map[string]int) (*domain.Task, error) {
+	logger := contextkeys.LoggerFromContext(ctx)
+	repoLogger := logger.WithFields(port.Fields{
+		"component": "PostgresTaskRepository",
+		"method":    "IncrementSummary",
+		"task_id":   taskID.String(),
+	})
+
+	if len(results) == 0 {
+		return r.FindByID(ctx, taskID)
+	}
+
+	resultsJSON, err := json.Marshal(results)
+	if err != nil {
+		repoLogger.Error("Failed to marshal task result", err, nil)
+		return nil, fmt.Errorf("failed to marshal results for increment: %w", err)
+	}
+
+
+	query := `
+        WITH
+        -- Превращаем JSON с инкрементами в таблицу (ключ, значение)
+        increments(key, value) AS (
+            SELECT key, value::bigint FROM jsonb_each_text($2::jsonb)
+        ),
+        -- Загружаем и блокируем текущую задачу
+        current_task AS (
+            SELECT * FROM tasks WHERE id = $1 FOR UPDATE
+        ),
+        -- Вычисляем новый JSONB
+        new_summary AS (
+            SELECT
+                (
+                    SELECT COALESCE(result_summary, '{}'::jsonb) FROM current_task
+                ) || (
+                    SELECT jsonb_object_agg(
+                        inc.key,
+                        COALESCE((SELECT result_summary FROM current_task)->>inc.key, '0')::bigint + inc.value
+                    )
+                    FROM increments inc
+                ) AS final_summary
+        )
+        -- Обновляем и возвращаем
+        UPDATE tasks
+        SET result_summary = (SELECT final_summary FROM new_summary)
+        WHERE id = $1
+        RETURNING id, name, type, status, result_summary, created_at, started_at, finished_at, created_by_user_id;
+    `
+    
+    var task domain.Task
+	var summaryJSON []byte
+
+	err = r.pool.QueryRow(ctx, query, taskID, resultsJSON).Scan(
+		&task.ID, &task.Name, &task.Type, &task.Status, &summaryJSON,
+		&task.CreatedAt, &task.StartedAt, &task.FinishedAt, &task.CreatedByUserID,
+	)
+    if err != nil {
+        if errors.Is(err, pgx.ErrNoRows) {
+			repoLogger.Warn("Task not found.", nil)
+            return nil, domain.ErrTaskNotFound
+        }
+		repoLogger.Error("failed to increment summary and return task", err, nil)
+        return nil, fmt.Errorf("failed to increment summary and return task: %w", err)
+    }
+    
+    if err := json.Unmarshal(summaryJSON, &task.ResultSummary); err != nil {
+		repoLogger.Error("failed to unmarshal updated result summary", err, nil)
+        return nil, fmt.Errorf("failed to unmarshal updated result summary: %w", err)
+    }
+
+	return &task, nil
+}
+
+
+
+
 
 // IncrementSummary атомарно обновляет числовые значения в JSONB поле result_summary.
 // func (r *PostgresTaskRepository) IncrementSummary(ctx context.Context, taskID uuid.UUID, results map[string]int) error {
@@ -291,77 +371,3 @@ func (r *PostgresTaskRepository) FindAll(ctx context.Context, createdByUserID uu
 // 	repoLogger.Debug("Committing summary increments.", nil)
 // 	return tx.Commit(ctx)
 // }
-
-
-func (r *PostgresTaskRepository) IncrementSummary(ctx context.Context, taskID uuid.UUID, results map[string]int) (*domain.Task, error) {
-	logger := contextkeys.LoggerFromContext(ctx)
-	repoLogger := logger.WithFields(port.Fields{
-		"component": "PostgresTaskRepository",
-		"method":    "IncrementSummary",
-		"task_id":   taskID.String(),
-	})
-
-	if len(results) == 0 {
-		return r.FindByID(ctx, taskID)
-	}
-
-	resultsJSON, err := json.Marshal(results)
-	if err != nil {
-		repoLogger.Error("Failed to marshal task result", err, nil)
-		return nil, fmt.Errorf("failed to marshal results for increment: %w", err)
-	}
-
-    // ---> УПРОЩЕННЫЙ, НО АТОМАРНЫЙ SQL <---
-	query := `
-        WITH
-        -- 1. Превращаем JSON с инкрементами в таблицу (ключ, значение)
-        increments(key, value) AS (
-            SELECT key, value::bigint FROM jsonb_each_text($2::jsonb)
-        ),
-        -- 2. Загружаем и блокируем текущую задачу
-        current_task AS (
-            SELECT * FROM tasks WHERE id = $1 FOR UPDATE
-        ),
-        -- 3. Вычисляем новый JSONB
-        new_summary AS (
-            SELECT
-                (
-                    SELECT COALESCE(result_summary, '{}'::jsonb) FROM current_task
-                ) || (
-                    SELECT jsonb_object_agg(
-                        inc.key,
-                        COALESCE((SELECT result_summary FROM current_task)->>inc.key, '0')::bigint + inc.value
-                    )
-                    FROM increments inc
-                ) AS final_summary
-        )
-        -- 4. Обновляем и возвращаем
-        UPDATE tasks
-        SET result_summary = (SELECT final_summary FROM new_summary)
-        WHERE id = $1
-        RETURNING id, name, type, status, result_summary, created_at, started_at, finished_at, created_by_user_id;
-    `
-    
-    var task domain.Task
-	var summaryJSON []byte
-
-	err = r.pool.QueryRow(ctx, query, taskID, resultsJSON).Scan(
-		&task.ID, &task.Name, &task.Type, &task.Status, &summaryJSON,
-		&task.CreatedAt, &task.StartedAt, &task.FinishedAt, &task.CreatedByUserID,
-	)
-    if err != nil {
-        if errors.Is(err, pgx.ErrNoRows) {
-			repoLogger.Warn("Task not found.", nil)
-            return nil, domain.ErrTaskNotFound
-        }
-		repoLogger.Error("failed to increment summary and return task", err, nil)
-        return nil, fmt.Errorf("failed to increment summary and return task: %w", err)
-    }
-    
-    if err := json.Unmarshal(summaryJSON, &task.ResultSummary); err != nil {
-		repoLogger.Error("failed to unmarshal updated result summary", err, nil)
-        return nil, fmt.Errorf("failed to unmarshal updated result summary: %w", err)
-    }
-
-	return &task, nil
-}

@@ -44,7 +44,7 @@ type AppConfig struct {
 	StdoutLogger StdoutLogConfig
 }
 
-// LoadConfig загружает конфигурацию из переменных окружения.
+// LoadConfig загружает конфигурацию из переменных окружения
 func LoadConfig(envPath ...string) (*AppConfig, error) {
 	var err error
 	if len(envPath) > 0 {

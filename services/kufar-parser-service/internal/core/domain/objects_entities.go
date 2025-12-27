@@ -10,15 +10,13 @@ const (
 	StatusArchived = "archived"
 )
 
-// RealEstateRecord - это главная, агрегирующая структура для любого объекта недвижимости.
-// Она объединяет общую часть (General) и специфичную (Details).
+// RealEstateRecord - это агрегирующая структура для объекта недвижимости
 type RealEstateRecord struct {
     General GeneralProperty
-    Details interface{} // Сюда будет помещен указатель на Apartment, House, Commercial и т.д.
+    Details interface{} // Сюда будет помещен указатель на конкретные детали
 }
 
-// GeneralProperty представляет основную, общую информацию для любого объекта недвижимости.
-// Соответствует таблице `general_properties`.
+// GeneralProperty представляет основную информацию для любого объекта недвижимости
 type GeneralProperty struct {
 	Source       	 string    	
 	SourceAdID   	 int64     	
@@ -53,10 +51,8 @@ type GeneralProperty struct {
 	// ImportLink     *string  	
 }
 
-// --- Структуры для специализированных данных ---
 
-// Apartment представляет детали для квартир.
-// Соответствует таблице `apartments`.
+// Apartment представляет детали для квартир
 type Apartment struct {
 	RoomsAmount             *int8 	
 	FloorNumber             *int8 		
@@ -76,8 +72,7 @@ type Apartment struct {
 	Parameters              map[string]interface{} 
 }
 
-// House представляет детали для дома, дачи.
-// Соответствует таблице `houses`.
+// House представляет детали для дома, дачи
 type House struct {
 	TotalArea             *float64    	    
 	PlotArea              *float64    	    
@@ -105,8 +100,7 @@ type House struct {
 }
 
 
-// Commercial представляет детали для коммерческой недвижимости.
-// Соответствует таблице `commercial`.
+// Commercial представляет детали для коммерческой недвижимости
 type Commercial struct {
 	IsNewCondition             *bool          
 	PropertyType               *string         
@@ -128,8 +122,7 @@ type Commercial struct {
 
 
 
-// GarageAndParking представляет детали для гаражей и стоянок.
-// Соответствует таблице `garages_and_parkings`.
+// GarageAndParking представляет детали для гаражей и стоянок
 type GarageAndParking struct { 
 	PropertyType        *string    	//     
 	ParkingPlacesAmount *int16 		//        

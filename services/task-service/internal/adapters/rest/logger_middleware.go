@@ -10,17 +10,17 @@ import (
 	"github.com/google/uuid"
 )
 
-// LoggerMiddleware создает контекстный логгер для каждого запроса.
+// LoggerMiddleware создает контекстный логгер для каждого запроса
 func LoggerMiddleware(logger port.LoggerPort) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Получаем trace_id от API Gateway. Если его нет, генерируем (fallback).
-			traceID := r.Header.Get("X-Trace-ID") // Используем X-Trace-ID для единообразия
+			// Получаем trace_id от API Gateway. Если его нет, генерируем (fallback)
+			traceID := r.Header.Get("X-Trace-ID")
 			if _, err := uuid.Parse(traceID); err != nil {
 				traceID = uuid.New().String()
 			}
 
-			// "Чистый" логгер для передачи в use case
+			// логгер для передачи в use case
 			coreLogger := logger.WithFields(port.Fields{"trace_id": traceID})
 
 			// HTTP-логгер для логов самого middleware

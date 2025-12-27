@@ -13,11 +13,11 @@ import (
 )
 
 type OrchestrateParsingUseCase struct {
-	fetchLinksUC usecases_port.FetchLinksPort // <-- Существующий use case для выполнения одной задачи
+	fetchLinksUC usecases_port.FetchLinksPort // use case для выполнения одной задачи
 	reporter port.TaskReporterPort
 }
 
-// NewFetchAndEnqueueLinksUseCase создает новый экземпляр FetchAndEnqueueLinksUseCase
+
 func NewOrchestrateParsingUseCase(
 	fetchLinksUC usecases_port.FetchLinksPort,
 	reporter port.TaskReporterPort,
@@ -38,11 +38,10 @@ func (uc *OrchestrateParsingUseCase) Execute(ctx context.Context, internalTasks 
 	ucLogger.Debug("Starting to perform tasks", nil)
     
     
-    // 2. Если задач 0 -> отправить отчет
+    // Если задач 0 -отправить отчет
     if len(internalTasks) == 0 {
         ucLogger.Info("DTO translated to zero internal tasks. Nothing to do.", nil)
-        // Если задач нет, нужно все равно отчитаться, чтобы кампания завершилась.
-        // Отправляем отчет с нулевыми результатами.
+    
         report := &domain.ParsingTasksStats{
 			SearchesCompleted: 0,
 			NewLinksFound: 0,
@@ -57,7 +56,7 @@ func (uc *OrchestrateParsingUseCase) Execute(ctx context.Context, internalTasks 
 
 	ucLogger.Info("DTO translated to internal search tasks.", port.Fields{"subtasks_count": len(internalTasks)})
 
-   // 2. Запускаем все подзадачи ПАРАЛЛЕЛЬНО и ждем их завершения
+   // Запускаем все подзадачи и ждем их завершения
   
     var wg sync.WaitGroup
     type subTaskResult struct {
@@ -76,7 +75,7 @@ func (uc *OrchestrateParsingUseCase) Execute(ctx context.Context, internalTasks 
 			
 			subTaskLogger.Debug("Executing sub-task", nil)
             
-            // Execute теперь должен возвращать количество найденных ссылок
+            // Execute возвращает количество найденных ссылок
 			newLinksCount, err := uc.fetchLinksUC.Execute(taskCtx, t, taskID)
 			resultsChan <- subTaskResult{linksCount: newLinksCount, err: err}
 			if err != nil {
@@ -85,11 +84,11 @@ func (uc *OrchestrateParsingUseCase) Execute(ctx context.Context, internalTasks 
 		}(task)
 	}
 	
-	// Блокируемся, пока ВСЕ горутины не вызовут wg.Done()
+	// Блокируемся, пока все горутины не вызовут wg.Done()
 	wg.Wait()
     close(resultsChan) // Закрываем канал после того, как все горутины завершились
     
-    // 3. Агрегируем результаты
+    // Агрегируем результаты
     totalNewLinksFound := 0
     successfulSubTasks := 0
 	for result := range resultsChan {
@@ -109,7 +108,7 @@ func (uc *OrchestrateParsingUseCase) Execute(ctx context.Context, internalTasks 
         err := fmt.Errorf("all %d sub-tasks failed", len(internalTasks))
         ucLogger.Error("Orchestration failed completely", err, nil)
         
-        // Мы НЕ отправляем отчет, а возвращаем ошибку, чтобы RabbitMQ сделал retry.
+        // возвращаем ошибку, чтобы RabbitMQ сделал retry
         return err
     }
     
@@ -118,7 +117,7 @@ func (uc *OrchestrateParsingUseCase) Execute(ctx context.Context, internalTasks 
 		NewLinksFound: totalNewLinksFound,
 	}
 
-	 // `useCase` должен предоставить метод для отправки отчета
+	 // отправка отчёта
     if err := uc.reporter.ReportResults(ctx, taskID, finalReport); err != nil {
 		ucLogger.Error("Failed to send final completion report for task", err, nil)
         return err // Возвращаем ошибку, чтобы RabbitMQ попробовал отправить отчет снова

@@ -8,28 +8,22 @@ import (
 	"kufar-parser-service/internal/core/domain"
 	"kufar-parser-service/internal/core/port"
 	usecases_port "kufar-parser-service/internal/core/port/usecases"
-
-	// "kufar-parser-service/internal/core/usecase"
 	"real-estate-system/pkg/rabbitmq/rabbitmq_common"
 	"real-estate-system/pkg/rabbitmq/rabbitmq_consumer"
-
-	// "log"
-
-	// "strings"
 
 	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 // LinkConsumerAdapter - это входящий адаптер, который слушает очередь
-// со ссылками и вызывает use case для их обработки.
+// со ссылками и вызывает use case для их обработки
 type LinkConsumerAdapter struct {
 	consumer rabbitmq_consumer.Consumer
-	useCase  usecases_port.ProcessLinkPort // Зависимость от конкретного UseCase
+	useCase  usecases_port.ProcessLinkPort
 	logger   port.LoggerPort
 }
 
-// NewLinkConsumerAdapter создает новый адаптер.
+// NewLinkConsumerAdapter создает новый адаптер
 func NewLinkConsumerAdapter(
 	consumerCfg rabbitmq_consumer.ConsumerConfig,
 	useCase usecases_port.ProcessLinkPort,
@@ -42,12 +36,11 @@ func NewLinkConsumerAdapter(
 		logger:  logger,
 	}
 
-	// 1. Создаем логгер для pkg-уровня с контекстом нашего компонента
+	// Создаем логгер для pkg-уровня с контекстом нашего компонента
 	pkgLogger := logger.WithFields(port.Fields{"component": "rabbitmq_distributing_consumer", "consumer_tag": consumerCfg.ConsumerTag})
 	consumerCfg.Logger = NewPkgLoggerBridge(pkgLogger)
 
-	// Создаем consumer, передавая ему метод этого адаптера как обработчик.
-	// Теперь `messageHandler` является частью адаптера, а не App.
+	// Создаем consumer, передавая ему метод этого адаптера как обработчик
 	consumer, err := rabbitmq_consumer.NewDistributingConsumer(consumerCfg, adapter.messageHandler, connManager)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create RabbitMQ consumer for links: %w", err)
@@ -57,22 +50,21 @@ func NewLinkConsumerAdapter(
 	return adapter, nil
 }
 
-// messageHandler - приватный метод адаптера.
+// messageHandler - приватный метод адаптера
 func (a *LinkConsumerAdapter) messageHandler(d amqp.Delivery) (err error) {
-	// 1. ИЗВЛЕКАЕМ ИЛИ ГЕНЕРИРУЕМ TRACE_ID
+	
 	traceID, ok := d.Headers["x-trace-id"].(string)
 	if !ok || traceID == "" {
 		traceID = uuid.New().String()
 	}
 
-	// 2. СОЗДАЕМ КОНТЕКСТНЫЙ ЛОГГЕР
 	msgLogger := a.logger.WithFields(port.Fields{
 		"trace_id":     traceID,
 		"delivery_tag": d.DeliveryTag,
 		"consumer_tag": d.ConsumerTag,
 	})
 
-	// 3. ПОМЕЩАЕМ ЛОГГЕР И TRACE_ID В КОНТЕКСТ
+	// логер и trace_id в контекст
 	ctx := context.Background()
 	ctx = contextkeys.ContextWithLogger(ctx, msgLogger)
 	ctx = contextkeys.ContextWithTraceID(ctx, traceID)

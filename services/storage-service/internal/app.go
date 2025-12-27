@@ -6,7 +6,6 @@ import (
 	"log"
 	"strings"
 
-	// "log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -45,14 +44,13 @@ type App struct {
 }
 
 // NewApp создает новый экземпляр приложения.
-// Это "Composition Root", где все зависимости создаются и связываются.
 func NewApp() (*App, error) {
 	appConfig, err := configs.LoadConfig()
 	if err != nil {
 		return nil, fmt.Errorf("error loading application configuration: %w", err)
 	}
 
-	// --- 1. ИНИЦИАЛИЗАЦИЯ ЛОГГЕРОВ ---
+	// инициализация логеров
 	var activeLoggers []port.LoggerPort
 
 	slogCfg := logger_adapter.SlogConfig{
@@ -64,7 +62,6 @@ func NewApp() (*App, error) {
 	activeLoggers = append(activeLoggers, stdoutLogger)
 
 	// Добавляем Fluent Bit логгер, если он включен в конфигурации
-	// (предположим, что в appConfig.FluentBit есть поле Enabled bool)
 	var fluentClient *fluent.Fluent
 	if appConfig.FluentBit.Enabled {
 		fluentClient, err = fluentlogger.NewClient(fluentlogger.Config{
@@ -92,7 +89,7 @@ func NewApp() (*App, error) {
 		return nil, fmt.Errorf("failed to create multi-logger: %w", err)
 	}
 
-	// --- 2. СОЗДАЕМ БАЗОВЫЙ ЛОГГЕР ПРИЛОЖЕНИЯ С КОНТЕКСТОМ ---
+	// базовый логер приложения с контекстом
 	baseLogger := multiLogger.WithFields(port.Fields{
 		"service_name": appConfig.AppName,
 		// "service_version": "1.0.0",
@@ -103,7 +100,6 @@ func NewApp() (*App, error) {
 		"active_loggers": len(activeLoggers), "fluent_enabled": appConfig.FluentBit.Enabled,
 	})
 
-	// 1. Инициализация низкоуровневых зависимостей
 	dbPool, err := postgres.NewClient(context.Background(), postgres.Config{DatabaseURL: appConfig.Database.URL})
 	if err != nil {
 		appLogger.Error("Failed to connect to PostgreSQL", err, nil)
@@ -160,7 +156,7 @@ func NewApp() (*App, error) {
 	tasksResultsQueueAdapter, _ := rabbitmq_adapter.NewTaskReporterAdapter(eventProducer, constants.RoutingKeyTaskResults)
 	appLogger.Debug("All outgoing adapters initialized.", nil)
 
-	// ИНИЦИАЛИЗАЦИЯ USE CASES (ядра бизнес-логики)
+	// инициализация use cases
 	savePropertyUseCase := usecase.NewSavePropertyUseCase(postgresStorageAdapter, tasksResultsQueueAdapter)
 	getActiveObjectsUseCase := usecase.NewGetActiveObjectsUseCase(postgresStorageAdapter)
 	getArchivedObjectsUseCase := usecase.NewGetArchivedObjectsUseCase(postgresStorageAdapter)
@@ -176,7 +172,7 @@ func NewApp() (*App, error) {
 
 	appLogger.Debug("All use cases initialized.", nil)
 
-	// 4. ИНИЦИАЛИЗАЦИЯ ВХОДЯЩИХ АДАПТЕРОВ (те, которые ВЫЗЫВАЮТ наше ядро)
+	// инициализация входящих адаптеров
 	processedConsumerCfg := rabbitmq_consumer.ConsumerConfig{
 		Config:              rabbitmq_common.Config{URL: appConfig.RabbitMQ.URL},
 		QueueName:           constants.QueueProcessedProperties,
@@ -187,10 +183,9 @@ func NewApp() (*App, error) {
 		ConsumerTag:         "property-saver-adapter",
 		DeclareQueue:        true,
 
-		// 1. Включаем механизм
+		// Включаем механизм
 		EnableRetryMechanism: true,
 
-		// 2. Настраиваем уникальные "сателлиты" для этой очереди
 		// RetryExchange: constants.QueueProcessedProperties + "_retry_ex",
 		// RetryQueue:    constants.QueueProcessedProperties + "_retry_wait_10s",
 		// RetryTTL:      10000, // 10 секунд в миллисекундах
@@ -199,12 +194,10 @@ func NewApp() (*App, error) {
 		RetryQueue: constants.WaitQueue,
 		RetryTTL: constants.RetryTTL,
 
-		// 3. Используем тот же самый общий финальный DLQ
 		FinalDLXExchange:   constants.FinalDLXExchange,
 		FinalDLQ:           constants.FinalDLQ,
 		FinalDLQRoutingKey: constants.FinalDLQRoutingKey,
 
-		// 4. Количество ретраев может быть другим, но 3 - хорошее начало.
 		MaxRetries: 3,
 	}
 	processedPropListener, err := rabbitmq_adapter.NewProcessedPropertyConsumerAdapter(processedConsumerCfg, savePropertyUseCase, baseLogger, connManager)
@@ -223,7 +216,7 @@ func NewApp() (*App, error) {
 	apiServer := rest.NewServer(appConfig.Rest.PORT, apiActualizationHandlers, apiGetInfoHandlers, filtersHandlers, baseLogger)
 	appLogger.Debug("REST API server configured.", nil)
 
-	// 5. Собираем приложение
+	// Собираем приложение
 	application := &App{
 		config:                      appConfig,
 		dbPool:                      dbPool,
@@ -238,7 +231,7 @@ func NewApp() (*App, error) {
 	return application, nil
 }
 
-// Run запускает все компоненты приложения и управляет их жизненным циклом.
+// Run запускает все компоненты приложения и управляет их жизненным циклом
 func (a *App) Run() error {
 	// Создаем единый контекст для всего приложения для управления graceful shutdown
 	appCtx, cancelApp := context.WithCancel(context.Background())
@@ -283,7 +276,7 @@ func (a *App) Run() error {
 
 		if a.fluentClient != nil {
 			if err := a.fluentClient.Close(); err != nil {
-				// Логируем в stdout, так как fluent может быть уже недоступен
+				// Логируем в stdout, так как fluent уже недоступен
 				fmt.Printf("ERROR: Error closing fluent client: %v\n", err)
 			}
 		}

@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// Определяем кастомный тип для ключа контекста
+// кастомный тип для ключа контекста
 type contextKey string
 const userIDKey = contextKey("userID")
 
@@ -17,8 +17,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		userIDStr := r.Header.Get("X-User-ID")
 		if userIDStr == "" {
-			// Если Gateway настроен правильно, этот заголовок всегда будет
-			// Ошибка здесь указывает либо на проблему конфигурации, либо на прямой доступ в обход Gateway
+			// проблема конфигурации либо прямой доступ в обход Gateway
 			WriteJSONError(w, http.StatusUnauthorized, "Authentication error: User ID header is missing")
 			return
 		}

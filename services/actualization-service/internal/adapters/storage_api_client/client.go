@@ -8,8 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-
-	// "log"
 	"net/http"
 )
 
@@ -25,9 +23,9 @@ func NewClient(baseURL string) *Client {
 	}
 }
 
-// doRequest - внутренний хелпер для выполнения запросов
+// doRequest - хелпер для выполнения запросов
 func (c *Client) doRequest(ctx context.Context, method, url string, body io.Reader) (*http.Response, error) {
-	// 1. Извлекаем trace_id из контекста
+	// Извлекаем trace_id из контекста
 	traceID := contextkeys.TraceIDFromContext(ctx)
 
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
@@ -35,12 +33,11 @@ func (c *Client) doRequest(ctx context.Context, method, url string, body io.Read
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// 2. Устанавливаем заголовок для трассировки
+	// Устанавливаем заголовок для трассировки
 	if traceID != "" {
 		req.Header.Set("X-Trace-ID", traceID)
 	}
 
-	// Можно добавить и другие общие заголовки
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 
@@ -49,7 +46,7 @@ func (c *Client) doRequest(ctx context.Context, method, url string, body io.Read
 
 
 func (c *Client) GetCategories(ctx context.Context) ([]domain.DictionaryItem, error) {
-	// 1. Извлекаем и обогащаем логгер
+	// Извлекаем и обогащаем логгер
 	logger := contextkeys.LoggerFromContext(ctx)
 	clientLogger := logger.WithFields(port.Fields{
 		"component": "StorageApiClient",
@@ -81,8 +78,7 @@ func (c *Client) GetCategories(ctx context.Context) ([]domain.DictionaryItem, er
 
 	clientLogger.Info("Successfully received and decoded response", port.Fields{"categories_count": len(dictionaries["categories"])})
 
-	// Маппим DTO ответа в нашу доменную модель
-	// Это важный шаг, который изолирует наше ядро от деталей API другого сервиса.
+	// Маппим DTO ответа в доменную модель (это изолирует наше ядро от деталей API другого сервиса)
 	result := make([]domain.DictionaryItem, len(dictionaries["categories"]))
 	for i, category := range dictionaries["categories"] {
 		result[i] = domain.DictionaryItem{
@@ -96,7 +92,7 @@ func (c *Client) GetCategories(ctx context.Context) ([]domain.DictionaryItem, er
 
 func (c *Client) GetActiveObjects(ctx context.Context, category string, limit int) ([]domain.PropertyInfo, error) {
 
-	// 1. Извлекаем и обогащаем логгер
+	// Извлекаем и обогащаем логгер
 	logger := contextkeys.LoggerFromContext(ctx)
 	clientLogger := logger.WithFields(port.Fields{
 		"component": "StorageApiClient",
@@ -106,7 +102,6 @@ func (c *Client) GetActiveObjects(ctx context.Context, category string, limit in
 	url := fmt.Sprintf("%s/api/v1/active-objects?category=%s&limit=%d", c.baseURL, category, limit)
 	clientLogger.Debug("Sending request to storage-service", port.Fields{"url": url})
 
-	// Используем наш новый хелпер
 	resp, err := c.doRequest(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		clientLogger.Error("Failed to perform request to storage-service", err, nil)
@@ -114,17 +109,8 @@ func (c *Client) GetActiveObjects(ctx context.Context, category string, limit in
 	}
 	defer resp.Body.Close()
 
-	// req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
-
-	// resp, err := c.httpClient.Do(req)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// defer resp.Body.Close()
-
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		// Если статус-код указывает на ошибку, читаем тело ответа,
-		// чтобы включить его в нашу ошибку.
+		// Если статус-код указывает на ошибку, читаем тело ответа, чтобы включить его в нашу ошибку
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		err := fmt.Errorf("storage service returned non-success status code %d: %s", resp.StatusCode, string(bodyBytes))
 		clientLogger.Error("Received error response from storage-service", err, port.Fields{"status_code": resp.StatusCode})
@@ -139,8 +125,7 @@ func (c *Client) GetActiveObjects(ctx context.Context, category string, limit in
 
 	clientLogger.Info("Successfully received and decoded response", port.Fields{"objects_count": len(objects)})
 
-	// 6. Маппим DTO ответа в нашу доменную модель
-	// Это важный шаг, который изолирует наше ядро от деталей API другого сервиса.
+	// Маппим DTO ответа в доменную модель
 	result := make([]domain.PropertyInfo, len(objects))
 	for i, dto := range objects {
 		result[i] = domain.PropertyInfo{
@@ -164,7 +149,6 @@ func (c *Client) GetArchivedObjects(ctx context.Context, category string, limit 
 	url := fmt.Sprintf("%s/api/v1/archived-objects?category=%s&limit=%d", c.baseURL, category, limit)
 	clientLogger.Debug("Sending request to storage-service", port.Fields{"url": url})
 
-	// Используем наш новый хелпер
 	resp, err := c.doRequest(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		clientLogger.Error("Failed to perform request to storage-service", err, nil)
@@ -172,17 +156,9 @@ func (c *Client) GetArchivedObjects(ctx context.Context, category string, limit 
 	}
 	defer resp.Body.Close()
 
-	// req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
-
-	// resp, err := c.httpClient.Do(req)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		// Если статус-код указывает на ошибку, читаем тело ответа,
-		// чтобы включить его в нашу ошибку.
+		// Если статус-код указывает на ошибку, читаем тело ответа, чтобы включить его в нашу ошибку
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		err := fmt.Errorf("storage service returned non-success status code %d: %s", resp.StatusCode, string(bodyBytes))
 		clientLogger.Error("Received error response from storage-service", err, port.Fields{"status_code": resp.StatusCode})
@@ -197,8 +173,7 @@ func (c *Client) GetArchivedObjects(ctx context.Context, category string, limit 
 
 	clientLogger.Info("Successfully received and decoded response", port.Fields{"objects_count": len(objects)})
 
-	// 6. Маппим DTO ответа в нашу доменную модель
-	// Это важный шаг, который изолирует наше ядро от деталей API другого сервиса.
+	// Маппим DTO ответа в доменную модель
 	result := make([]domain.PropertyInfo, len(objects))
 	for i, dto := range objects {
 		result[i] = domain.PropertyInfo{
@@ -223,21 +198,12 @@ func (c *Client) GetObjectsByMasterID(ctx context.Context, master_id string) ([]
 	url := fmt.Sprintf("%s/api/v1/object?id=%s", c.baseURL, master_id)
 	clientLogger.Debug("Sending request to storage-service", port.Fields{"url": url})
 
-	// Используем наш новый хелпер
 	resp, err := c.doRequest(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		clientLogger.Error("Failed to perform request to storage-service", err, nil)
 		return nil, err
 	}
 	defer resp.Body.Close()
-
-	// req, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
-
-	// resp, err := c.httpClient.Do(req)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
@@ -254,8 +220,7 @@ func (c *Client) GetObjectsByMasterID(ctx context.Context, master_id string) ([]
 
 	clientLogger.Info("Successfully received and decoded response", port.Fields{"objects_count": len(objects)})
 
-	// 6. Маппим DTO ответа в нашу доменную модель
-	// Это важный шаг, который изолирует наше ядро от деталей API другого сервиса.
+	// Маппим DTO ответа в доменную модель
 	result := make([]domain.PropertyInfo, len(objects))
 	for i, dto := range objects {
 		result[i] = domain.PropertyInfo{

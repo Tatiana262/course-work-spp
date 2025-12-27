@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"storage-service/internal/core/domain"
-
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -24,20 +23,9 @@ func NewFilterRepository(pool *pgxpool.Pool) (*FilterRepository, error) {
 }
 
 
-// getDistinctValues - для получения уникальных значений (строк или чисел).
+// getDistinctValues - для получения уникальных значений (строк или чисел)
 func (r *FilterRepository) getDistinctValues(ctx context.Context, tableName, columnName string) ([]interface{}, error) {
-	// Для получения опций мы НЕ используем фильтры по региону и т.д.
-	// Только по is_source_duplicate и status.
-	// JOIN нужен, чтобы связать с `general_properties` и проверить статус.
-	// query := fmt.Sprintf(`
-	// 	SELECT DISTINCT d.%s
-	// 	FROM %s d
-	// 	JOIN general_properties gp ON d.property_id = gp.id
-	// 	WHERE gp.is_source_duplicate = false
-	// 	  AND gp.status = 'active'
-	// 	  AND d.%s IS NOT NULL
-	// 	ORDER BY d.%s ASC
-	// `, columnName, tableName, columnName, columnName)
+
 
 	query := fmt.Sprintf(`
 		WITH latest_visible_objects AS (
@@ -97,36 +85,25 @@ func (r *FilterRepository) getDistinctArrayValues(ctx context.Context, tableName
 	
 	rows, err := r.pool.Query(ctx, query)
 	if err != nil {
-		// Здесь можно добавить логирование
 		return nil, fmt.Errorf("failed to get distinct array values for %s.%s: %w", tableName, columnName, err)
 	}
 	defer rows.Close()
 
-	// Мы знаем, что результат будет списком строк, поэтому используем `[]string`
 	var values []interface{}
 	for rows.Next() {
-		var val string // Сканируем в `string`, а не `interface{}`
+		var val string
 		if err := rows.Scan(&val); err == nil {
 			values = append(values, val)
 		}
 	}
 	if err := rows.Err(); err != nil {
-		// Здесь тоже можно добавить логирование
 		return nil, err
 	}
 	return values, nil
 }
 
-// getRange - для получения MIN/MAX.
+// getRange - для получения MIN/MAX
 func (r *FilterRepository) getRange(ctx context.Context, tableName, columnName string) (*domain.RangeResult, error) {
-	// query := fmt.Sprintf(`
-	// 	SELECT COALESCE(MIN(d.%s), 0), COALESCE(MAX(d.%s), 0)
-	// 	FROM %s d
-	// 	JOIN general_properties gp ON d.property_id = gp.id
-	// 	WHERE gp.is_source_duplicate = false
-	// 	  AND gp.status = 'active'
-	// 	  AND d.%s IS NOT NULL
-	// `, columnName, columnName, tableName, columnName)
 	
 	query := fmt.Sprintf(`
 		WITH latest_visible_objects AS (
@@ -191,8 +168,7 @@ func (r *FilterRepository) getRangeFromArrayValues(ctx context.Context, tableNam
 }
 
 func (a *FilterRepository) GetPriceRange(ctx context.Context, req domain.FindObjectsFilters) (*domain.RangeResult, error) {
-	// 1. Получаем базовые WHERE и JOIN от нашего билдера.
-    // Нам пока не нужен JOIN для цены, но получим его на случай будущих доработок.
+	// Получаем базовые WHERE и JOIN от билдера
 	joinClause, whereClause, args := applyFilters(req)
 
 	var priceColumn string
@@ -204,12 +180,11 @@ func (a *FilterRepository) GetPriceRange(ctx context.Context, req domain.FindObj
 	case "BYN":
 		priceColumn = "gp.price_byn"
 	default:
-		// Валюта по умолчанию, если не указана.
-		// Лучше всего использовать ту, которая является основной для вашего сайта.
+		// Валюта по умолчанию, если не указана
 		priceColumn = "gp.price_usd" 
 	}
 
-	// 2. Формируем "умный" SQL-запрос.
+
 	query := fmt.Sprintf(`
 		WITH latest_visible_objects AS (
 			SELECT
@@ -219,7 +194,7 @@ func (a *FilterRepository) GetPriceRange(ctx context.Context, req domain.FindObj
 			FROM
 				general_properties gp
 				%s
-			%s -- Вставляем WHERE с фильтрами (region, category, etc.)
+			%s -- WHERE
 		)
 		SELECT
 			COALESCE(MIN(price), 0),
@@ -257,7 +232,7 @@ func (a *FilterRepository) getDictionary(ctx context.Context, field string) ([]d
 		if err := rows.Scan(&systemName); err == nil {
 			items = append(items, domain.DictionaryItem{
 				SystemName:  systemName,
-				DisplayName: translator(field, systemName), // Используем хелпер для перевода
+				DisplayName: translator(field, systemName), // хелпер для перевода
 			})
 		}
 	}
@@ -265,18 +240,18 @@ func (a *FilterRepository) getDictionary(ctx context.Context, field string) ([]d
 }
 
 
-// GetUniqueCategories извлекает уникальные категории и их русские названия.
+// GetUniqueCategories извлекает уникальные категории
 func (a *FilterRepository) GetUniqueCategories(ctx context.Context) ([]domain.DictionaryItem, error) {
 	return a.getDictionary(ctx, "category")
 }
 
 
-// GetUniqueRegions извлекает уникальные регионы. Для них системное и отображаемое имя совпадают.
+// GetUniqueRegions извлекает уникальные регионы
 func (a *FilterRepository) GetUniqueRegions(ctx context.Context) ([]domain.DictionaryItem, error) {
 	return a.getDictionary(ctx, "region")
 }
 
-// GetUniqueDealTypes извлекает уникальные типы сделок.
+// GetUniqueDealTypes извлекает уникальные типы сделок
 func (a *FilterRepository) GetUniqueDealTypes(ctx context.Context) ([]domain.DictionaryItem, error) {
 	return a.getDictionary(ctx, "deal_type")
 }
@@ -349,7 +324,6 @@ func translator(field, systemName string) string {
 }
 
 func translateCategory(systemName string) string {
-	// Этот "словарь" можно вынести в пакет dictionaries, как мы обсуждали
 	translations := map[string]string{
 		"apartment":    "Квартиры",
 		"house":        "Дома",
@@ -519,46 +493,3 @@ func (r *FilterRepository) GetCommercialLocations(ctx context.Context) ([]interf
 func (r *FilterRepository) GetCommercialRoomsRange(ctx context.Context) (*domain.RangeResult, error) {
 	return r.getRangeFromArrayValues(ctx, "commercial", "rooms_range")
 }
-
-// // buildBaseQuery - хелпер для построения WHERE clause.
-// func (a *FilterRepository) buildFilterQuery(req domain.FilterOptions) (string, string, []interface{}) {
-// 	joinClause := ""
-// 	conditions := []string{"gp.is_source_duplicate = false", "gp.status = 'active'"}
-// 	args := make([]interface{}, 0)
-// 	argId := 1
-
-// 	// Динамически добавляем JOIN, если он нужен для фильтрации или выборки
-// 	switch req.Category {
-// 	case "apartment":
-// 		joinClause = "JOIN apartments d ON gp.id = d.property_id"
-// 	case "house":
-// 		joinClause = "JOIN houses d ON gp.id = d.property_id"
-// 	case "room":
-// 		joinClause = "JOIN rooms d ON gp.id = d.property_id"
-// 	// ... и так далее для других категорий с таблицами деталей
-// 	}
-
-// 	// Добавляем фильтры по `general_properties`
-// 	if req.Category != "" {
-// 		conditions = append(conditions, fmt.Sprintf("gp.category = $%d", argId))
-// 		args = append(args, req.Category)
-// 		argId++
-// 	}
-// 	if req.Region != "" {
-// 		conditions = append(conditions, fmt.Sprintf("gp.region = $%d", argId))
-// 		args = append(args, req.Region)
-// 		argId++
-// 	}
-// 	if req.DealType != "" {
-// 		conditions = append(conditions, fmt.Sprintf("gp.deal_type = $%d", argId))
-// 		args = append(args, req.DealType)
-// 		argId++
-// 	}
-	
-// 	whereClause := ""
-// 	if len(conditions) > 0 {
-// 		whereClause = "WHERE " + strings.Join(conditions, " AND ")
-// 	}
-
-// 	return joinClause, whereClause, args
-// }

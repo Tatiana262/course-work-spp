@@ -9,20 +9,20 @@ import (
 	"github.com/lmittmann/tint" 
 )
 
-// SlogAdapter реализует LoggerPort с использованием стандартной библиотеки slog.
+// SlogAdapter реализует LoggerPort с использованием стандартной библиотеки slog
 type SlogAdapter struct {
 	logger *slog.Logger
 }
 
 // Config для SlogAdapter
 type SlogConfig struct {
-	// Writer - куда писать логи. По умолчанию os.Stdout.
+	// Writer - куда писать логи. По умолчанию os.Stdout
 	Writer io.Writer
-	// Level - уровень логирования (slog.LevelInfo, slog.LevelDebug, etc.).
+	// Level - уровень логирования 
 	Level slog.Leveler
-	// AddSource - добавлять ли в лог информацию о файле и строке кода.
+	// AddSource - добавлять ли в лог информацию о файле и строке кода
 	AddSource bool
-	// IsJSON - использовать ли JSON формат. По умолчанию - текстовый.
+	// IsJSON - использовать ли JSON формат. По умолчанию - текстовый
 	IsJSON bool
 	UseColor  bool
 }
@@ -45,13 +45,13 @@ func NewSlogAdapter(cfg SlogConfig) port.LoggerPort {
 	if cfg.IsJSON {
 		handler = slog.NewJSONHandler(cfg.Writer, opts)
 	} else if cfg.UseColor {
-		// Если нужны цвета, используем tint.NewHandler
+		
 		tintOpts := &tint.Options{
 			Level:     cfg.Level,
 			AddSource: cfg.AddSource,
 			TimeFormat: "2006-01-02 15:04:05", // Более короткий и удобный формат времени
 		}
-		// tint автоматически определяет, поддерживает ли терминал цвета!
+		
 		handler = tint.NewHandler(cfg.Writer, tintOpts)
 	} else {
 		handler = slog.NewTextHandler(cfg.Writer, opts)
@@ -91,7 +91,7 @@ func (a *SlogAdapter) Error(msg string, err error, fields port.Fields) {
 
 func (a *SlogAdapter) Debug(msg string, fields port.Fields) {
     attrs := a.fieldsToSlogAttrs(fields)
-    a.logger.Debug(msg, attrs...) // slog уже умеет это делать
+    a.logger.Debug(msg, attrs...)
 }
 
 func (a *SlogAdapter) WithFields(fields port.Fields) port.LoggerPort {

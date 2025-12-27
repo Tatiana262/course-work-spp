@@ -2,7 +2,7 @@ package port
 
 import (
     "context"
-    "task-service/internal/core/domain" // Убедитесь, что путь верный
+    "task-service/internal/core/domain"
     "github.com/google/uuid"
 )
 

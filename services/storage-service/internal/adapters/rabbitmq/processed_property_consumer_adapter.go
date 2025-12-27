@@ -4,18 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
-	// "log"
-
-	// "os"
-
 	"storage-service/internal/contextkeys"
 	"storage-service/internal/contracts"
 	"storage-service/internal/core/domain"
 	"storage-service/internal/core/port"
 	usecases_port "storage-service/internal/core/port/usecases_port"
 
-	// "storage-service/internal/core/usecase"
 	"real-estate-system/pkg/rabbitmq/rabbitmq_common"
 	"real-estate-system/pkg/rabbitmq/rabbitmq_consumer"
 	"time"
@@ -25,12 +19,12 @@ import (
 )
 
 // DetailUnmarshaler определяет контракт для сущности, которая может
-// десериализовать определенный тип деталей из JSON.
+// десериализовать определенный тип деталей из JSON
 type DetailUnmarshaler interface {
 	UnmarshalDetails(data json.RawMessage) (interface{}, error)
 }
 
-// ApartmentUnmarshaler реализует интерфейс для деталей квартиры.
+// ApartmentUnmarshaler реализует интерфейс для деталей квартиры
 type ApartmentUnmarshaler struct{}
 
 func (u *ApartmentUnmarshaler) UnmarshalDetails(data json.RawMessage) (interface{}, error) {
@@ -41,7 +35,7 @@ func (u *ApartmentUnmarshaler) UnmarshalDetails(data json.RawMessage) (interface
 	return toDomainApartment(&detailsDTO), nil
 }
 
-// HouseUnmarshaler реализует интерфейс для деталей дома.
+// HouseUnmarshaler реализует интерфейс для деталей дома
 type HouseUnmarshaler struct{}
 
 func (u *HouseUnmarshaler) UnmarshalDetails(data json.RawMessage) (interface{}, error) {
@@ -74,15 +68,15 @@ func (u *GenericUnmarshaler[T]) UnmarshalDetails(data json.RawMessage) (interfac
 }
 
 // ProcessedPropertyConsumerAdapter - это входящий адаптер, который слушает очередь
-// с обработанными объектами недвижимости и вызывает use case для их сохранения.
+// с обработанными объектами недвижимости и вызывает use case для их сохранения
 type ProcessedPropertyConsumerAdapter struct {
 	consumer        rabbitmq_consumer.Consumer
-	useCase         usecases_port.SavePropertyPort // Зависимость от конкретного UseCase
+	useCase         usecases_port.SavePropertyPort 
 	logger          port.LoggerPort
 	detailsRegistry map[string]DetailUnmarshaler
 }
 
-// NewProcessedPropertyConsumerAdapter создает новый адаптер.
+// NewProcessedPropertyConsumerAdapter создает новый адаптер
 func NewProcessedPropertyConsumerAdapter(
 	consumerCfg rabbitmq_consumer.ConsumerConfig,
 	useCase usecases_port.SavePropertyPort,
@@ -96,7 +90,7 @@ func NewProcessedPropertyConsumerAdapter(
 		detailsRegistry: make(map[string]DetailUnmarshaler),
 	}
 
-	// 1. Создаем логгер для pkg-уровня с контекстом нашего компонента
+	// Создаем логгер для pkg-уровня с контекстом нашего компонента
 	pkgLogger := logger.WithFields(port.Fields{"component": "rabbitmq_batch_consumer", "consumer_tag": consumerCfg.ConsumerTag})
 	consumerCfg.Logger = NewPkgLoggerBridge(pkgLogger)
 
@@ -108,7 +102,7 @@ func NewProcessedPropertyConsumerAdapter(
 	adapter.detailsRegistry["plot"] = &GenericUnmarshaler[domain.Plot]{}
 	adapter.detailsRegistry["new_building"] = &GenericUnmarshaler[domain.NewBuilding]{}
 
-	// Создаем consumer, передавая ему метод этого адаптера как обработчик.
+	// Создаем consumer, передавая ему метод этого адаптера как обработчик
 	consumer, err := rabbitmq_consumer.NewBatchConsumer(consumerCfg, adapter.batchMessageHandler, 100, 10*time.Second, connManager)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create RabbitMQ consumer for processed properties: %w", err)
@@ -118,7 +112,7 @@ func NewProcessedPropertyConsumerAdapter(
 	return adapter, nil
 }
 
-// batchMessageHandler - НОВЫЙ обработчик, который принимает СРЕЗ сообщений.
+// batchMessageHandler - обработчик, который принимает срез сообщений.
 func (a *ProcessedPropertyConsumerAdapter) batchMessageHandler(deliveries []amqp.Delivery) error {
 
 	if len(deliveries) == 0 {
@@ -127,37 +121,34 @@ func (a *ProcessedPropertyConsumerAdapter) batchMessageHandler(deliveries []amqp
 
 	traceID, _ := deliveries[0].Headers["x-trace-id"].(string)
 	if traceID == "" {
-		// Если по какой-то причине его нет, генерируем новый.
 		traceID = uuid.New().String()
 	}
 
-	// 1.2. Генерируем уникальный ID для этой конкретной операции батчинга.
+	// Генерируем уникальный ID для этой конкретной операции батчинга
 	batchID := uuid.New().String()
 
-	// 1.3. Создаем базовый логгер для всей операции. Он будет содержать ОБА ID.
+	// Создаем базовый логгер для всей операции
 	batchLogger := a.logger.WithFields(port.Fields{
-		"trace_id":     traceID, // <-- СОХРАНЯЕМ СКВОЗНУЮ ТРАССИРОВКУ
-		"batch_id":     batchID, // <-- Добавляем контекст батча
+		"trace_id":     traceID, // сквозная трассировка
+		"batch_id":     batchID, // контекст батча
 		"batch_size":   len(deliveries),
 		"adapter_name": "ProcessedPropertyConsumerAdapter",
 	})
 
-	// 1.4. Создаем контекст и кладем в него логгер и ОСНОВНОЙ trace_id
+	// Создаем контекст и кладем в него логгер и trace_id
 	ctx := context.Background()
 	ctx = contextkeys.ContextWithLogger(ctx, batchLogger)
-	ctx = contextkeys.ContextWithTraceID(ctx, traceID) // <-- ВАЖНО: передаем дальше именно trace_id
+	ctx = contextkeys.ContextWithTraceID(ctx, traceID)
 
 	batchLogger.Info("Received batch of messages to process.", nil)
 
 	recordsByTask := make(map[uuid.UUID][]domain.RealEstateRecord)
 
-	// 1. Разбираем все сообщения в пачке
+	// Разбираем все сообщения в пачке
 	for _, d := range deliveries {
 		record, taskID, err := a.unmarshalRecord(d, batchLogger)
 		if err != nil {
-			// log.Printf("FATAL: Failed to unmarshal message in batch, tag %d: %v. This will cause requeue of the whole batch.", d.DeliveryTag, err)
-			// // Если хотя бы одно сообщение "битое", возвращаем ошибку,
-			// // чтобы вся пачка вернулась в очередь (и в итоге попала в DLX).
+			// Если хотя бы одно сообщение плохое, возвращаем ошибку, чтобы вся пачка вернулась в очередь (и в итоге попала в DLX)
 			return err
 		}
 		if record != nil {
@@ -170,7 +161,7 @@ func (a *ProcessedPropertyConsumerAdapter) batchMessageHandler(deliveries []amqp
 		return nil
 	}
 
-	// Теперь вызываем BatchSave для каждой группы задач
+	// вызываем BatchSave для каждой группы задач
 	for taskID, records := range recordsByTask {
 		taskLogger := batchLogger.WithFields(port.Fields{"task_id": taskID.String()})
 		taskLogger.Info("Calling BatchSave for records from task...", port.Fields{"record_count": len(records)})
@@ -178,7 +169,7 @@ func (a *ProcessedPropertyConsumerAdapter) batchMessageHandler(deliveries []amqp
 		// Передаем taskID в Use Case
 		if err := a.useCase.BatchSave(ctx, records, taskID); err != nil {
 			taskLogger.Error("BatchSave failed, the entire batch will be requeued.", err, nil)
-			// Если хотя бы одна группа не сохранилась, возвращаем ошибку, чтобы весь батч обработался снова
+			// Если хотя бы один объект не сохранился, возвращаем ошибку, чтобы весь батч обработался снова
 			return err
 		}
 	}
@@ -186,30 +177,9 @@ func (a *ProcessedPropertyConsumerAdapter) batchMessageHandler(deliveries []amqp
 	batchLogger.Info("Batch processed successfully.", nil)
 	return nil
 
-	// Сериализуем с отступами для читаемости
-	// prettyJSON, err := json.MarshalIndent(records, "", "  ")
-	// if err != nil {
-	// 	return fmt.Errorf("failed to format record to pretty JSON for URL: %w", err)
-	// }
-
-	// // Открываем файл для дозаписи
-	// file, err := os.OpenFile("data.json", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to open output file '%s': %w", "data.json", err)
-	// }
-	// defer file.Close()
-
-	// // Собираем полный блок для записи
-	// separator := "\n\n"
-	// dataToWrite := append(prettyJSON, []byte(separator)...)
-
-	// if _, err := file.Write(dataToWrite); err != nil {
-	// 	return fmt.Errorf("failed to write to output file '%s': %w", "data.json", err)
-	// }
 }
 
-// unmarshalRecord - НОВАЯ функция-помощник для разбора ОДНОГО сообщения.
-// Мы вынесли эту логику из старого обработчика.
+// unmarshalRecord - функция для разбора сообщения
 func (a *ProcessedPropertyConsumerAdapter) unmarshalRecord(d amqp.Delivery, parentLogger port.LoggerPort) (*domain.RealEstateRecord, uuid.UUID, error) {
 	msgLogger := parentLogger.WithFields(port.Fields{
 		"message_id": d.MessageId,
@@ -217,7 +187,7 @@ func (a *ProcessedPropertyConsumerAdapter) unmarshalRecord(d amqp.Delivery, pare
 		"original_trace_id": d.Headers["x-trace-id"],
 	})
 
-	// 1. Валидация по схеме (этот код у вас уже есть)
+	// Валидация по схеме
 	eventType, _ := d.Headers["event-type"].(string)
 	eventVersion, _ := d.Headers["event-version"].(string)
 	if err := contracts.ValidateEvent(eventType, eventVersion, d.Body); err != nil {
@@ -225,25 +195,21 @@ func (a *ProcessedPropertyConsumerAdapter) unmarshalRecord(d amqp.Delivery, pare
 		return nil, uuid.Nil, err
 	}
 
-	// 2. Десериализация в DTO
+	// Десериализация в DTO
 	var dto IncomingEventDTO
 	if err := json.Unmarshal(d.Body, &dto); err != nil {
 		return nil, uuid.Nil, fmt.Errorf("failed to unmarshal incoming event DTO: %w", err)
 	}
 
-	// 3. ТРАНСЛЯЦИЯ из DTO в НОВЫЙ домен
-	// Это ключевой момент. Мы преобразуем "внешние" данные во "внутренние".
-
+	// трансляция в домен
 	record := &domain.RealEstateRecord{
 		General: toDomainGeneralProperty(dto),
 	}
 
 	unmarshaler, found := a.detailsRegistry[dto.DetailsType]
 	if !found {
-		// 2. Если не найден - логируем и пропускаем, не считая это фатальной ошибкой
 		parentLogger.Warn("Unknown details type, details will be ignored.", port.Fields{"details_type": dto.DetailsType})
 	} else {
-		// 3. Если найден - вызываем его, и он сам сделает всю работу
 		details, err := unmarshaler.UnmarshalDetails(dto.Details)
 		if err != nil {
 			parentLogger.Error("Error unmarshalling details", err, port.Fields{"details_type": dto.DetailsType})
@@ -321,7 +287,7 @@ func toDomainHouse(dto *HouseDetailsDTO) *domain.House {
 		LivingSpaceArea:   dto.LivingSpaceArea,
 		BuildingFloors:    dto.BuildingFloors,
 		RoomsAmount:       dto.RoomsAmount,
-		KitchenArea:       dto.KitchenArea, // Имя поля в домене и DTO совпадает
+		KitchenArea:       dto.KitchenArea, 
 		Electricity:       dto.Electricity,
 		Water:             dto.Water,
 		Heating:           dto.Heating,
@@ -352,91 +318,12 @@ func toDomainCommercial(dto *CommercialDetailsDTO) *domain.Commercial {
 	}
 }
 
-// Start реализует EventListenerPort, запуская прослушивание очереди.
+// Start реализует EventListenerPort, запуская прослушивание очереди
 func (a *ProcessedPropertyConsumerAdapter) Start(ctx context.Context) error {
 	return a.consumer.StartConsuming(ctx)
 }
 
-// Close реализует EventListenerPort, корректно останавливая консьюмера.
+// Close реализует EventListenerPort, корректно останавливая консьюмера
 func (a *ProcessedPropertyConsumerAdapter) Close() error {
 	return a.consumer.Close()
 }
-
-// // unmarshalRecord - НОВАЯ функция-помощник для разбора ОДНОГО сообщения.
-// // Мы вынесли эту логику из старого обработчика.
-// func (a *ProcessedPropertyConsumerAdapter) unmarshalRecord(d amqp.Delivery) (*domain.RealEstateRecord, error) {
-// 	var rawRecord tempRecord
-// 	if err := json.Unmarshal(d.Body, &rawRecord); err != nil {
-// 		return nil, fmt.Errorf("unmarshal tempRecord error: %w", err)
-// 	}
-
-// 	propertyRecord := &domain.RealEstateRecord{
-// 		General: rawRecord.General,
-// 	}
-
-// 	// Ваша логика switch остается почти без изменений
-// 	switch rawRecord.DetailsType {
-// 	case "apartment":
-// 		var details domain.Apartment
-// 		if err := json.Unmarshal(rawRecord.Details, &details); err != nil {
-// 			log.Printf("Error unmarshalling apartment details: %v", err)
-// 			return nil, err
-// 		}
-// 		propertyRecord.Details = &details
-
-// 	case "house":
-// 		var houseDetails domain.House
-// 		if err := json.Unmarshal(rawRecord.Details, &houseDetails); err != nil {
-// 		    log.Printf("Error unmarshalling house details: %v", err)
-// 		    return nil, err
-// 		}
-// 		propertyRecord.Details = &houseDetails
-
-// 	case "commercial":
-// 		var commercialDetails domain.Commercial
-// 		if err := json.Unmarshal(rawRecord.Details, &commercialDetails); err != nil {
-// 		    log.Printf("Error unmarshalling commercial details: %v", err)
-// 		    return nil, err
-// 		}
-// 		propertyRecord.Details = &commercialDetails
-
-// 	case "garage_and_parking":
-// 		var garageParkingDetails domain.GarageAndParking
-// 		if err := json.Unmarshal(rawRecord.Details, &garageParkingDetails); err != nil {
-// 		    log.Printf("Error unmarshalling garage_and_parking details: %v", err)
-// 		    return nil, err
-// 		}
-// 		propertyRecord.Details = &garageParkingDetails
-
-// 	case "room":
-// 		var roomDetails domain.Room
-// 		if err := json.Unmarshal(rawRecord.Details, &roomDetails); err != nil {
-// 		    log.Printf("Error unmarshalling room details: %v", err)
-// 		    return nil, err
-// 		}
-// 		propertyRecord.Details = &roomDetails
-
-// 	case "plot":
-// 		var plotDetails domain.Plot
-// 		if err := json.Unmarshal(rawRecord.Details, &plotDetails); err != nil {
-// 		    log.Printf("Error unmarshalling plot details: %v", err)
-// 		    return nil, err
-// 		}
-// 		propertyRecord.Details = &plotDetails
-
-// 	case "new_building":
-// 		var newBuidingDetails domain.NewBuilding
-// 		if err := json.Unmarshal(rawRecord.Details, &newBuidingDetails); err != nil {
-// 		    log.Printf("Error unmarshalling new_building details: %v", err)
-// 		    return nil, err
-// 		}
-// 		propertyRecord.Details = &newBuidingDetails
-
-// 	default:
-// 		log.Printf("Unknown details type: %s", rawRecord.DetailsType)
-// 		// Решите, что делать дальше: можно просто проигнорировать детали
-// 		propertyRecord.Details = nil
-// 	}
-
-// 	return propertyRecord, nil
-// }

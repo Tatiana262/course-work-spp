@@ -18,7 +18,7 @@ func NewFindObjectsUseCase(storage port.PropertyStoragePort) *FindObjectsUseCase
 }
 
 func (uc *FindObjectsUseCase) Execute(ctx context.Context, filters domain.FindObjectsFilters, limit, offset int) (*domain.PaginatedResult, error) {
-    // 1. Получаем и обогащаем логгер
+    // Получаем и обогащаем логгер
     logger := contextkeys.LoggerFromContext(ctx)
     ucLogger := logger.WithFields(port.Fields{
         "use_case": "FindObjects",
@@ -29,14 +29,14 @@ func (uc *FindObjectsUseCase) Execute(ctx context.Context, filters domain.FindOb
     
     ucLogger.Info("Use case started", nil)
 
-    // 2. Выполняем основное действие
+    // Выполняем основное действие
     result, err := uc.storage.FindWithFilters(ctx, filters, limit, offset)
     if err != nil {
         ucLogger.Error("Storage returned an error", err, nil)
         return nil, err // Просто пробрасываем ошибку дальше
     }
 
-    // 3. Логируем успешный результат
+    // Логируем успешный результат
     ucLogger.Info("Use case finished successfully", port.Fields{
         "total_found": result.TotalCount,
         "items_on_page": len(result.Objects),

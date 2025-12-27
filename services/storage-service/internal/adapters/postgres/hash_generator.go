@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"math"
 
-	// "regexp"
-	// "sort"
 	"storage-service/internal/core/domain"
 	"strings"
 
@@ -14,18 +12,6 @@ import (
 )
 
 const geohashPrecision = 5 //?
-
-// normalizeAddress упрощает адрес для стабильного хэширования
-// var nonAlphanumericRegex = regexp.MustCompile(`[^a-zA-Z0-9а-яА-Я]+`)
-
-// func normalizeAddress(addr string) string {
-// 	lower := strings.ToLower(addr)
-// 	// Убираем слова-мусор
-// 	replacer := strings.NewReplacer("улица", "", "ул", "", "дом", "", "д", "", "квартира", "", "кв", "")
-// 	replaced := replacer.Replace(lower)
-// 	// Оставляем только буквы и цифры
-// 	return nonAlphanumericRegex.ReplaceAllString(replaced, "")
-// }
 
 func normalizeAreaToBucket(area *float64, bucketSize float64) string {
     if area == nil {
@@ -42,7 +28,7 @@ func normalizeAreaToBucket(area *float64, bucketSize float64) string {
     return fmt.Sprintf("%d", bucketIndex)
 }
 
-// buildHashPayload создает стабильную строку из ключевых полей объекта для хэширования.
+// buildHashPayload создает стабильную строку из ключевых полей объекта для хэширования
 func buildHashPayload(rec domain.RealEstateRecord) string {
 
 	geohsh := geohash.Encode(rec.General.Latitude, rec.General.Longitude)
@@ -65,7 +51,7 @@ func buildHashPayload(rec domain.RealEstateRecord) string {
 
 	addFloat := func(val *float64) {
 		if val != nil {
-			parts = append(parts, fmt.Sprintf("%f", *val)) //убираю округление
+			parts = append(parts, fmt.Sprintf("%f", *val))
 		} else {
 			parts = append(parts, "null")
 		}
@@ -74,7 +60,7 @@ func buildHashPayload(rec domain.RealEstateRecord) string {
 	// Функция для безопасного добавления строковых указателей
 	addString := func(val *string) {
 		if val != nil && *val != "" {
-			// Нормализуем строки: нижний регистр и убираем лишние пробелы
+			// нижний регистр и убираем лишние пробелы
 			parts = append(parts, strings.ToLower(strings.TrimSpace(*val)))
 		} else {
 			parts = append(parts, "null")
@@ -87,7 +73,7 @@ func buildHashPayload(rec domain.RealEstateRecord) string {
 
 	// Добавляем ключевые поля в зависимости от типа деталей
 	switch d := rec.Details.(type) {
-	// Квартира: Площадь, комнаты, этаж, этажность дома.
+
 	case *domain.Apartment:
 		addPart(normalizeAreaToBucket(d.TotalArea, 2.0))
 		addInt(d.RoomsAmount)
@@ -95,7 +81,6 @@ func buildHashPayload(rec domain.RealEstateRecord) string {
 		// addInt(d.BuildingFloors)
 		fmt.Println(strings.Join(parts, "|"),  rec.General.ID)
 		
-	// Дом: Площадь дома, комнаты, площадь участка. Можно ещё AreaLiving
 	case *domain.House:
 		addPart(normalizeAreaToBucket(d.TotalArea, 2.0))
 		addInt(d.RoomsAmount) // ?	
@@ -104,7 +89,6 @@ func buildHashPayload(rec domain.RealEstateRecord) string {
 		fmt.Println(strings.Join(parts, "|"), rec.General.ID)
 		
 		
-	// Коммерческая недвижимость: Тип, площадь, этаж.
 	case *domain.Commercial:
 		addPart(normalizeAreaToBucket(d.TotalArea, 2.0))
 		
@@ -112,25 +96,22 @@ func buildHashPayload(rec domain.RealEstateRecord) string {
 		// addInt(d.FloorNumber)
 		// addInt(d.BuildingFloors)
 
-	// Комната: Площадь самой комнаты, в квартире с каким кол-вом комнат она находится, и на каком этаже.
+	// Комната: Площадь самой комнаты, в квартире с каким кол-вом комнат она находится, и на каком этаже
 	case *domain.Room:
 		addFloat(d.TotalArea) // Площадь самой комнаты
 		// addInt(d.RoomsAmount) // Всего комнат в квартире
 		// addInt(d.FloorNumber)
 		// addInt(d.BuildingFloors)
 
-	// Гараж/Парковка: Тип ("гараж" или "машиноместо") и площадь.
+	// Гараж/Парковка: Тип ("гараж" или "машиноместо") и площадь
 	case *domain.GarageAndParking:
 		addString(d.PropertyType)
 		addFloat(d.TotalArea)
 
-	// Участок: Площадь участка - это его главная и самая стабильная характеристика.
+	// Участок: Площадь участка - это его главная и самая стабильная характеристика
 	case *domain.Plot:
 		addFloat(d.PlotArea)
 		
-	// Новостройка: Самый сложный случай. Объявления часто описывают не один объект, а весь проект.
-	// Самыми стабильными идентификаторами проекта являются застройщик и, возможно, материал стен.
-	// Адрес уже есть в базовых полях.
 	case *domain.NewBuilding:
 		addString(d.Builder)
 	
@@ -148,3 +129,18 @@ func calculateObjectHash(payload string) string {
 	h.Write([]byte(payload))
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
+
+
+
+
+// normalizeAddress упрощает адрес для стабильного хэширования
+// var nonAlphanumericRegex = regexp.MustCompile(`[^a-zA-Z0-9а-яА-Я]+`)
+
+// func normalizeAddress(addr string) string {
+// 	lower := strings.ToLower(addr)
+// 	// Убираем слова-мусор
+// 	replacer := strings.NewReplacer("улица", "", "ул", "", "дом", "", "д", "", "квартира", "", "кв", "")
+// 	replaced := replacer.Replace(lower)
+// 	// Оставляем только буквы и цифры
+// 	return nonAlphanumericRegex.ReplaceAllString(replaced, "")
+// }

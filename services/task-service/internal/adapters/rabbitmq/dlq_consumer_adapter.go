@@ -33,7 +33,7 @@ func NewDLQConsumerAdapter(
 ) (*DLQConsumerAdapter, error) {
 	adapter := &DLQConsumerAdapter{useCase: useCase, logger: logger}
 
-	// 1. Создаем логгер для pkg-уровня с контекстом нашего компонента
+	// Создаем логгер для pkg-уровня с контекстом нашего компонента
 	pkgLogger := logger.WithFields(port.Fields{"component": "rabbitmq_distributing_consumer", "consumer_tag": cfg.ConsumerTag})
 	cfg.Logger = NewPkgLoggerBridge(pkgLogger)
 
@@ -46,17 +46,17 @@ func NewDLQConsumerAdapter(
 }
 
 func (a *DLQConsumerAdapter) messageHandler(d amqp.Delivery) error {
-	// 1. ИЗВЛЕКАЕМ ИЛИ ГЕНЕРИРУЕМ TRACE_ID
+	
 	traceID, ok := d.Headers["x-trace-id"].(string)
 	if !ok || traceID == "" {
 		traceID = uuid.New().String()
 	}
 
-	// 2. СОЗДАЕМ КОНТЕКСТНЫЙ ЛОГГЕР
+	// контекстный логер
 	msgLogger := a.logger.WithFields(port.Fields{
 		"trace_id":     traceID,
 		"delivery_tag": d.DeliveryTag,
-		"queue":        d.RoutingKey, // В DLQ routing_key часто содержит имя исходной очереди
+		"queue":        d.RoutingKey, 
 		"exchange":     d.Exchange,
 	})
 
@@ -68,16 +68,16 @@ func (a *DLQConsumerAdapter) messageHandler(d amqp.Delivery) error {
 	}
 
 	msgLogger.Error(
-		"Processing dead letter from DLQ", // Основное сообщение
-		nil, // Ошибка `error` у нас нет, но мы передаем `nil`
+		"Processing dead letter from DLQ", 
+		nil, 
 		port.Fields{
 			"body_as_string": string(d.Body), // Тело сообщения как строка
 			"headers":        d.Headers,      // Все заголовки
-			"x_death_info":   deathInfo,      // Информация о причине "смерти"
+			"x_death_info":   deathInfo,      // Информация о причине смерти
 		},
 	)
 
-	// 3. ПОМЕЩАЕМ ЛОГГЕР И TRACE_ID В КОНТЕКСТ
+	// логер и trace_id в контекст
 	ctx := context.Background()
 	ctx = contextkeys.ContextWithTraceID(ctx, traceID)
 

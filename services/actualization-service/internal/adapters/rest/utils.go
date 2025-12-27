@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-// writeJSONError отправляет JSON-ответ с полем "error" и заданным статусом
+// writeJSONError отправляет JSON-ответ с полем error и заданным статусом
 func WriteJSONError(w http.ResponseWriter, statusCode int, message string) {
     w.Header().Set("Content-Type", "application/json; charset=utf-8")
     w.WriteHeader(statusCode)

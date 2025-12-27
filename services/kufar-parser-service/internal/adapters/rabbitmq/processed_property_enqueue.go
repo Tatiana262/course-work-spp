@@ -9,8 +9,6 @@ import (
 	"kufar-parser-service/internal/core/port"
 	"real-estate-system/pkg/rabbitmq/rabbitmq_producer"
 	"reflect"
-
-	// "log"
 	"time"
 
 	"github.com/google/uuid"
@@ -56,7 +54,6 @@ type PassthroughTranslator struct {
 }
 
 func (t *PassthroughTranslator) Translate(details interface{}) (string, interface{}, error) {
-	// Здесь можно добавить проверку типа для безопасности, если нужно
 	return t.TypeName, details, nil
 }
 
@@ -93,7 +90,7 @@ func NewRabbitMQProcessedPropertyQueueAdapter(producer *rabbitmq_producer.Publis
 	return adapter, nil
 }
 
-// Enqueue отправляет PropertyRecord в очередь
+// Enqueue отправляет RealEstateRecord в очередь
 func (a *RabbitMQProcessedPropertyQueueAdapter) Enqueue(ctx context.Context, record domain.RealEstateRecord, taskID uuid.UUID) error {
 
 	logger := contextkeys.LoggerFromContext(ctx)
@@ -104,7 +101,7 @@ func (a *RabbitMQProcessedPropertyQueueAdapter) Enqueue(ctx context.Context, rec
 		// "task_id":     taskID,
 	})
 
-	// 1. Создаем DTO и маппим данные из домена в него.
+	// Создаем DTO и маппим данные из домена
 	eventDTO := ProcessedRealEstateEventDTO{
 		General: toGeneralDTO(record.General),
 		// Details: record.Details,
@@ -113,10 +110,10 @@ func (a *RabbitMQProcessedPropertyQueueAdapter) Enqueue(ctx context.Context, rec
 	}
 
 	if record.Details != nil {
-		// 1. Получаем тип деталей (например, reflect.TypeOf(&domain.Apartment{}))
+		// Получаем тип деталей
 		detailsType := reflect.TypeOf(record.Details)
 
-		// 2. Ищем транслятор в нашем реестре
+		// Ищем транслятор
 		translator, found := a.detailsRegistry[detailsType]
 		if !found {
 			err := fmt.Errorf("enqueue failed: unknown details type %T for source %s", record.Details, record.General.Source)
@@ -124,7 +121,7 @@ func (a *RabbitMQProcessedPropertyQueueAdapter) Enqueue(ctx context.Context, rec
 			return err
 		}
 
-		// 3. Вызываем транслятор
+		// Вызываем транслятор
 		typeName, detailsDTO, err := translator.Translate(record.Details)
 		if err != nil {
 			adapterLogger.Error("Failed to translate details", err, port.Fields{"details_type": detailsType.String()})

@@ -31,7 +31,7 @@ func (r *PostgresStorageAdapter) GetActualizationStats(ctx context.Context) ([]d
 	}
 	defer rows.Close()
 	
-	// Используем map для удобной агрегации
+	// map для удобной агрегации
 	statsMap := make(map[string]*domain.StatsByCategory)
 	
 	for rows.Next() {
@@ -44,7 +44,7 @@ func (r *PostgresStorageAdapter) GetActualizationStats(ctx context.Context) ([]d
 		if _, ok := statsMap[item.Category]; !ok {
 			statsMap[item.Category] = &domain.StatsByCategory{
 				SystemName:  item.Category,
-				DisplayName: translateCategory(item.Category), // Используем ваш переводчик
+				DisplayName: translateCategory(item.Category), 
 			}
 		}
 		
@@ -77,9 +77,6 @@ func (a *PostgresStorageAdapter) GetActiveIDsForActualization(ctx context.Contex
 		"limit":     limit,
 	})
 	
-    // Здесь будет ваш SQL-запрос. Например, выбрать самые старые активные объекты.
-    // query := `SELECT id, ad_link, source_ad_id, source, updated_at FROM general_properties 
-    //            WHERE category = $1 AND status = 'active' ORDER BY updated_at ASC LIMIT $2`
 
 	query := `WITH oldest_master_objects AS (
 				SELECT master_object_id
@@ -89,7 +86,7 @@ func (a *PostgresStorageAdapter) GetActiveIDsForActualization(ctx context.Contex
 					AND status = 'active'
 				GROUP BY master_object_id
 				ORDER BY MIN(updated_at) ASC
-				LIMIT $2 -- limit
+				LIMIT $2
 			)
 
 			SELECT id, ad_link, source_ad_id, source, updated_at
@@ -120,8 +117,6 @@ func (a *PostgresStorageAdapter) GetActiveIDsForActualization(ctx context.Contex
 		objectsInfo = append(objectsInfo, inf)
 	}
 
-	// Выведите, что именно было отсканировано
-    // log.Println(objectsInfo)
 	
 	// Проверяем на ошибки, которые могли возникнуть во время итерации
 	if err = rows.Err(); err != nil {
@@ -130,7 +125,7 @@ func (a *PostgresStorageAdapter) GetActiveIDsForActualization(ctx context.Contex
     }
 
 	if len(objectsInfo) == 0 {
-		// (Опционально) Явный лог, что ничего не найдено. Можно использовать уровень Warn или Info.
+		// ничего не найдено
 		repoLogger.Info("Query successful, but no active objects found to actualize.", nil)
 	} else {
 		repoLogger.Info("Successfully found active objects", port.Fields{"count": len(objectsInfo)})
@@ -148,10 +143,6 @@ func (a *PostgresStorageAdapter) GetArchivedIDsForActualization(ctx context.Cont
 		"limit":     limit,
 	})
 
-    // Здесь будет ваш SQL-запрос. Например, выбрать самые старые активные объекты.
-    // query := `SELECT id, ad_link, source_ad_id, source, updated_at FROM general_properties 
-    //            WHERE category = $1 AND status = 'archived' ORDER BY updated_at ASC LIMIT $2`
-
 	query := `WITH oldest_master_objects AS (
 				SELECT master_object_id
 				FROM general_properties
@@ -160,7 +151,7 @@ func (a *PostgresStorageAdapter) GetArchivedIDsForActualization(ctx context.Cont
 					AND status = 'archived'
 				GROUP BY master_object_id
 				ORDER BY MIN(updated_at) ASC
-				LIMIT $2 -- limit
+				LIMIT $2
 			)
 
 			SELECT id, ad_link, source_ad_id, source, updated_at
@@ -198,7 +189,7 @@ func (a *PostgresStorageAdapter) GetArchivedIDsForActualization(ctx context.Cont
     }
 
 	if len(objectsInfo) == 0 {
-		// (Опционально) Явный лог, что ничего не найдено. Можно использовать уровень Warn или Info.
+		// ничего не найдено
 		repoLogger.Info("Query successful, but no active objects found to actualize.", nil)
 	} else {
 		repoLogger.Info("Successfully found active objects", port.Fields{"count": len(objectsInfo)})
@@ -215,7 +206,6 @@ func (a *PostgresStorageAdapter) GetObjectsByIDForActualization(ctx context.Cont
 		"master_object_id":  masterObjectID,
 	})
 
-	// Здесь будет ваш SQL-запрос. Например, выбрать самые старые активные объекты.
     query := `
 		SELECT id, ad_link, source_ad_id, source, updated_at 
         FROM general_properties 
@@ -246,36 +236,3 @@ func (a *PostgresStorageAdapter) GetObjectsByIDForActualization(ctx context.Cont
     repoLogger.Info("Successfully found objects by master_id", port.Fields{"count": len(objectsInfo)})
     return objectsInfo, nil
 }
-
-// func (a *PostgresStorageAdapter) GetObjectByIDForActualization(ctx context.Context, id string) (*domain.PropertyBasicInfo, error) {
-// 	logger := contextkeys.LoggerFromContext(ctx)
-// 	repoLogger := logger.WithFields(port.Fields{
-// 		"component": "PostgresStorageAdapter",
-// 		"method":    "GetObjectByIDForActualization",
-// 		"id":  id,
-// 	})
-
-// 	// Здесь будет ваш SQL-запрос. Например, выбрать самые старые активные объекты.
-//     query := `SELECT id, ad_link, source_ad_id, source, updated_at FROM general_properties 
-//                WHERE id = $1`
-    
-// 	var objectInfo domain.PropertyBasicInfo
-// 	err := a.pool.QueryRow(ctx, query, id).Scan(
-// 		&objectInfo.ID, 
-// 		&objectInfo.Link, 
-// 		&objectInfo.AdID, 
-// 		&objectInfo.Source, 
-// 		&objectInfo.UpdatedAt,
-// 	);
-// 	if err != nil {
-// 		// if errors.Is(err, pgx.ErrNoRows) {
-// 		// 	return nil, nil 
-// 		// }
-// 		repoLogger.Error("Failed to query object", err, port.Fields{"query": query})
-// 		return nil, fmt.Errorf("PostgresStorageAdapter: failed to find object with id %s: %w", id, err)
-// 	}
-
-// 	repoLogger.Info("Successfully found object", nil)
-
-//     return &objectInfo, nil
-// }

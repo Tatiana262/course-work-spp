@@ -6,19 +6,6 @@ import (
 )
 
 type FilterOptionsRepositoryPort interface {
-    // GetTotalCount(ctx context.Context, req domain.FilterOptions) (int, error)
-    // GetApartmentDistinctRooms(ctx context.Context, category string) ([]interface{}, error)
-    // GetApartmentDistinctWallMaterials(ctx context.Context, category string) ([]interface{}, error)
-
-    // GetPriceRange(ctx context.Context, req domain.FilterOptions) (*domain.RangeResult, error)
-    // GetDistinctRooms(ctx context.Context, req domain.FilterOptions) ([]int, error)
-    
-    // GetYearBuiltRange(ctx context.Context, req domain.FilterOptions) (*domain.RangeResult, error)
-    // // ... другие методы ...
-
-	// GetUniqueCategories(ctx context.Context) ([]domain.DictionaryItem, error)
-    // GetUniqueRegions(ctx context.Context) ([]domain.DictionaryItem, error)
-    // GetUniqueDealTypes(ctx context.Context) ([]domain.DictionaryItem, error)
 
     // общие
     GetPriceRange(ctx context.Context, req domain.FindObjectsFilters) (*domain.RangeResult, error)

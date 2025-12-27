@@ -8,13 +8,13 @@ CREATE TABLE IF NOT EXISTS houses (
 
     -- Параметры строения
     year_built              SMALLINT,        -- Год постройки
-    building_floors         SMALLINT,        -- Этажность дома (используем SMALLINT как в apartments)
-    rooms_amount            SMALLINT,        -- Количество комнат (используем SMALLINT как в apartments)
+    building_floors         SMALLINT,        -- Этажность дома
+    rooms_amount            SMALLINT,        -- Количество комнат 
     wall_material           VARCHAR(100),    -- Материал стен
     roof_material           VARCHAR(100),    -- Материал крыши
     house_type              VARCHAR(100),    -- Тип дома (Дом, Коттедж, Дача, Таунхаус...)
 
-    -- Коммуникации (используем VARCHAR для гибкости, т.к. значения могут быть разными)
+   
     electricity             VARCHAR(100),
     water                   VARCHAR(100),
     heating                 VARCHAR(100),
@@ -24,7 +24,6 @@ CREATE TABLE IF NOT EXISTS houses (
     completion_percent      SMALLINT, 
     is_new_condition        BOOLEAN,
 
-    -- "Карман" для редко встречающихся или неструктурированных параметров.
-    -- JSONB является бинарным форматом, он быстрее и поддерживает индексацию.
+    -- для редко встречающихся параметров
     parameters              JSONB NOT NULL DEFAULT '{}'::jsonb
 );

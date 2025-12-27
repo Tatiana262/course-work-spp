@@ -43,15 +43,13 @@ const (
 )
 
 
-// Вы можете также создать структуры для более сложных наборов критериев,
-// если планируете запускать парсер для множества предопределенных фильтров.
 type PredefinedSearch struct {
     Name         string
-    Criteria     domain.SearchCriteria // Используем вашу доменную структуру
+    Criteria     domain.SearchCriteria
 }
 
-// BusinessCategoryToKufarMap - наш главный "словарь-переводчик" для Kufar.
-// Ключ - бизнес-категория, значение - технический ID категории на Kufar.
+
+// Ключ - бизнес-категория, значение - технический ID категории на Kufar
 var BusinessCategoryToKufarMap = map[string][]string{
 	"apartment":    {ApartmentCategory, TravelsCategory},
 	"house":        {HouseCategory, TravelsCategory},
@@ -62,7 +60,7 @@ var BusinessCategoryToKufarMap = map[string][]string{
 	"new_building": {NewBuildingCategory},
 }
 
-// RegionToKufarMap - теперь сопоставляет бизнес-регион со СРЕЗОМ технических локаций Kufar
+
 var RegionToKufarMap = map[string][]string{
 	"Минская область":       {Minsk, MinskRegion}, 
 	"Брестская область":       {BrestRegion},     

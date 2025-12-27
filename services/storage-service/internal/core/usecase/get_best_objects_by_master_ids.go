@@ -15,8 +15,7 @@ func NewGetBestObjectsByMasterIDsUseCase(storage port.PropertyStoragePort) *GetB
     return &GetBestObjectsByMasterIDsUseCase{storage: storage}
 }
 
-// FindIDsForActualization - пример метода, который вернет ID для актуализации.
-// Вы можете добавить сюда параметры: лимит, оффсет, фильтры и т.д.
+
 func (uc *GetBestObjectsByMasterIDsUseCase) Execute(ctx context.Context, masterIDs []string) ([]domain.GeneralPropertyInfo, error) {
 	logger := contextkeys.LoggerFromContext(ctx)
     ucLogger := logger.WithFields(port.Fields{

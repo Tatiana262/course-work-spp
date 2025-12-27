@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
-	// "log"
 	"real-estate-system/pkg/rabbitmq/rabbitmq_producer"
 	"storage-service/internal/contextkeys"
 	"storage-service/internal/core/domain"
@@ -16,7 +14,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-// TaskResultDTO - для сообщения в task_results_queue
+
 type TaskResultDTO struct {
 	TaskID  uuid.UUID      `json:"task_id"`
 	Results map[string]int `json:"results"`
@@ -41,7 +39,7 @@ func NewTaskReporterAdapter(producer *rabbitmq_producer.Publisher, routingKey st
 }
 
 func (a *TaskReporterAdapter) ReportResults(ctx context.Context, taskID uuid.UUID, stats *domain.BatchSaveStats) error {
-	// 1. Извлекаем и обогащаем логгер
+	// Извлекаем и обогащаем логгер
 	logger := contextkeys.LoggerFromContext(ctx)
 	adapterLogger := logger.WithFields(port.Fields{
 		"component":   "TaskReporterAdapter",
@@ -74,7 +72,6 @@ func (a *TaskReporterAdapter) ReportResults(ctx context.Context, taskID uuid.UUI
 		msg.Headers["x-trace-id"] = traceID
 	}
 
-	// Устанавливаем таймаут на операцию публикации, если контекст его не предоставляет
 	publishCtx, cancel := context.WithTimeout(ctx, 10*time.Second) // Таймаут 10 секунд на публикацию
 	defer cancel()
 

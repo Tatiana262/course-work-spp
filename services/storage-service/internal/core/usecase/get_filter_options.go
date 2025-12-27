@@ -10,14 +10,14 @@ import (
 
 
 type GetFilterOptionsUseCase struct {
-    storage port.FilterOptionsRepositoryPort // Новый порт
+    storage port.FilterOptionsRepositoryPort 
 }
 
 func NewGetFilterOptionsUseCase(storage port.FilterOptionsRepositoryPort) *GetFilterOptionsUseCase {
     return &GetFilterOptionsUseCase{storage: storage}
 }
 
-// Execute - основной метод, который собирает опции в зависимости от категории.
+// Execute - основной метод, который собирает опции в зависимости от категории
 func (uc *GetFilterOptionsUseCase) Execute(ctx context.Context, req domain.FindObjectsFilters) (*domain.FilterOptionsResult, error) {
     logger := contextkeys.LoggerFromContext(ctx)
     ucLogger := logger.WithFields(port.Fields{
@@ -26,10 +26,10 @@ func (uc *GetFilterOptionsUseCase) Execute(ctx context.Context, req domain.FindO
 
     ucLogger.Info("Use case started", nil)
     
-    // Создаем map для хранения финального результата.
+    // Создаем map для хранения финального результата
     resultOptions := make(map[string]domain.FilterOption)
     
-    // --- Фаза 1: Получаем "умный" диапазон цен, который зависит от всех фильтров ---
+    // Получаем диапазон цен, который зависит от всех фильтров
 	priceRange, err := uc.storage.GetPriceRange(ctx, req)
 	if err == nil {
 		resultOptions["price"] = domain.FilterOption{ Min: priceRange.Min, Max: priceRange.Max}
@@ -40,7 +40,6 @@ func (uc *GetFilterOptionsUseCase) Execute(ctx context.Context, req domain.FindO
     count, err := uc.storage.GetTotalCount(ctx, req)
 	if err != nil {
 		ucLogger.Error("Failed to get total count", err, nil)
-		// Не критично, можем вернуть 0, но лучше знать об ошибке
 	}
 
     if req.Category == "" {
@@ -57,7 +56,7 @@ func (uc *GetFilterOptionsUseCase) Execute(ctx context.Context, req domain.FindO
 		}
     }
 
-    // --- Специфичные для категории фильтры ---
+    // Специфичные для категории фильтры 
     switch req.Category {
     case "apartment":
         // Количество комнат

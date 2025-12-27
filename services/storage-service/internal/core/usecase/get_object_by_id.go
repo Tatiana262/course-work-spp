@@ -15,9 +15,7 @@ func NewGetObjectsByIDUseCase(storage port.PropertyStoragePort) *GetObjectByIDUs
     return &GetObjectByIDUseCase{storage: storage}
 }
 
-// FindIDsForActualization - пример метода, который вернет ID для актуализации.
-// Вы можете добавить сюда параметры: лимит, оффсет, фильтры и т.д.
-//TODO: попробовать заменить на uuid
+
 func (uc *GetObjectByIDUseCase) FindObjectsByIDForActualization(ctx context.Context, id string) ([]domain.PropertyBasicInfo, error) {
 	logger := contextkeys.LoggerFromContext(ctx)
     ucLogger := logger.WithFields(port.Fields{

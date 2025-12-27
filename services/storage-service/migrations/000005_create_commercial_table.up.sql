@@ -1,5 +1,4 @@
 CREATE TABLE IF NOT EXISTS commercial (
-    -- Внешний ключ, связывающий с основной таблицей.
     property_id                 UUID PRIMARY KEY REFERENCES general_properties(id) ON DELETE CASCADE,
     
     -- Характеристики

@@ -5,19 +5,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	// "github.com/twpayne/go-geom/encoding/wkb" // Для преобразования в WKB для PostGIS
 )
 
 
-// RealEstateRecord - это главная, агрегирующая структура для любого объекта недвижимости.
-// Она теперь напрямую использует модели, готовые для записи в БД.
+// RealEstateRecord - это главная, агрегирующая структура для любого объекта недвижимости
 type RealEstateRecord struct {
     General GeneralProperty
-    Details interface{} // Сюда будет помещен указатель на Apartment, House, и т.д.
+    Details interface{} // Сюда будет помещен указатель на Apartment, House
 }
 
-// dbGeneralProperty - это структура для *хранения*, а не для домена.
-// Она является точным отражением таблицы `general_properties`.
+// dbGeneralProperty - это структура для хранения
 type GeneralProperty struct {
 	ID           uuid.UUID 			
 	Source       string    			

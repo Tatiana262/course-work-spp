@@ -6,19 +6,18 @@ import (
 	"kufar-parser-service/internal/contextkeys"
 	"kufar-parser-service/internal/core/domain"
 	"kufar-parser-service/internal/core/port"
-	// "log"
 
 	"github.com/google/uuid"
 )
 
 // ProcessLinkUseCase инкапсулирует логику обработки одной ссылки:
-// парсинг деталей и отправка результата в следующую очередь.
+// парсинг деталей и отправка результата в следующую очередь
 type ProcessLinkUseCase struct {
 	detailsFetcher port.KufarFetcherPort
 	resultQueue    port.ProcessedPropertyQueuePort
 }
 
-// NewProcessLinkUseCase создает новый экземпляр use case.
+// NewProcessLinkUseCase создает новый экземпляр use case
 func NewProcessLinkUseCase(
 	fetcher port.KufarFetcherPort,
 	queue port.ProcessedPropertyQueuePort,
@@ -29,10 +28,9 @@ func NewProcessLinkUseCase(
 	}
 }
 
-// Execute выполняет основную логику use case.
+// Execute выполняет основную логику use case
 func (uc *ProcessLinkUseCase) Execute(ctx context.Context, linkToParse domain.PropertyLink, taskID uuid.UUID) error {
 
-	// 1. Извлекаем и обогащаем логгер
 	baseLogger := contextkeys.LoggerFromContext(ctx)
 	ucLogger := baseLogger.WithFields(port.Fields{
 		"use_case": "ProcessLink",
@@ -42,7 +40,7 @@ func (uc *ProcessLinkUseCase) Execute(ctx context.Context, linkToParse domain.Pr
 	
 	ucLogger.Debug("Processing link", nil)
 
-	// 1. Используем порт для парсинга деталей
+	// Используем порт для парсинга деталей
 	propertyRecord, fetchErr := uc.detailsFetcher.FetchAdDetails(ctx, linkToParse.AdID)
 	
 	if fetchErr != nil {
@@ -57,7 +55,7 @@ func (uc *ProcessLinkUseCase) Execute(ctx context.Context, linkToParse domain.Pr
 	}
 
 
-	// 2. Используем порт для отправки результата в очередь
+	// Используем порт для отправки результата в очередь
 	err := uc.resultQueue.Enqueue(ctx, *propertyRecord, taskID)
 	if err != nil {
 		ucLogger.Error("failed to enqueue processed data", err, nil)

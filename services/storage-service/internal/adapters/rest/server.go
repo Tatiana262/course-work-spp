@@ -22,7 +22,6 @@ func NewServer(port string,
 
     r := chi.NewRouter()
 
-    // serverLogger := baseLogger.WithFields(core_port.Fields{"component": "rest_server"})
 
     r.Use(LoggerMiddleware(baseLogger), middleware.Recoverer)
 
@@ -33,7 +32,7 @@ func NewServer(port string,
 
         r.Post("/objects/best-by-master-ids", get_info_handlers.GetBestByMasterIDs)
 
-        // ПУБЛИЧНЫЕ роуты для пользователей
+        // роуты для пользователей
         r.Get("/objects", get_info_handlers.FindObjects)
         r.Get("/objects/{objectID}", get_info_handlers.GetObjectDetails)
 

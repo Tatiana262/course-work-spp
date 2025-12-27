@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// TaskStatus - перечисление для статусов задачи.
+// TaskStatus - перечисление для статусов задачи
 type TaskStatus string
 
 const (
@@ -16,11 +16,11 @@ const (
 	StatusFailed    TaskStatus = "failed"
 )
 
-// ResultSummary - структура для хранения сводной информации о результатах.
-// Использование `map[string]interface{}` делает ее гибкой для разных типов задач.
+// ResultSummary - структура для хранения сводной информации о результатах
+// Использование map[string]interface{} делает ее гибкой для разных типов задач
 type ResultSummary map[string]interface{}
 
-// Task - основная доменная сущность.
+// Task - основная доменная сущность
 type Task struct {
 	ID               uuid.UUID		`json:"id"`
 	Name             string			`json:"name"`
@@ -34,7 +34,7 @@ type Task struct {
 	TargetObjectID 	 *uuid.UUID 	`json:"target_object_id,omitempty"` 
 }
 
-// NewTask - конструктор для создания новой задачи.
+// NewTask - конструктор для создания новой задачи
 func NewTask(name, taskType string, createdByUserID uuid.UUID) *Task {
 	return &Task{
 		ID:              uuid.New(),

@@ -4,11 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	// "kufar-parser-service/internal/constants"
 	"kufar-parser-service/internal/contextkeys"
 	"kufar-parser-service/internal/core/domain"
 	"kufar-parser-service/internal/core/port"
-	// "log"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,7 +19,7 @@ type FetchAndEnqueueLinksUseCase struct {
 	fetcherRepo  port.KufarFetcherPort
 	queueRepo    port.LinksQueuePort
 	lastRunRepo  port.LastRunRepositoryPort
-	sourceName   string // Имя источника, например, "kufar"
+	sourceName   string // Имя источника
 }
 
 // NewFetchAndEnqueueLinksUseCase создает новый экземпляр FetchAndEnqueueLinksUseCase
@@ -39,8 +37,7 @@ func NewFetchAndEnqueueLinksUseCase(
 	}
 }
 
-// Execute запускает процесс получения и постановки ссылок в очередь.
-// `initialCriteria` содержит базовые фильтры для первого запроса.
+// Execute запускает процесс получения и постановки ссылок в очередь
 func (uc *FetchAndEnqueueLinksUseCase) Execute(ctx context.Context, initialCriteria domain.SearchCriteria, taskID uuid.UUID) (int, error) {
 	
 	baseLogger := contextkeys.LoggerFromContext(ctx)
@@ -52,7 +49,7 @@ func (uc *FetchAndEnqueueLinksUseCase) Execute(ctx context.Context, initialCrite
 
 	ucLogger.Info("Starting to fetch links", port.Fields{"criteria": initialCriteria.Name})
 
-	// Формируем уникальный ключ для parserName на основе критериев, чтобы хранить lastRunTime для каждой комбинации (на основе url?)
+	// уникальный ключ для parserName на основе критериев, чтобы хранить lastRunTime для каждой комбинации
 	parserNameKey := fmt.Sprintf("%s_%s_%s_%s",
 		kufarParserName,
 		initialCriteria.Category,
@@ -62,11 +59,10 @@ func (uc *FetchAndEnqueueLinksUseCase) Execute(ctx context.Context, initialCrite
 
 	parserLogger := ucLogger.WithFields(port.Fields{"parser_key": parserNameKey})
 
-	lastRunTime, err := uc.lastRunRepo.GetLastRunTimestamp(ctx, parserNameKey) // Делаем ключ уникальным для комбинации фильтров
+	lastRunTime, err := uc.lastRunRepo.GetLastRunTimestamp(ctx, parserNameKey)
 	if err != nil {
-		// Если ошибка (например, нет записи), можем начать с "начала времен" или за определенный период назад
 		parserLogger.Warn("Could not get last run timestamp, fetching from the beginning.", port.Fields{"error": err.Error()})
-		lastRunTime = time.Time{} // Или, например, time.Now().Add(-24 * time.Hour)
+		lastRunTime = time.Time{}
 	} else {
 		parserLogger.Info("Last run timestamp found", port.Fields{"last_run_time": lastRunTime})
 	}
@@ -104,8 +100,8 @@ func (uc *FetchAndEnqueueLinksUseCase) Execute(ctx context.Context, initialCrite
 		}
 
 		if len(links) == 0 && nextCursor == "" {
-			// Это может случиться, если на первой же странице нет новых ссылок И нет следующей страницы,
-			// или если адаптер сразу вернул пустой nextCursor из-за отсечки по 'since'
+			// если на первой же странице нет новых ссылок и нет следующей страницы,
+			// или если адаптер сразу вернул пустой nextCursor из-за отсечки по since
 			pageLogger.Debug("No new links found and no next cursor. Stopping.", nil)
 			break
 		}
@@ -115,7 +111,6 @@ func (uc *FetchAndEnqueueLinksUseCase) Execute(ctx context.Context, initialCrite
 			link.Source = uc.sourceName // Добавляем источник
 			err = uc.queueRepo.Enqueue(ctx, link, taskID)
 			if err != nil {
-				// Здесь можно решить, что делать: пропустить ссылку, повторить, остановить всё
 				pageLogger.Error("Error enqueuing link, skipping", err, port.Fields{"ad_id": link.AdID})
 				continue // Пропускаем эту ссылку, но продолжаем с остальными
 			}
@@ -131,8 +126,8 @@ func (uc *FetchAndEnqueueLinksUseCase) Execute(ctx context.Context, initialCrite
 					"limit": debugLinkLimit,
 					"total_found": newLinksFoundOverall,
 				})
-				stopFetching = true // Устанавливаем флаг для выхода из внешнего цикла
-				break // Выходим из внутреннего цикла `for _, link := ...`
+				stopFetching = true
+				break
 			}
 		}
 
@@ -152,10 +147,6 @@ func (uc *FetchAndEnqueueLinksUseCase) Execute(ctx context.Context, initialCrite
 
 		// log.Printf("Use Case: Fetched %d new links from page. Next cursor: %s\n", newLinksOnPage, nextCursor)
 		currentCriteria.Cursor = nextCursor
-
-		// Опционально: добавить задержку между запросами страниц пагинации здесь, если
-		// fetcherRepo не управляет этим сам (хотя Colly управляет).
-		// time.Sleep(1 * time.Second)
 	}
 
 	// Обновляем lastRunTime, если были найдены новые ссылки
@@ -168,9 +159,8 @@ func (uc *FetchAndEnqueueLinksUseCase) Execute(ctx context.Context, initialCrite
 			parserLogger.Info("Successfully set last run timestamp", port.Fields{"new_timestamp": latestAdTimeOnCurrentRun})
 		}
 	} else if newLinksFoundOverall == 0 && totalPagesProcessed > 0 && !lastRunTime.IsZero() {
-        // Если мы прошлись по страницам, но не нашли НИ ОДНОЙ НОВОЙ ссылки (т.е. все были отсеяны по 'since' в адаптере,
-        // или их просто не было), но при этом lastRunTime не нулевой, то можно его обновить на текущее время,
-        // чтобы показать, что мы проверяли. Но это опционально, можно и не обновлять, если ничего нового не было.
+        // Если мы прошлись по страницам, но не нашли ни одной новой ссылки
+        // можно его обновить на текущее время, чтобы показать, что мы проверяли
         currentTime := time.Now().UTC()
         uc.lastRunRepo.SetLastRunTimestamp(ctx, parserNameKey, currentTime)
 		parserLogger.Info("No new links found, but checked. Updated last run to current time.", port.Fields{"new_timestamp": currentTime})

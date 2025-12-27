@@ -15,8 +15,7 @@ func NewGetActiveObjectsUseCase(storage port.PropertyStoragePort) *GetActiveObje
     return &GetActiveObjectsUseCase{storage: storage}
 }
 
-// FindIDsForActualization - пример метода, который вернет ID для актуализации.
-// Вы можете добавить сюда параметры: лимит, оффсет, фильтры и т.д.
+
 func (uc *GetActiveObjectsUseCase) FindActiveIDsForActualization(ctx context.Context, category string, limit int) ([]domain.PropertyBasicInfo, error) {
     logger := contextkeys.LoggerFromContext(ctx)
     ucLogger := logger.WithFields(port.Fields{

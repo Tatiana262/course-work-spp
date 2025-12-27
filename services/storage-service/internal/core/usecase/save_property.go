@@ -11,13 +11,13 @@ import (
 	"github.com/google/uuid"
 )
 
-// SavePropertyUseCase инкапсулирует логику сохранения PropertyRecord.
+// SavePropertyUseCase инкапсулирует логику сохранения PropertyRecord
 type SavePropertyUseCase struct {
 	storage port.PropertyStoragePort
 	reporter port.TaskReporterPort
 }
 
-// NewSavePropertyUseCase создает новый экземпляр use case.
+// NewSavePropertyUseCase создает новый экземпляр use case
 func NewSavePropertyUseCase(storage port.PropertyStoragePort, reporter port.TaskReporterPort) *SavePropertyUseCase {
 	return &SavePropertyUseCase{
 		storage: storage,
@@ -25,7 +25,7 @@ func NewSavePropertyUseCase(storage port.PropertyStoragePort, reporter port.Task
 	}
 }
 
-// Execute выполняет основную логику: сохраняет запись, используя порт хранилища.
+// Execute выполняет основную логику: сохраняет запись, используя порт хранилища
 func (uc *SavePropertyUseCase) Save(ctx context.Context, record domain.RealEstateRecord) error {
 	
 	logger := contextkeys.LoggerFromContext(ctx)
@@ -62,13 +62,11 @@ func (uc *SavePropertyUseCase) BatchSave(ctx context.Context, records []domain.R
         return fmt.Errorf("failed to save %d property records: %w", len(records), err)
     }
 
-	// ucLogger.Info("Storage batch save completed successfully", port.Fields{"stats": stats})
-
 	// 2. Если статистика не пустая, отправляем отчет
     if stats != nil && (stats.Created > 0 || stats.Updated > 0 || stats.Archived > 0) {
         if err := uc.reporter.ReportResults(ctx, taskID, stats); err != nil {
-            // Логируем ошибку, но не возвращаем ее, т.к. основная операция (сохранение) прошла успешно.
-            // Это предотвратит повторную обработку уже сохраненных данных.
+            // Логируем ошибку, но не возвращаем ее, т.к. основная операция (сохранение) прошла успешно
+            // Это предотвратит повторную обработку уже сохраненных данных
 			ucLogger.Error("Failed to report task results after successful save", err, nil)
         }
     }

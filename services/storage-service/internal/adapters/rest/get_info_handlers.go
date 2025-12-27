@@ -8,9 +8,6 @@ import (
 	"storage-service/internal/core/port"
 	"storage-service/internal/core/port/usecases_port"
 	"strconv"
-
-	// "strings"
-
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
@@ -32,16 +29,14 @@ func NewGetInfoHandler(findObjectsUC usecases_port.FindObjectsUseCase,
 		}
 }
 
-// --- НОВЫЕ ОБРАБОТЧИКИ ---
-
 // FindObjects обрабатывает GET /api/v1/objects
 func (h *GetInfoHandler) FindObjects(w http.ResponseWriter, r *http.Request) {
 	logger := contextkeys.LoggerFromContext(r.Context())
 
-	// --- Шаг 1: Парсим query-параметры ---
+	// Парсим query-параметры
 	query := r.URL.Query()
 
-	// --- Шаг 1: Парсим пагинацию ---
+	// Парсим пагинацию
 	page, _ := strconv.Atoi(query.Get("page"))
 	if page < 1 {
 		page = 1
@@ -53,7 +48,7 @@ func (h *GetInfoHandler) FindObjects(w http.ResponseWriter, r *http.Request) {
 	limit := perPage
 	offset := (page - 1) * perPage
 
-	// --- Шаг 2: Собираем фильтры с помощью наших хелперов ---
+	// Собираем фильтры с помощью хелперов
 	filters := domain.FindObjectsFilters{
 		// Основные
 		Category:       parseString(query, "category"),
@@ -77,7 +72,7 @@ func (h *GetInfoHandler) FindObjects(w http.ResponseWriter, r *http.Request) {
 		YearBuiltMax:    parseInt(query, "yearBuiltMax"),
 		WallMaterials:   parseStringSlice(query, "wallMaterials"),
 
-		// Только для квартир
+		// для квартир
 		FloorMin:         parseInt(query, "floorMin"),
 		FloorMax:         parseInt(query, "floorMax"),
 		FloorBuildingMin: parseInt(query, "floorBuildingMin"),
@@ -86,7 +81,7 @@ func (h *GetInfoHandler) FindObjects(w http.ResponseWriter, r *http.Request) {
 		BathroomType:     parseStringSlice(query, "bathroomType"),
 		BalconyType:      parseStringSlice(query, "balconyType"),
 
-		// Только для домов
+		// для домов
 		HouseTypes:        parseStringSlice(query, "houseTypes"),
 		PlotAreaMin:       parseFloat(query, "plotAreaMin"),
 		PlotAreaMax:       parseFloat(query, "plotAreaMax"),
@@ -98,7 +93,7 @@ func (h *GetInfoHandler) FindObjects(w http.ResponseWriter, r *http.Request) {
 		SewageConditions:  parseStringSlice(query, "sewageConditions"),
 		GazConditions:     parseStringSlice(query, "gazConditions"),
 
-		// Для коммерции
+		// для коммерции
         PropertyType: parseString(query, "commercialTypes"),
         CommercialImprovements: parseStringSlice(query, "commercialImprovements"),
         CommercialRepairs: parseStringSlice(query, "commercialRepairs"),
@@ -111,11 +106,11 @@ func (h *GetInfoHandler) FindObjects(w http.ResponseWriter, r *http.Request) {
 		"handler": "FindObjects",
 		"page":    page,
 		"per_page": perPage,
-		"filters": filters, // `filters` будет красиво сериализован в JSON
+		"filters": filters, 
 	})
 	handlerLogger.Debug("Processing request to find objects", nil)
 
-	// --- Шаг 3: Вызываем use-case ---
+	// Вызываем use-case
 	paginatedResult, err := h.findObjectsUC.Execute(r.Context(), filters, limit, offset)
 	if err != nil {
 		handlerLogger.Error("Use case failed", err, nil)
@@ -128,7 +123,7 @@ func (h *GetInfoHandler) FindObjects(w http.ResponseWriter, r *http.Request) {
 		"items_on_page": len(paginatedResult.Objects),
 	})
 
-	// --- Шаг 4: Маппим результат в DTO для ответа ---
+	// Маппим результат в DTO для ответа
 	response := PaginatedObjectsResponse{
 		Total:      paginatedResult.TotalCount,
 		Page:       paginatedResult.CurrentPage,
@@ -139,7 +134,7 @@ func (h *GetInfoHandler) FindObjects(w http.ResponseWriter, r *http.Request) {
 	for i, obj := range paginatedResult.Objects {
 		response.Data[i] = ObjectCardResponse{
 			ID:       obj.ID.String(),
-			Title:  obj.Title, // Предполагаем, что у вас есть поле Title
+			Title:  obj.Title,
 			PriceUSD: obj.PriceUSD,
 			PriceBYN: obj.PriceBYN,
 			Images:   obj.Images,
@@ -151,7 +146,6 @@ func (h *GetInfoHandler) FindObjects(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// --- Шаг 5: Отправляем JSON ---
 	RespondWithJSON(w, http.StatusOK, response)
 }
 
@@ -159,7 +153,7 @@ func (h *GetInfoHandler) FindObjects(w http.ResponseWriter, r *http.Request) {
 func (h *GetInfoHandler) GetObjectDetails(w http.ResponseWriter, r *http.Request) {
 	logger := contextkeys.LoggerFromContext(r.Context())
 
-	// --- Шаг 1 & 2: Получаем и парсим objectID из URL ---
+	// Получаем и парсим objectID из URL
 	objectIDStr := chi.URLParam(r, "objectID")
 	objectID, err := uuid.Parse(objectIDStr)
 	if err != nil {
@@ -174,7 +168,7 @@ func (h *GetInfoHandler) GetObjectDetails(w http.ResponseWriter, r *http.Request
 	})
 	handlerLogger.Debug("Processing request to find object details", nil)
 
-	// --- Шаг 3: Вызываем use-case ---
+	// Вызываем use-case
 	detailsView, err := h.getObjectDetailsUC.Execute(r.Context(), objectID)
 	if err != nil {
 		handlerLogger.Error("Use case failed", err, nil)
@@ -182,7 +176,6 @@ func (h *GetInfoHandler) GetObjectDetails(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// --- Шаг 4: Маппим результат в DTO для ответа ---
 	// Маппим основную информацию
 	generalResponse := ObjectGeneralInfoResponse{
 		MasterObjectID: detailsView.MainProperty.MasterObjectID,		
@@ -215,7 +208,7 @@ func (h *GetInfoHandler) GetObjectDetails(w http.ResponseWriter, r *http.Request
 	// Маппим детали и связанные предложения
 	response := ObjectDetailsResponse{
 		General: generalResponse,
-		Details: detailsView.Details, // Детали уже в нужном формате (interface{})
+		Details: detailsView.Details,
 		RelatedOffers: make([]DuplicatesInfoResponse, len(detailsView.RelatedOffers)),
 	}
 
@@ -230,7 +223,6 @@ func (h *GetInfoHandler) GetObjectDetails(w http.ResponseWriter, r *http.Request
 	}
 
 	handlerLogger.Info("Successfully found object details", nil)
-	// --- Шаг 5: Отправляем JSON ---
 	RespondWithJSON(w, http.StatusOK, response)
 }
 
@@ -257,7 +249,7 @@ func (h *GetInfoHandler) GetBestByMasterIDs(w http.ResponseWriter, r *http.Reque
 	})
 	handlerLogger.Debug("Processing request to find objects by master ids", nil)
 
-    // Вызываем Use Case, который вызовет наш новый метод репозитория
+    // Вызываем Use Case
     objects, err := h.getBestObjectsUC.Execute(r.Context(), req.MasterIDs)
     if err != nil {
 		handlerLogger.Error("Use case failed", err, nil)
@@ -272,7 +264,7 @@ func (h *GetInfoHandler) GetBestByMasterIDs(w http.ResponseWriter, r *http.Reque
 	for i, obj := range objects {
 		response.Data[i] = ObjectCardResponse{
 			ID:       obj.ID.String(),
-			Title:  obj.Title, // Предполагаем, что у вас есть поле Title
+			Title:  obj.Title, 
 			PriceUSD: obj.PriceUSD,
 			PriceBYN: obj.PriceBYN,
 			Images:   obj.Images,

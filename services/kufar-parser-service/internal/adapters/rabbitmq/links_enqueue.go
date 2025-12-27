@@ -7,9 +7,8 @@ import (
 	"kufar-parser-service/internal/contextkeys"
 	"kufar-parser-service/internal/core/domain"
 	"kufar-parser-service/internal/core/port"
-	"real-estate-system/pkg/rabbitmq/rabbitmq_producer" // Путь к вашему пакету продюсера
+	"real-estate-system/pkg/rabbitmq/rabbitmq_producer"
 
-	// "log"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,17 +17,15 @@ import (
 
 const PARSE_NEW = 3
 
-// RabbitMQLinkQueueAdapter реализует интерфейс PropertyLinkQueuePort для RabbitMQ.
+// RabbitMQLinkQueueAdapter реализует интерфейс LinksQueuePort для RabbitMQ
 type RabbitMQLinkQueueAdapter struct {
 	producer   *rabbitmq_producer.Publisher
 	routingKey string // Ключ маршрутизации для отправки ссылок
-	// Можно добавить ExchangeName, если он не задан глобально в producer'е
-	// exchangeName string
 }
 
-// NewRabbitMQLinkQueueAdapter создает новый экземпляр RabbitMQLinkQueueAdapter.
-// producer - это уже инициализированный экземпляр вашего rabbitmq_producer.Publisher.
-// routingKey - ключ, с которым будут публиковаться сообщения (например, "link.task.kufar").
+// NewRabbitMQLinkQueueAdapter создает новый экземпляр RabbitMQLinkQueueAdapter
+// producer - это уже инициализированный экземпляр  rabbitmq_producer.Publisher
+// routingKey - ключ, с которым будут публиковаться сообщения 
 func NewRabbitMQLinkQueueAdapter(producer *rabbitmq_producer.Publisher, routingKey string) (*RabbitMQLinkQueueAdapter, error) {
 	if producer == nil {
 		return nil, fmt.Errorf("rabbitmq adapter: producer cannot be nil")
@@ -43,7 +40,7 @@ func NewRabbitMQLinkQueueAdapter(producer *rabbitmq_producer.Publisher, routingK
 	}, nil
 }
 
-// Enqueue отправляет ссылку в очередь RabbitMQ.
+// Enqueue отправляет ссылку в очередь RabbitMQ
 func (a *RabbitMQLinkQueueAdapter) Enqueue(ctx context.Context, link domain.PropertyLink, taskID uuid.UUID) error {
 	logger := contextkeys.LoggerFromContext(ctx)
 	adapterLogger := logger.WithFields(port.Fields{
@@ -69,8 +66,6 @@ func (a *RabbitMQLinkQueueAdapter) Enqueue(ctx context.Context, link domain.Prop
 		Timestamp:    time.Now(),
 		Priority:     PARSE_NEW,
 		Headers:      make(amqp.Table),
-		// Можно добавить AppId или другие свойства, если необходимо
-		// AppId: "parser-project",
 	}
 
 	// Пробрасываем trace_id в заголовки сообщения
@@ -79,7 +74,6 @@ func (a *RabbitMQLinkQueueAdapter) Enqueue(ctx context.Context, link domain.Prop
 		msg.Headers["x-trace-id"] = traceID
 	}
 
-	// Устанавливаем таймаут на операцию публикации, если контекст его не предоставляет
 	publishCtx, cancel := context.WithTimeout(ctx, 10*time.Second) // Таймаут 10 секунд на публикацию
 	defer cancel()
 

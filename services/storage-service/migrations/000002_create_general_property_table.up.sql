@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS general_properties (
     is_source_duplicate     BOOLEAN NOT NULL DEFAULT FALSE,
 
     id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    source                  VARCHAR(50) NOT NULL, -- 'kufar', 'onliner', etc.
+    source                  VARCHAR(50) NOT NULL, -- 'kufar'
     source_ad_id            BIGINT NOT NULL,      -- ID из источника
     created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),

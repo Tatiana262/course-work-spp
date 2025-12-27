@@ -9,30 +9,20 @@ import (
 	"kufar-parser-service/internal/core/domain"
 	"kufar-parser-service/internal/core/port"
 	usecases_port "kufar-parser-service/internal/core/port/usecases"
-
-	// "sync"
-
-	// "realt-parser-service/internal/core/usecase"
 	"real-estate-system/pkg/rabbitmq/rabbitmq_common"
 	"real-estate-system/pkg/rabbitmq/rabbitmq_consumer"
-
-	// "log"
-
-	// "strings"
-
 	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-// LinkConsumerAdapter - это входящий адаптер, который слушает очередь
-// со ссылками и вызывает use case для их обработки.
+
 type TasksConsumerAdapter struct {
 	consumer      rabbitmq_consumer.Consumer
 	orchestrateUC usecases_port.OrchestrateParsingPort
 	logger        port.LoggerPort
 }
 
-// NewLinkConsumerAdapter создает новый адаптер.
+
 func NewTasksConsumerAdapter(
 	consumerCfg rabbitmq_consumer.ConsumerConfig,
 	orchestrateUC usecases_port.OrchestrateParsingPort,
@@ -45,9 +35,9 @@ func NewTasksConsumerAdapter(
 		logger:        logger,
 	}
 
-	// 1. Создаем логгер для pkg-уровня с контекстом нашего компонента
+	// Создаем логгер для pkg-уровня с контекстом нашего компонента
 	pkgLogger := logger.WithFields(port.Fields{"component": "rabbitmq_distributing_consumer", "consumer_tag": consumerCfg.ConsumerTag})
-	// 2. Создаем мост и передаем его в конфиг
+	// Создаем мост и передаем его в конфиг
 	consumerCfg.Logger = NewPkgLoggerBridge(pkgLogger)
 
 	consumer, err := rabbitmq_consumer.NewDistributingConsumer(consumerCfg, adapter.messageHandler, connManager)
@@ -59,7 +49,7 @@ func NewTasksConsumerAdapter(
 	return adapter, nil
 }
 
-// messageHandler - приватный метод адаптера.
+// messageHandler - приватный метод адаптера
 func (a *TasksConsumerAdapter) messageHandler(d amqp.Delivery) (err error) {
 
 	traceID, ok := d.Headers["x-trace-id"].(string)
@@ -79,20 +69,18 @@ func (a *TasksConsumerAdapter) messageHandler(d amqp.Delivery) (err error) {
 	ctx = contextkeys.ContextWithTraceID(ctx, traceID)
 
 	msgLogger.Info("Received new task for find objects", nil)
-	// log.Printf("LinkConsumerAdapter: Received task (Tag: %d)\n", d.DeliveryTag)
 
 	var taskDTO TaskInfo
 	if err := json.Unmarshal(d.Body, &taskDTO); err != nil {
 		msgLogger.Error("Error unmarshalling task DTO, NACKing message", err, nil)
-		// Ошибка разбора JSON - это ПОСТОЯННАЯ ошибка. Нет смысла повторять.
+		// Ошибка разбора JSON - это постоянная ошибка, нет смысла повторять обработку сообщения
 		return fmt.Errorf("unmarshal error: %w", err)
 	}
 
-	// Обогащаем логгер ID задачи для всех последующих сообщений
 	taskLogger := msgLogger.WithFields(port.Fields{"task_id": taskDTO.TaskID.String()})
-	ctx = contextkeys.ContextWithLogger(ctx, taskLogger) // Обновляем контекст с еще более детальным логгером
+	ctx = contextkeys.ContextWithLogger(ctx, taskLogger) 
 
-	// 1. Получаем СРЕЗ задач от транслятора
+	// Получаем срез задач от транслятора
 	internalTasks, err := a.translateDTOToInternalTasks(taskDTO)
 	if err != nil {
 		taskLogger.Error("Cannot translate DTO to internal tasks", err, nil)
@@ -108,22 +96,21 @@ func (a *TasksConsumerAdapter) messageHandler(d amqp.Delivery) (err error) {
 }
 
 func (a *TasksConsumerAdapter) translateDTOToInternalTasks(dto TaskInfo) ([]domain.SearchCriteria, error) {
-	// 1. Находим СРЕЗ технических локаций для бизнес-региона
+	// Находим срез технических локаций для бизнес-региона
 	kufarLocations, ok := constants.RegionToKufarMap[dto.Region]
 	if !ok || len(kufarLocations) == 0 {
 		return nil, fmt.Errorf("unknown or unconfigured region for Kufar: %s", dto.Region)
 	}
 
-	// 2. Находим технический ID категории
+	// Находим срез технических ID для категории
 	kufarCategories, ok := constants.BusinessCategoryToKufarMap[dto.Category]
 	if !ok {
 		return nil, fmt.Errorf("unknown category for Kufar: %s", dto.Category)
 	}
 
-	// 3. Создаем задачи, итерируя по всем локациям И всем типам сделок
+	// Создаем задачи
 	tasks := make([]domain.SearchCriteria, 0, len(kufarLocations)*len(constants.DealTypes))
 
-	// Внешний цикл по локациям (для "Минск" он выполнится дважды)
 	for _, location := range kufarLocations {
 		for _, kufarCategory := range kufarCategories {
 			for _, dealType := range constants.DealTypes {
@@ -136,7 +123,7 @@ func (a *TasksConsumerAdapter) translateDTOToInternalTasks(dto TaskInfo) ([]doma
 	
 				task := domain.SearchCriteria{
 					Category: kufarCategory,
-					Location: location, // <-- Используем конкретную локацию из цикла
+					Location: location,
 					DealType: dealType,
 	
 					AdsAmount: constants.MaxAdsAmount,

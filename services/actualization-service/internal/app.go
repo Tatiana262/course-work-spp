@@ -32,8 +32,8 @@ type App struct {
 	apiServer *rest.Server
 
 	eventProducer *rabbitmq_producer.Publisher
-	logger        port.LoggerPort // <-- ДОБАВЛЯЕМ ЛОГГЕР В СТРУКТУРУ
-	fluentClient  *fluent.Fluent  // <-- ОСТАВЛЯЕМ ДЛЯ КОРРЕКТНОГО ЗАКРЫТИЯ
+	logger        port.LoggerPort 
+	fluentClient  *fluent.Fluent  
 }
 
 func NewApp() (*App, error) {
@@ -42,7 +42,7 @@ func NewApp() (*App, error) {
 		return nil, fmt.Errorf("error loading application configuration: %w", err)
 	}
 
-	// --- 1. ИНИЦИАЛИЗАЦИЯ ЛОГГЕРОВ ---
+	// инициализация логеров
 	var activeLoggers []port.LoggerPort
 
 	slogCfg := logger_adapter.SlogConfig{
@@ -54,7 +54,6 @@ func NewApp() (*App, error) {
 	activeLoggers = append(activeLoggers, stdoutLogger)
 
 	// Добавляем Fluent Bit логгер, если он включен в конфигурации
-	// (предположим, что в appConfig.FluentBit есть поле Enabled bool)
 	var fluentClient *fluent.Fluent
 	if appConfig.FluentBit.Enabled {
 		fluentClient, err = fluentlogger.NewClient(fluentlogger.Config{
@@ -76,13 +75,13 @@ func NewApp() (*App, error) {
 		activeLoggers = append(activeLoggers, fluentAdapter)
 	}
 
-	// Создаем наш композитный логгер
+	// Создаем композитный логгер
 	multiLogger, err := logger_adapter.NewMultiloggerAdapter(activeLoggers...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create multi-logger: %w", err)
 	}
 
-	// --- 2. СОЗДАЕМ БАЗОВЫЙ ЛОГГЕР ПРИЛОЖЕНИЯ С КОНТЕКСТОМ ---
+	// базовый логер приложения
 	baseLogger := multiLogger.WithFields(port.Fields{
 		"service_name": appConfig.AppName,
 		// "service_version": "1.0.0",
@@ -126,7 +125,7 @@ func NewApp() (*App, error) {
 
 	linksSearchQueueAdapter, _ := rabbitmq_adapter.NewRabbitMQLinksSearchQueueAdapter(eventProducer)
 
-	// ИНИЦИАЛИЗАЦИЯ USE CASES (ядра бизнес-логики)
+	// инициализация use cases (ядра бизнес-логики)
 	actualizeActiveObjectsUseCase := usecase.NewActualizeActiveObjectsUseCase(storageClient, linksQueueAdapter, userTasksClient, tasksResultsAdapter)
 	actualizeArchivedObjectsUseCase := usecase.NewActualizeArchivedObjectsUseCase(storageClient, linksQueueAdapter, userTasksClient, tasksResultsAdapter)
 	actualizeObjectByIdUseCase := usecase.NewActualizeObjectsByIdUseCase(storageClient, linksQueueAdapter, userTasksClient, tasksResultsAdapter)
@@ -138,19 +137,19 @@ func NewApp() (*App, error) {
 	apiHandlers := rest.NewActualizationHandlers(actualizeActiveObjectsUseCase, actualizeArchivedObjectsUseCase, actualizeObjectByIdUseCase, findNewObjectsUseCase)
 	apiServer := rest.NewServer(appConfig.Rest.PORT, apiHandlers, baseLogger)
 
-	// 5. Собираем приложение
+	// Собираем приложение
 	application := &App{
 		config:        appConfig,
 		apiServer:     apiServer,
 		eventProducer: eventProducer,
-		logger:        appLogger,    // <-- СОХРАНЯЕМ ЛОГГЕР
-		fluentClient:  fluentClient, // <-- СОХРАНЯЕМ КЛИЕНТ ДЛЯ ЗАКРЫТИЯ
+		logger:        appLogger,    
+		fluentClient:  fluentClient, 
 	}
 
 	return application, nil
 }
 
-// Run запускает все компоненты приложения и управляет их жизненным циклом.
+// Run запускает все компоненты приложения и управляет их жизненным циклом
 func (a *App) Run() error {
 	// Создаем единый контекст для всего приложения для управления graceful shutdown
 	appCtx, cancelApp := context.WithCancel(context.Background())
@@ -175,7 +174,7 @@ func (a *App) Run() error {
 
 		if a.fluentClient != nil {
 			if err := a.fluentClient.Close(); err != nil {
-				// Логируем в stdout, так как fluent может быть уже недоступен
+				// Логируем в stdout, так как fluent уже недоступен
 				fmt.Printf("ERROR: Error closing fluent client: %v\n", err)
 			}
 		}

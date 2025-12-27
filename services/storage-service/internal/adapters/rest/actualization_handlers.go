@@ -75,7 +75,7 @@ func (h *ActualiztionObjectsHandler) GetActiveObjects(w http.ResponseWriter, r *
     }
 
 	handlerLogger.Info("Successfully found objects", port.Fields{"count": len(response)})
-	RespondWithJSON(w, http.StatusOK, response) // Используем хелпер для отправки
+	RespondWithJSON(w, http.StatusOK, response)
 }
 
 
@@ -123,7 +123,7 @@ func (h *ActualiztionObjectsHandler) GetArchivedObjects(w http.ResponseWriter, r
     }
 
 	handlerLogger.Info("Successfully found objects", port.Fields{"count": len(response)})
-	RespondWithJSON(w, http.StatusOK, response) // Используем хелпер для отправки
+	RespondWithJSON(w, http.StatusOK, response) 
 }
 
 
@@ -166,7 +166,7 @@ func (h *ActualiztionObjectsHandler) GetObjectsByMasterID(w http.ResponseWriter,
     }
 
 	handlerLogger.Info("Successfully found objects", port.Fields{"count": len(response)})
-	RespondWithJSON(w, http.StatusOK, response) // Используем хелпер для отправки
+	RespondWithJSON(w, http.StatusOK, response)
 }
 
 
@@ -196,5 +196,5 @@ func(h *ActualiztionObjectsHandler) GetActualizationStats(w http.ResponseWriter,
 
 	
 	handlerLogger.Info("Successfully get stats", nil)
-	RespondWithJSON(w, http.StatusOK, statsResp) // Используем хелпер для отправки
+	RespondWithJSON(w, http.StatusOK, statsResp)
 }

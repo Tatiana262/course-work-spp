@@ -1,14 +1,11 @@
 package usecase
 
 import (
-	// "actualization-service/internal/constants"
 	"actualization-service/internal/contextkeys"
 	"actualization-service/internal/core/domain"
-	"actualization-service/internal/core/port" // Используем порты
+	"actualization-service/internal/core/port"
 	"context"
 	"fmt"
-
-	// "log"
 
 	"github.com/google/uuid"
 )
@@ -62,14 +59,14 @@ func (uc *ActualizeArchivedObjectsUseCase) Execute(ctx context.Context, userID u
 
 	ucLogger.Info("User task created successfully, starting background processing", port.Fields{"task_id": taskID.String()})
 
-	// Шаг 2: Запускаем основную логику в фоновой горутине, чтобы немедленно вернуть ответ.
+	// Запускаем основную логику в фоновой горутине, чтобы немедленно вернуть ответ
 	go uc.runInBackground(backgroundCtx, taskID, category, limit)
 
-	// Шаг 3: Немедленно возвращаем ID задачи.
+	// возвращаем ID задачи
 	return taskID, nil
 }
 
-// runInBackground - приватный метод для выполнения долгой работы.
+// runInBackground - приватный метод для выполнения фоновой работы
 func (uc *ActualizeArchivedObjectsUseCase) runInBackground(ctx context.Context, taskID uuid.UUID, category *string, limit int) {
 
 	logger := contextkeys.LoggerFromContext(ctx)
@@ -79,21 +76,20 @@ func (uc *ActualizeArchivedObjectsUseCase) runInBackground(ctx context.Context, 
 		"category": *category,
 	})
 
-	// Шаг 3.1: Обновляем статус задачи на "running"
+	// Обновляем статус задачи на "running"
 	if err := uc.taskService.UpdateTaskStatus(ctx, taskID, "running"); err != nil {
 		taskLogger.Error("Failed to update task status to 'running'", err, nil)
-		// Можно обновить статус на "failed" здесь же
 		uc.taskService.UpdateTaskStatus(ctx, taskID, "failed")
 		return
 	}
 
 	var categoriesToProcess []string
 	if category != nil && *category != "" {
-		// Сценарий 1: Задана одна конкретная категория
+		// 1. Задана одна конкретная категория
 		categoriesToProcess = []string{*category}
 		taskLogger.Debug("Starting single-category actualization", port.Fields{"category": *category})
 	} else {
-		// Сценарий 2: Актуализация всех категорий
+		// 2. Актуализация всех категорий
 		taskLogger.Debug("Starting multi-category actualization", nil)
 		
         // Получаем список всех категорий от storage-service
@@ -159,7 +155,6 @@ func (uc *ActualizeArchivedObjectsUseCase) runInBackground(ctx context.Context, 
 		}
 	}
 
-	// taskLogger.Info("All sub-tasks for archived objects dispatched. Sending completion command for user task", port.Fields{"dispatched_count": totalTasksToDispatch})
 	completionCmd := domain.TaskCompletionCommand{
 		TaskID:               taskID,
 		Results: map[string]int{

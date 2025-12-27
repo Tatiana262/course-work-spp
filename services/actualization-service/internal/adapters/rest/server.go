@@ -4,16 +4,12 @@ import (
 	core_ports "actualization-service/internal/core/port"
 	"context"
 	"fmt"
-
-	// "log"
 	"net/http"
-	// "time"
-
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
 )
 
-// Server — это наш REST API сервер.
+
 type Server struct {
 	httpServer *http.Server
 	logger     core_ports.LoggerPort
@@ -22,14 +18,8 @@ type Server struct {
 func NewServer(port string, handlers *ActualizationHandlers, baseLogger core_ports.LoggerPort) *Server {
 	r := chi.NewRouter()
 
-	// serverLogger := baseLogger.WithFields(core_ports.Fields{"component": "rest_server"})
-
-	// Добавляем middleware. Это стандартные "плагины" для обработки запросов.
-	// r.Use(middleware.RequestID)      // Присваивает уникальный ID каждому запросу
-	// r.Use(middleware.RealIP)         // Определяет реальный IP клиента
 	r.Use(LoggerMiddleware(baseLogger)) // Логирует каждый запрос (метод, путь, время выполнения)
 	r.Use(middleware.Recoverer)         // Перехватывает паники и возвращает 500 ошибку, чтобы сервер не упал
-	// r.Use(middleware.Timeout(60 * time.Second)) // Устанавливает таймаут на выполнение запроса
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Route("/actualize", func(r chi.Router) {
@@ -53,7 +43,7 @@ func NewServer(port string, handlers *ActualizationHandlers, baseLogger core_por
 	}
 }
 
-// Start запускает HTTP-сервер. Это блокирующий вызов.
+// Start запускает HTTP-сервер
 func (s *Server) Start() error {
 
 	s.logger.Info("Starting REST API server", core_ports.Fields{"address": s.httpServer.Addr})
@@ -65,7 +55,7 @@ func (s *Server) Start() error {
 	return nil
 }
 
-// Stop корректно останавливает сервер.
+// Stop корректно останавливает сервер
 func (s *Server) Stop(ctx context.Context) error {
 	s.logger.Info("Stopping REST API server...", nil)
 	return s.httpServer.Shutdown(ctx)

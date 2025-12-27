@@ -27,10 +27,10 @@ func (qb *queryBuilder) addCondition(condition string, fieldName string, arg int
 	qb.argId++
 }
 
-// AddFilter теперь принимает указатели на float64 и int
+// AddFilter принимает указатели на float64 и int
 func (qb *queryBuilder) AddFloatFilter(fieldName string, min *float64, max *float64) {
 	if min != nil {
-		qb.addCondition("%s >= $%d", fieldName, *min) // Разыменовываем ЗДЕСЬ
+		qb.addCondition("%s >= $%d", fieldName, *min)
 	}
 	if max != nil {
 		qb.addCondition("%s <= $%d", fieldName, *max)
@@ -46,7 +46,7 @@ func (qb *queryBuilder) AddIntFilter(fieldName string, min *int, max *int) {
 	}
 }
 
-// build создает финальные части запроса.
+// build создает финальные части запроса
 func (qb *queryBuilder) build() (string, string, []interface{}) {
 	whereClause := ""
 	if len(qb.conditions) > 0 {
@@ -56,28 +56,27 @@ func (qb *queryBuilder) build() (string, string, []interface{}) {
 }
 
 
-// applyFilters - главный метод, который разбирает фильтры и строит запрос.
+// applyFilters - главный метод, который разбирает фильтры и строит запрос
 func applyFilters(filters domain.FindObjectsFilters) (string, string, []interface{}) {
 	qb := newQueryBuilder()
 
-	// --- Фильтры по местоположению ---
-
-	// 1. Фильтр по Области (точное совпадение)
+	
+	// Фильтр по области (точное совпадение)
 	if filters.Region != "" {
 		qb.addCondition("%s = $%d", "gp.region", filters.Region)
 	}
 
-	// 2. Фильтр по Городу/Району (точное совпадение)
+	// Фильтр по Городу/Району (точное совпадение)
 	if filters.CityOrDistrict != "" {
 		qb.addCondition("%s = $%d", "gp.city_or_district", filters.CityOrDistrict)
 	}
 
-	// 3. Фильтр по Улице (поиск подстроки в поле address)
+	// Фильтр по улице (поиск подстроки в поле address)
 	if filters.Street != "" {
 		qb.addCondition("%s ILIKE $%d", "gp.address", "%"+filters.Street+"%")
 	}
 
-	// --- Основные фильтры по general_properties ---
+	// Основные фильтры по general_properties
 	if filters.Category != "" {
 		qb.addCondition("%s = $%d", "gp.category", filters.Category)
 	}
@@ -94,7 +93,7 @@ func applyFilters(filters domain.FindObjectsFilters) (string, string, []interfac
 		qb.AddFloatFilter("gp.price_usd", filters.PriceMin, filters.PriceMax)
 	}
 	
-	// --- Специфичные фильтры, требующие JOIN ---
+	// Специфичные фильтры, требующие JOIN
 	switch filters.Category {
 	case "apartment":
 		qb.joinClause.WriteString(" JOIN apartments d ON gp.id = d.property_id ")
@@ -190,19 +189,18 @@ func applyFilters(filters domain.FindObjectsFilters) (string, string, []interfac
 		}
 
 		if len(filters.CommercialImprovements) > 0 {
-			// Используем оператор пересечения `&&`
+			// Используем оператор пересечения &&
 			qb.addCondition("%s && $%d", "d.commercial_improvements", filters.CommercialImprovements)
 		}
 
 		if filters.CommercialRoomsMin != nil || filters.CommercialRoomsMax != nil {
-			// Формируем сложное условие.
-			// coalesce используется на случай, если одна из границ не задана.
+			// coalesce используется на случай, если одна из границ не задана
 			condition := fmt.Sprintf(
 				"(d.rooms_range[1] <= COALESCE($%d, 1000) AND d.rooms_range[cardinality(d.rooms_range)] >= COALESCE($%d, 0))",
 				qb.argId, qb.argId+1,
 			)
 			qb.conditions = append(qb.conditions, condition)
-			qb.args = append(qb.args, filters.CommercialRoomsMax, filters.CommercialRoomsMin) // ВНИМАНИЕ: Порядок! Сначала Max, потом Min.
+			qb.args = append(qb.args, filters.CommercialRoomsMax, filters.CommercialRoomsMin)
 			qb.argId += 2
 		}
 	}

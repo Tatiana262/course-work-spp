@@ -47,15 +47,14 @@ type App struct {
 	searchEventsListener port.EventListenerPort
 }
 
-// NewApp создает новый экземпляр приложения.
-// Это "Composition Root", где все зависимости создаются и связываются.
+// NewApp создает новый экземпляр приложения
 func NewApp() (*App, error) {
 	appConfig, err := configs.LoadConfig()
 	if err != nil {
 		return nil, fmt.Errorf("error loading application configuration: %w", err)
 	}
 
-	// --- 1. ИНИЦИАЛИЗАЦИЯ ЛОГГЕРОВ ---
+	// инициализация логеров
 	var activeLoggers []port.LoggerPort
 
 	slogCfg := logger_adapter.SlogConfig{
@@ -67,7 +66,6 @@ func NewApp() (*App, error) {
 	activeLoggers = append(activeLoggers, stdoutLogger)
 
 	// Добавляем Fluent Bit логгер, если он включен в конфигурации
-	// (предположим, что в appConfig.FluentBit есть поле Enabled bool)
 	var fluentClient *fluent.Fluent
 	if appConfig.FluentBit.Enabled {
 		fluentClient, err = fluentlogger.NewClient(fluentlogger.Config{
@@ -89,13 +87,13 @@ func NewApp() (*App, error) {
 		activeLoggers = append(activeLoggers, fluentAdapter)
 	}
 
-	// Создаем наш композитный логгер
+	// Создаем композитный логгер
 	multiLogger, err := logger_adapter.NewMultiloggerAdapter(activeLoggers...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create multi-logger: %w", err)
 	}
 
-	// --- 2. СОЗДАЕМ БАЗОВЫЙ ЛОГГЕР ПРИЛОЖЕНИЯ С КОНТЕКСТОМ ---
+	// базовый логер приложения
 	baseLogger := multiLogger.WithFields(port.Fields{
 		"service_name": appConfig.AppName,
 		// "service_version": "1.0.0",
@@ -118,7 +116,6 @@ func NewApp() (*App, error) {
 	}
 	appLogger.Debug("RabbitMQ Connection Manager initialized.", nil)
 
-	// 1. Инициализация низкоуровневых зависимостей
 	dbPool, err := postgres.NewClient(context.Background(), postgres.Config{DatabaseURL: appConfig.Database.URL})
 	if err != nil {
 		appLogger.Error("Failed to connect to PostgreSQL", err, nil)
@@ -161,14 +158,14 @@ func NewApp() (*App, error) {
 
 	appLogger.Debug("All outgoing adapters initialized.", nil)
 
-	// 3. ИНИЦИАЛИЗАЦИЯ USE CASES (ядра бизнес-логики)
+	// инициализация use cases
 	fetchKufarUseCase := usecase.NewFetchAndEnqueueLinksUseCase(kufarAdapter, linkQueueAdapter, pgLastRunRepo, "kufar")
 	processLinkUseCase := usecase.NewProcessLinkUseCase(kufarAdapter, processedPropertyQueueAdapter)
 	orchestrateParsingUseCase := usecase.NewOrchestrateParsingUseCase(fetchKufarUseCase, tasksResultsQueueAdapter)
 	// savePropertyUseCase := usecase.NewSavePropertyUseCase(postgresStorageAdapter)
 	appLogger.Debug("All use cases initialized.", nil)
 
-	// 4. ИНИЦИАЛИЗАЦИЯ ВХОДЯЩИХ АДАПТЕРОВ (те, которые ВЫЗЫВАЮТ наше ядро)
+	// инициализация входящих адаптеров
 	linksConsumerCfg := rabbitmq_consumer.ConsumerConfig{
 		Config:              rabbitmq_common.Config{URL: appConfig.RabbitMQ.URL},
 		QueueName:           constants.QueueLinkTasks,
@@ -182,12 +179,10 @@ func NewApp() (*App, error) {
 			"x-max-priority": int32(4),
 		},
 
-		// --- НОВЫЕ НАСТРОЙКИ ---
-		// 1. Включаем сам механизм
+		
 		EnableRetryMechanism: true,
 
-		// 2. Настраиваем "сателлиты" для этой конкретной очереди.
-		// Используем имя основной очереди как префикс для уникальности.
+		
 		// RetryExchange: constants.QueueLinkTasks + "_retry_ex",
 		// RetryQueue:    constants.QueueLinkTasks + "_retry_wait_10s",
 		// RetryTTL:      10000, // 10 секунд в миллисекундах
@@ -196,12 +191,11 @@ func NewApp() (*App, error) {
 		RetryQueue: constants.WaitQueue,
 		RetryTTL: constants.RetryTTL,
 
-		// 3. Указываем общую "свалку" для сообщений, исчерпавших все попытки.
+		
 		FinalDLXExchange:   constants.FinalDLXExchange,
 		FinalDLQ:           constants.FinalDLQ,
 		FinalDLQRoutingKey: constants.FinalDLQRoutingKey,
 
-		// 4. Задаем количество ретраев (помимо первой попытки).
 		MaxRetries: 3,
 	}
 	linkListener, err := rabbitmq_adapter.NewLinkConsumerAdapter(linksConsumerCfg, processLinkUseCase, baseLogger, connManager)
@@ -223,12 +217,10 @@ func NewApp() (*App, error) {
 		ConsumerTag:         "search-tasks-processor-adapter",
 		DeclareQueue:        true,
 
-		// --- НОВЫЕ НАСТРОЙКИ ---
-		// 1. Включаем сам механизм
+		
 		EnableRetryMechanism: true,
 
-		// 2. Настраиваем "сателлиты" для этой конкретной очереди.
-		// Используем имя основной очереди как префикс для уникальности.
+		
 		// RetryExchange: constants.QueueSearchTasks + "_retry_ex",
 		// RetryQueue:    constants.QueueSearchTasks + "_retry_wait_10s",
 		// RetryTTL:      10000, // 10 секунд в миллисекундах
@@ -237,12 +229,11 @@ func NewApp() (*App, error) {
 		RetryQueue: constants.WaitQueue,
 		RetryTTL: constants.RetryTTL,
 		
-		// 3. Указываем общую "свалку" для сообщений, исчерпавших все попытки.
+		
 		FinalDLXExchange:   constants.FinalDLXExchangeForSearchTasks,
 		FinalDLQ:           constants.FinalDLQForSearchTasks,
 		FinalDLQRoutingKey: constants.FinalDLQRoutingKeyForSearchTasks,
 
-		// 4. Задаем количество ретраев (помимо первой попытки).
 		MaxRetries: 3,
 	}
 	searchTasksListener, err := rabbitmq_adapter.NewTasksConsumerAdapter(tasksConsumerCfg, orchestrateParsingUseCase, baseLogger, connManager)
@@ -254,7 +245,7 @@ func NewApp() (*App, error) {
 	}
 	appLogger.Debug("Search Events Listener initialized.", nil)
 
-	// 5. Собираем приложение
+	// Собираем приложение
 	application := &App{
 		config:        appConfig,
 		dbPool:        dbPool,
@@ -286,7 +277,7 @@ func NewApp() (*App, error) {
 // 	}
 // }
 
-// Run запускает все компоненты приложения и управляет их жизненным циклом.
+// Run запускает все компоненты приложения и управляет их жизненным циклом
 func (a *App) Run() error {
 	// Создаем единый контекст для всего приложения для управления graceful shutdown
 	appCtx, cancelApp := context.WithCancel(context.Background())

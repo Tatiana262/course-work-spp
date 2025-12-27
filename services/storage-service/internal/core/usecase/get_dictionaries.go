@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	// "log"
 	"storage-service/internal/contextkeys"
 	"storage-service/internal/core/domain"
 	"storage-service/internal/core/port"
@@ -17,7 +16,7 @@ func NewGetDictionariesUseCase(repo port.FilterOptionsRepositoryPort) *GetDictio
 	return &GetDictionariesUseCase{repo: repo}
 }
 
-// Execute получает список имен справочников и возвращает их содержимое.
+// Execute получает список имен справочников и возвращает их содержимое
 func (uc *GetDictionariesUseCase) Execute(ctx context.Context, names []string) (map[string][]domain.DictionaryItem, error) {
 
 	logger := contextkeys.LoggerFromContext(ctx)
@@ -27,10 +26,10 @@ func (uc *GetDictionariesUseCase) Execute(ctx context.Context, names []string) (
 
     ucLogger.Info("Use case started", nil)
 	
-	// Создаем map для хранения финального результата.
+	// Создаем map для хранения финального результата
 	result := make(map[string][]domain.DictionaryItem)
 	
-	// Используем map для удобства проверки, какие справочники запрошены.
+	// Используем map для удобства проверки, какие справочники запрошены
 	namesMap := make(map[string]bool)
 	for _, name := range names {
 		namesMap[strings.TrimSpace(name)] = true
@@ -59,7 +58,6 @@ func (uc *GetDictionariesUseCase) Execute(ctx context.Context, names []string) (
 	// Если запрошены типы сделок или все справочники
 	if namesMap["deal_types"] || len(namesMap) == 0 {
 		dealTypes, err := uc.repo.GetUniqueDealTypes(ctx)
-		// log.Println("!!!!!", dealTypes, "!!!!!!!")
 		if err != nil {
 			ucLogger.Error("Storage returned an error while getting unique deal types", err, nil)
 		} else {

@@ -61,12 +61,12 @@ func GetOffsetOrDefault(r *http.Request) (*int, error) {
 
 
 
-// parseString извлекает строковый параметр.
+// parseString извлекает строковый параметр
 func parseString(q url.Values, key string) string {
 	return q.Get(key)
 }
 
-// parseFloat извлекает float64 параметр.
+// parseFloat извлекает float64 параметр
 func parseFloat(q url.Values, key string) *float64 {
 	strVal := q.Get(key)
 	if strVal == "" {
@@ -90,7 +90,7 @@ func parseInt(q url.Values, key string) *int {
 	return nil
 }
 
-// parseIntSlice извлекает срез int, разделенных запятыми (например, "1,2,5").
+// parseIntSlice извлекает срез int, разделенных запятыми
 func parseIntSlice(q url.Values, key string) []int {
 	strVal := q.Get(key)
 	if strVal == "" {
@@ -106,7 +106,7 @@ func parseIntSlice(q url.Values, key string) []int {
 	return result
 }
 
-// parseStringSlice извлекает срез строк, разделенных запятыми.
+// parseStringSlice извлекает срез строк, разделенных запятыми
 func parseStringSlice(q url.Values, key string) []string {
 	strVal := q.Get(key)
 	if strVal == "" {

@@ -54,7 +54,7 @@ func (h *FilterHandler) GetFilterOptions(w http.ResponseWriter, r *http.Request)
 		YearBuiltMax:    parseInt(query, "yearBuiltMax"),
 		WallMaterials:   parseStringSlice(query, "wallMaterials"),
 
-		// Только для квартир
+		// для квартир
 		FloorMin:         parseInt(query, "floorMin"),
 		FloorMax:         parseInt(query, "floorMax"),
 		FloorBuildingMin: parseInt(query, "floorBuildingMin"),
@@ -63,7 +63,7 @@ func (h *FilterHandler) GetFilterOptions(w http.ResponseWriter, r *http.Request)
 		BathroomType:     parseStringSlice(query, "bathroomType"),
 		BalconyType:      parseStringSlice(query, "balconyType"),
 
-		// Только для домов
+		// для домов
 		HouseTypes:        parseStringSlice(query, "houseTypes"),
 		PlotAreaMin:       parseFloat(query, "plotAreaMin"),
 		PlotAreaMax:       parseFloat(query, "plotAreaMax"),
@@ -75,7 +75,7 @@ func (h *FilterHandler) GetFilterOptions(w http.ResponseWriter, r *http.Request)
 		SewageConditions:  parseStringSlice(query, "sewageConditions"),
 		GazConditions:     parseStringSlice(query, "gazConditions"),
 
-        // Для коммерции
+        // для коммерции
         PropertyType: parseString(query, "commercialTypes"),
         CommercialImprovements: parseStringSlice(query, "commercialImprovements"),
         CommercialRepairs: parseStringSlice(query, "commercialRepairs"),
@@ -84,7 +84,7 @@ func (h *FilterHandler) GetFilterOptions(w http.ResponseWriter, r *http.Request)
         CommercialRoomsMax: parseInt(query, "roomsMax"),
 	}
     
-    // log.Println(filters.WallMaterials)
+
     // Вызываем Use Case
     result, err := h.getFilterOptionsUC.Execute(r.Context(), filters)
     if err != nil {
@@ -96,7 +96,6 @@ func (h *FilterHandler) GetFilterOptions(w http.ResponseWriter, r *http.Request)
 
     for key, value := range result.Options {
         responseFilters[key] = FilterOptionResponse{
-            // Type: value.Type,
             Options: value.Options,
             Min: value.Min,
             Max: value.Max,
@@ -113,17 +112,16 @@ func (h *FilterHandler) GetFilterOptions(w http.ResponseWriter, r *http.Request)
 
 
 func (h *FilterHandler) GetDictionaries(w http.ResponseWriter, r *http.Request) {
-    // Получаем `names` из query-параметра
+    // Получаем names из query-параметра
     namesStr := r.URL.Query().Get("names")
     var names []string
     if namesStr != "" {
         names = strings.Split(namesStr, ",")
     }
 
-    // Вызываем Use Case. Если `names` пустой, он вернет все справочники.
+    // Вызываем Use Case, если names пустой, он вернет все справочники
     dictionaries, err := h.getDictionariesUC.Execute(r.Context(), names)
     if err != nil {
-        // Use Case сам логирует ошибки, здесь просто возвращаем 500
         WriteJSONError(w, http.StatusInternalServerError, "Failed to retrieve dictionaries")
         return
     }

@@ -36,7 +36,7 @@ func (uc *GetUserFavoritesUseCase) Execute(ctx context.Context, userID uuid.UUID
 
 	ucLogger.Info("Use case started", nil)
 	
-	// Шаг 1: Получаем пагинированный список ID из нашего собственного хранилища.
+	// Получаем пагинированный список ID из нашего хранилища
 	paginatedIDs, err := uc.favoritesRepo.FindPaginatedByUser(ctx, userID, limit, offset)
 	if err != nil {
 		ucLogger.Error("Failed to get favorite IDs from repository", err, nil)
@@ -51,7 +51,7 @@ func (uc *GetUserFavoritesUseCase) Execute(ctx context.Context, userID uuid.UUID
 		})	
 		return &domain.PaginatedObjectsResult{
 			Objects:      []domain.ObjectCard{},
-			TotalCount:   paginatedIDs.TotalCount, // <-- Используем реальное общее количество
+			TotalCount:   paginatedIDs.TotalCount, 
 			CurrentPage:  offset/limit + 1,
 			ItemsPerPage: limit,
 		}, nil
@@ -69,10 +69,9 @@ func (uc *GetUserFavoritesUseCase) Execute(ctx context.Context, userID uuid.UUID
 		return nil, fmt.Errorf("failed to get object details from storage: %w", err)
 	}
     
-    // Шаг 3 (Важный): Сохраняем порядок.
+    // Сохраняем порядок
     // storage-service не гарантирует порядок, а мы хотим показать избранное
-    // в том порядке, в котором пользователь его добавлял (или в обратном).
-    // Мы знаем правильный порядок из `paginatedIDs.MasterObjectIDs`.
+    // в том порядке, в котором пользователь его добавлял (или в обратном)
     
     objectMap := make(map[string]domain.ObjectCard, len(objects))
     for _, obj := range objects {
@@ -86,7 +85,7 @@ func (uc *GetUserFavoritesUseCase) Execute(ctx context.Context, userID uuid.UUID
         }
     }
 
-	// Шаг 4: Формируем финальный результат.
+	//Формируем финальный результат
 	result := &domain.PaginatedObjectsResult{
 		Objects:      sortedObjects,
 		TotalCount:   paginatedIDs.TotalCount,

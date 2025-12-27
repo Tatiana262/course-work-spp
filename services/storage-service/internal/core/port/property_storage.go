@@ -7,11 +7,9 @@ import (
 	"github.com/google/uuid"
 )
 
-// PropertyStoragePort определяет контракт для сохранения
-// обработанного объекта недвижимости в постоянное хранилище.
+
 type PropertyStoragePort interface {
 	Save(ctx context.Context, record domain.RealEstateRecord) error
-	// BatchSave(ctx context.Context, records []domain.RealEstateRecord) error
 	BatchSave(ctx context.Context, records []domain.RealEstateRecord) (*domain.BatchSaveStats, error)
 
 	GetActiveIDsForActualization(ctx context.Context, category string, limit int) ([]domain.PropertyBasicInfo, error)

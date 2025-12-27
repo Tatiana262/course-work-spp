@@ -13,7 +13,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// Client - клиент для task-service.
+// Client - клиент для task-service
 type Client struct {
 	baseURL    string
 	httpClient *http.Client
@@ -42,7 +42,7 @@ func (c *Client) doRequest(ctx context.Context, method, url string, body io.Read
 	return c.httpClient.Do(req)
 }
 
-// CreateTask создает новую задачу и возвращает ее ID.
+// CreateTask создает новую задачу и возвращает ее ID
 func (c *Client) CreateTask(ctx context.Context, name, taskType string, userID uuid.UUID, params ...any) (uuid.UUID, error) {
 	logger := contextkeys.LoggerFromContext(ctx)
 	clientLogger := logger.WithFields(port.Fields{
@@ -71,16 +71,7 @@ func (c *Client) CreateTask(ctx context.Context, name, taskType string, userID u
 	}
 	defer resp.Body.Close()
 
-	// req, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(reqBody))
-	// req.Header.Set("Content-Type", "application/json")
-
-	// resp, err := c.httpClient.Do(req)
-	// if err != nil { return uuid.Nil, err }
-	// defer resp.Body.Close()
-
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		// Если статус-код указывает на ошибку, читаем тело ответа,
-		// чтобы включить его в нашу ошибку.
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		err := fmt.Errorf("task service returned non-success status code %d: %s", resp.StatusCode, string(bodyBytes))
 		clientLogger.Error("Received error response from task-service", err, port.Fields{"status_code": resp.StatusCode})
@@ -103,7 +94,7 @@ func (c *Client) CreateTask(ctx context.Context, name, taskType string, userID u
 	return taskID, nil
 }
 
-// UpdateTaskStatus обновляет статус задачи.
+// UpdateTaskStatus обновляет статус задачи
 func (c *Client) UpdateTaskStatus(ctx context.Context, taskID uuid.UUID, status string) error {
 
 	logger := contextkeys.LoggerFromContext(ctx)
@@ -125,16 +116,8 @@ func (c *Client) UpdateTaskStatus(ctx context.Context, taskID uuid.UUID, status 
 	}
 	defer resp.Body.Close()
 
-	// req, _ := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewBuffer(reqBody))
-	// req.Header.Set("Content-Type", "application/json")
-
-	// resp, err := c.httpClient.Do(req)
-	// if err != nil { return err }
-	// defer resp.Body.Close()
-
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		// Если статус-код указывает на ошибку, читаем тело ответа,
-		// чтобы включить его в нашу ошибку.
+		// статус-код указывает на ошибку
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		err := fmt.Errorf("task service returned non-success status code %d: %s", resp.StatusCode, string(bodyBytes))
 		clientLogger.Error("Received error response from task-service", err, port.Fields{"status_code": resp.StatusCode})

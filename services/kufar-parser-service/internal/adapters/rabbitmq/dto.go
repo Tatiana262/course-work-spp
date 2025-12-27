@@ -14,15 +14,15 @@ type TaskInfo struct {
 }
 
 type LinkTaskDTO struct {
-	Source string    `json:"source"` // "realt"
+	Source string    `json:"source"`
 	AdID   int64     `json:"ad_id"`
 	URL    string    `json:"ad_url"`
 	TaskID uuid.UUID `json:"task_id"`
 }
 
 
-// ProcessedRealEstateEventDTO - это структура "контракта".
-// Она точно соответствует JSON-схеме `processed-real-estate/v1.json`.
+// ProcessedRealEstateEventDTO - это структура контракта
+// Она точно соответствует JSON-схеме
 type ProcessedRealEstateEventDTO struct {
     General     GeneralPropertyDTO `json:"general"`
     DetailsType string             `json:"details_type"`
@@ -31,8 +31,7 @@ type ProcessedRealEstateEventDTO struct {
 	TaskID 		uuid.UUID 			`json:"task_id"`
 }
 
-// GeneralPropertyDTO - часть контракта для общей информации.
-// Обратите внимание на `json:"..."` в стиле camelCase, как в схеме.
+// GeneralPropertyDTO - часть контракта для общей информации
 type GeneralPropertyDTO struct {
 	Source     string `json:"source"`
 	SourceAdID int64  `json:"sourceAdId"`
@@ -74,7 +73,7 @@ type ApartmentDetailsDTO struct {
     WallMaterial        *string  `json:"wallMaterial,omitempty"`
     RepairState         *string  `json:"repairState,omitempty"`
     BathroomType        *string  `json:"bathroomType,omitempty"`
-    Balcony             *string  `json:"balconyType,omitempty"` // Исправил имя поля на 'balcony'
+    Balcony             *string  `json:"balconyType,omitempty"`
     PricePerSquareMeter *float64 `json:"pricePerSquareMeter,omitempty"`
     Parameters          map[string]interface{} `json:"parameters"`
 }
@@ -88,7 +87,7 @@ type HouseDetailsDTO struct {
     LivingSpaceArea   *float64 `json:"livingSpaceArea,omitempty"`
     BuildingFloors    *int8    `json:"buildingFloors,omitempty"`
     RoomsAmount       *int8    `json:"roomsAmount,omitempty"`
-    KitchenArea       *float64 `json:"kitchenArea,omitempty"` // Обратите внимание на имя
+    KitchenArea       *float64 `json:"kitchenArea,omitempty"`
     Electricity       *string  `json:"electricity,omitempty"`
     Water             *string  `json:"water,omitempty"`
     Heating           *string  `json:"heating,omitempty"`

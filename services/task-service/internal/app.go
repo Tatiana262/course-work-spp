@@ -46,7 +46,7 @@ func NewApp() (*App, error) {
 		return nil, fmt.Errorf("error loading application configuration: %w", err)
 	}
 
-	// --- 1. ИНИЦИАЛИЗАЦИЯ ЛОГГЕРОВ ---
+	// инициализация логеров
 	var activeLoggers []port.LoggerPort
 
 	slogCfg := logger_adapter.SlogConfig{
@@ -58,7 +58,6 @@ func NewApp() (*App, error) {
 	activeLoggers = append(activeLoggers, stdoutLogger)
 
 	// Добавляем Fluent Bit логгер, если он включен в конфигурации
-	// (предположим, что в appConfig.FluentBit есть поле Enabled bool)
 	var fluentClient *fluent.Fluent
 	if appConfig.FluentBit.Enabled {
 		fluentClient, err = fluentlogger.NewClient(fluentlogger.Config{
@@ -86,7 +85,7 @@ func NewApp() (*App, error) {
 		return nil, fmt.Errorf("failed to create multi-logger: %w", err)
 	}
 
-	// --- 2. СОЗДАЕМ БАЗОВЫЙ ЛОГГЕР ПРИЛОЖЕНИЯ С КОНТЕКСТОМ ---
+	// базовый логер
 	baseLogger := multiLogger.WithFields(port.Fields{
 		"service_name": appConfig.AppName,
 		// "service_version": "1.0.0",
@@ -106,7 +105,6 @@ func NewApp() (*App, error) {
 	}
 	appLogger.Debug("RabbitMQ Connection Manager initialized.", nil)
 
-	// 1. Инициализация низкоуровневых зависимостей
 	dbPool, err := postgres.NewClient(context.Background(), postgres.Config{DatabaseURL: appConfig.Database.URL})
 	if err != nil {
 		appLogger.Error("Failed to connect to PostgreSQL", err, nil)
@@ -124,7 +122,7 @@ func NewApp() (*App, error) {
 	sseNotifier := notifier.NewSSENotifier(baseLogger)
 	appLogger.Debug("SSE Notifier initialized.", nil)
 
-	// ИНИЦИАЛИЗАЦИЯ USE CASES (ядра бизнес-логики)
+	// инициализация use cases
 	createTaskUC := usecase.NewCreateTaskUseCase(taskRepo, sseNotifier)
 	updateTaskUC := usecase.NewUpdateTaskStatusUseCase(taskRepo, sseNotifier)
 	getTaskByIdUC := usecase.NewGetTaskByIdUseCase(taskRepo)
@@ -149,12 +147,8 @@ func NewApp() (*App, error) {
 		ConsumerTag:         "task-results-processor-adapter",
 		DeclareQueue:        true,
 
-		// --- НОВЫЕ НАСТРОЙКИ ---
-		// 1. Включаем сам механизм
 		EnableRetryMechanism: true,
 
-		// 2. Настраиваем "сателлиты" для этой конкретной очереди.
-		// Используем имя основной очереди как префикс для уникальности.
 		// RetryExchange: constants.QueueTaskResults + "_retry_ex",
 		// RetryQueue:    constants.QueueTaskResults + "_retry_wait_10s",
 		// RetryTTL:      10000, // 10 секунд в миллисекундах
@@ -163,12 +157,10 @@ func NewApp() (*App, error) {
 		RetryQueue: constants.WaitQueue,
 		RetryTTL: constants.RetryTTL,
 
-		// 3. Указываем общую "свалку" для сообщений, исчерпавших все попытки.
 		FinalDLXExchange:   constants.FinalDLXExchange,
 		FinalDLQ:           constants.FinalDLQ,
 		FinalDLQRoutingKey: constants.FinalDLQRoutingKey,
 
-		// 4. Задаем количество ретраев (помимо первой попытки).
 		MaxRetries: 3,
 	}
 
@@ -197,7 +189,7 @@ func NewApp() (*App, error) {
 			EnableRetryMechanism: false,	
 		}
 
-		// Создаем новый экземпляр DLQ адаптера
+		// новый экземпляр DLQ адаптера
 		dlqListener, err := rabbitmq_adapter.NewDLQConsumerAdapter(
 			dlqConsumerCfg,
 			updateTaskUC, 
@@ -215,7 +207,7 @@ func NewApp() (*App, error) {
 
 	appLogger.Debug("All RabbitMQ listeners initialized.", nil)
 
-	// 5. Собираем приложение
+	// Собираем приложение
 	application := &App{
 		config:                         appConfig,
 		dbPool:                         dbPool,

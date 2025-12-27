@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// FindObjectsFilters - структура для передачи всех возможных фильтров.
+// FindObjectsFilters - структура для передачи всех возможных фильтров
 type FindObjectsFilters struct {
 	Category string
     DealType string
@@ -34,7 +34,7 @@ type FindObjectsFilters struct {
 
     WallMaterials  []string 
 
-    // Только для квартир
+    // для квартир
 	FloorMin       *int     
 	FloorMax       *int
 
@@ -48,7 +48,7 @@ type FindObjectsFilters struct {
     // PricePerSquareMeterMin *float64 
 	// PricePerSquareMeterMax *float64		
 
-    // Только для домов
+    // для домов
     HouseTypes   []string
 
     PlotAreaMin *float64
@@ -72,7 +72,7 @@ type FindObjectsFilters struct {
     CommercialRoomsMax *int
 }
 
-// PaginatedResult - стандартная структура для ответа с пагинацией.
+// PaginatedResult - стандартная структура для ответа с пагинацией
 type PaginatedResult struct {
     Objects      []GeneralPropertyInfo // Возвращаем только общую информацию для списка
     TotalCount   int                      // Общее количество найденных объектов
@@ -81,7 +81,7 @@ type PaginatedResult struct {
 }
 
 
-// TODO
+
 type GeneralPropertyInfo struct {
     MasterObjectID	string	
 	ID           uuid.UUID 			
@@ -123,7 +123,7 @@ type DuplicatesInfo struct {
 }
 
 type PropertyDetailsView struct {
-    MainProperty  GeneralPropertyInfo // Используем полную структуру
-    Details       interface{}       // *Apartment, *House...
-    RelatedOffers []DuplicatesInfo // Список всех других предложений
+    MainProperty  GeneralPropertyInfo 
+    Details       interface{}      
+    RelatedOffers []DuplicatesInfo 
 }

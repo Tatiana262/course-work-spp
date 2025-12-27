@@ -4,11 +4,10 @@ import (
 	"actualization-service/internal/constants"
 	"actualization-service/internal/contextkeys"
 	"actualization-service/internal/core/domain"
-	"actualization-service/internal/core/port" // Используем порты
+	"actualization-service/internal/core/port"
 	"context"
 	"fmt"
 
-	// "log"
 	"strings"
 
 	"github.com/google/uuid"
@@ -45,7 +44,7 @@ func (uc *FindNewObjectsUseCase) Execute(ctx context.Context, userID uuid.UUID, 
 	backgroundCtx = contextkeys.ContextWithLogger(backgroundCtx, logger)
 	backgroundCtx = contextkeys.ContextWithTraceID(backgroundCtx, traceID)
 
-	// Шаг 1: Создаем задачу в task-service
+	// Создаем задачу в task-service
 	taskName := fmt.Sprintf("Поиск новых объектов (Категории: %v, Регионы: %v)", categories, regions)
 	taskID, err := uc.taskService.CreateTask(ctx, taskName, "FIND_NEW", userID)
 	if err != nil {
@@ -55,13 +54,13 @@ func (uc *FindNewObjectsUseCase) Execute(ctx context.Context, userID uuid.UUID, 
 
 	ucLogger.Info("User task created successfully, starting background processing", port.Fields{"task_id": taskID.String()})
 
-	// Шаг 2: Запускаем основную логику в фоновой горутине, чтобы немедленно вернуть ответ.
+	// Запускаем основную логику в фоновой горутине, чтобы немедленно вернуть ответ
 	go uc.runInBackground(backgroundCtx, taskID, categories, regions)
 
 	return taskID, nil
 }
 
-// runInBackground - приватный метод для выполнения долгой работы.
+// runInBackground - приватный метод для выполнения фоновой работы
 func (uc *FindNewObjectsUseCase) runInBackground(ctx context.Context, taskID uuid.UUID, categories []string, regions []string) {
 
 	logger := contextkeys.LoggerFromContext(ctx)
@@ -72,7 +71,7 @@ func (uc *FindNewObjectsUseCase) runInBackground(ctx context.Context, taskID uui
 		"regions":    strings.Join(regions, ", "),
 	})
 
-	// Шаг 3.1: Обновляем статус задачи на "running"
+	// Обновляем статус задачи на "running"
 	if err := uc.taskService.UpdateTaskStatus(ctx, taskID, "running"); err != nil {
 		taskLogger.Error("Failed to update task status to 'running'", err, nil)
 		uc.taskService.UpdateTaskStatus(ctx, taskID, "failed")
@@ -127,13 +126,13 @@ func (uc *FindNewObjectsUseCase) runInBackground(ctx context.Context, taskID uui
 
 func (uc *FindNewObjectsUseCase) generateAllTasks(categories []string, regions []string, taskID uuid.UUID) []domain.FindNewLinksTask {
 
-	if len(categories) == 0 {
-		categories = []string{"all-categories"}
-	}
+	// if len(categories) == 0 {
+	// 	categories = []string{"all-categories"}
+	// }
 
-	if len(regions) == 0 {
-		regions = []string{"all-regions"}
-	}
+	// if len(regions) == 0 {
+	// 	regions = []string{"all-regions"}
+	// }
 
 	routingKeys := []string{
 		constants.RoutingKeySearchTasksRealt,

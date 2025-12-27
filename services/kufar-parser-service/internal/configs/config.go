@@ -31,7 +31,7 @@ type FluentBitConfig struct {
 
 // AppConfig хранит всю конфигурацию приложения
 type AppConfig struct {
-	AppName   	string   `mapstructure:"APP_NAME" default:"kufar-parser-service"` // <-- ДОБАВЬТЕ ЭТО
+	AppName   	string 
 	Database    DBconfig
 	RabbitMQ    RabbitMQConfig 
 	FluentBit	FluentBitConfig

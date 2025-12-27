@@ -1,8 +1,8 @@
 package rest
 
 import (
-	"storage-service/internal/contextkeys" // Путь к вашим утилитам контекста
-	"storage-service/internal/core/port"   // Путь к порту логгера
+	"storage-service/internal/contextkeys" 
+	"storage-service/internal/core/port"  
 	"net/http"
 	"time"
 
@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// LoggerMiddleware — это наш middleware для структурированного логирования.
+// LoggerMiddleware — это middleware для структурированного логирования
 func LoggerMiddleware(logger port.LoggerPort) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -19,25 +19,21 @@ func LoggerMiddleware(logger port.LoggerPort) func(next http.Handler) http.Handl
 				traceID = uuid.New().String()
 			}
 
-			// --- Элегантное разделение ---
-
-			// 1. Логгер ТОЛЬКО для бизнес-логики (use case, repository).
-			// Содержит только то, что важно для всех слоев.
+			// Логгер только для бизнес-логики (use case, repository)
 			coreLogger := logger.WithFields(port.Fields{
 				"trace_id": traceID,
 			})
 
-			// 2. Логгер ТОЛЬКО для этого middleware.
-			// Он "наследует" coreLogger и добавляет HTTP-специфичные поля.
+			// Логгер только для этого middleware
 			httpLogger := coreLogger.WithFields(port.Fields{
 				"http_method": r.Method,
 				"http_path":   r.URL.Path,
 				"remote_addr": r.RemoteAddr,
 			})
 			
-			// 3. В контекст для use case'ов кладем "чистый" логгер.
+			// В контекст для use case кладем чистый логгер
 			ctx := r.Context()
-			ctx = contextkeys.ContextWithLogger(ctx, coreLogger) // <-- КЛАДЕМ ЧИСТЫЙ ЛОГГЕР
+			ctx = contextkeys.ContextWithLogger(ctx, coreLogger)
 			ctx = contextkeys.ContextWithTraceID(ctx, traceID)
 			
 			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
@@ -48,7 +44,6 @@ func LoggerMiddleware(logger port.LoggerPort) func(next http.Handler) http.Handl
 			
 			next.ServeHTTP(ww, r.WithContext(ctx))
 			
-			// И снова используем HTTP-логгер для финального лога
 			httpLogger.Info("Request finished", port.Fields{
 				"status_code": ww.Status(),
 				"bytes_written": ww.BytesWritten(),

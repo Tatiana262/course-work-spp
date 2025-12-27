@@ -2,22 +2,12 @@ package kufarfetcher
 
 import (
 	"context"
-	// "encoding/json"
 	"fmt"
-	// "log"
 	"net/http"
 
-	// "os"
 	"kufar-parser-service/internal/contextkeys"
 	"kufar-parser-service/internal/core/domain"
 	"kufar-parser-service/internal/core/port"
-
-	// "regexp"
-	// "strconv"
-	// "strings"
-
-	// "time"
-
 	"github.com/gocolly/colly/v2"
 )
 
@@ -39,7 +29,7 @@ func (a *KufarFetcherAdapter) FetchAdDetails(ctx context.Context, adID int64) (*
 		})
 	})
 
-	// OnResponse сработает, когда мы получим успешный ответ от API.
+	// OnResponse сработает, когда мы получим успешный ответ от API
 	collector.OnResponse(func(r *colly.Response) {
 
 		if criticalError != nil || record != nil {
@@ -56,11 +46,10 @@ func (a *KufarFetcherAdapter) FetchAdDetails(ctx context.Context, adID int64) (*
 		
 	})
 
-	 // Этот колбэк будет вызван для ошибок, специфичных для этого запроса
+	 // колбэк для ошибок, специфичных для этого запроса
 	collector.OnError(func(r *colly.Response, err error) {	
 
-		// Если страница не найдена (404) или удалена (410), это не ошибка парсинга.
-		// Это информация о том, что объявление нужно архивировать.
+		// Если страница не найдена 404/410, это не ошибка парсинга, а информация о том, что объект надо архивировать
 		if r.StatusCode == http.StatusNotFound || r.StatusCode == http.StatusGone {
 			fetchDetailsLogger.Warn("Ad is not available (404/410), creating archive record", port.Fields{"ad_id": adID})
 			record = &domain.RealEstateRecord{
@@ -70,7 +59,7 @@ func (a *KufarFetcherAdapter) FetchAdDetails(ctx context.Context, adID int64) (*
 					Status:     domain.StatusArchived,
 				},
 			}
-			// Важно! Не устанавливаем `criticalError`, так как мы успешно обработали этот случай.
+			
 			return 
 		}
 
@@ -89,7 +78,7 @@ func (a *KufarFetcherAdapter) FetchAdDetails(ctx context.Context, adID int64) (*
 	// if visitErr != nil {
 	// 	return nil, fmt.Errorf("kufar adapter (Detail): failed to visit URL %s: %w", apiURL, visitErr)
 	// }
-	collector.Wait() // Ждем завершения HTTP запроса и выполнения OnHTML
+	collector.Wait() // Ждем завершения HTTP запроса и выполнения парсинга
 
 	return record, criticalError
 }

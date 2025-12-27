@@ -15,8 +15,7 @@ func NewGetArchivedObjectsUseCase(storage port.PropertyStoragePort) *GetArchived
     return &GetArchivedObjectsUseCase{storage: storage}
 }
 
-// FindIDsForActualization - пример метода, который вернет ID для актуализации.
-// Вы можете добавить сюда параметры: лимит, оффсет, фильтры и т.д.
+
 func (uc *GetArchivedObjectsUseCase) FindArchivedIDsForActualization(ctx context.Context, category string, limit int) ([]domain.PropertyBasicInfo, error) {
 
     logger := contextkeys.LoggerFromContext(ctx)

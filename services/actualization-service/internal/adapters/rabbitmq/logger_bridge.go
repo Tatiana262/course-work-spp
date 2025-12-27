@@ -5,7 +5,7 @@ import (
 	"real-estate-system/pkg/rabbitmq/rabbitmq_common"
 )
 
-// PkgLoggerBridge адаптирует наш внутренний LoggerPort к интерфейсу pkg-уровня
+// PkgLoggerBridge адаптирует внутренний LoggerPort к интерфейсу pkg-уровня
 type PkgLoggerBridge struct {
 	internalLogger port.LoggerPort
 }

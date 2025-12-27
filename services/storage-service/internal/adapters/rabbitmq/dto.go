@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// DTO - структура, которая ТОЧНО соответствует JSON-схеме
+// DTO - структура, которая соответствует JSON-схеме
 type IncomingEventDTO struct {
 	General     GeneralPropertyDTO `json:"general"`
 	DetailsType string             `json:"details_type"`
@@ -57,7 +57,7 @@ type ApartmentDetailsDTO struct {
     WallMaterial        *string  `json:"wallMaterial,omitempty"`
     RepairState         *string  `json:"repairState,omitempty"`
     BathroomType        *string  `json:"bathroomType,omitempty"`
-    BalconyType         *string  `json:"balconyType,omitempty"` // Исправил имя поля на 'balcony'
+    BalconyType         *string  `json:"balconyType,omitempty"`
     PricePerSquareMeter *float64 `json:"pricePerSquareMeter,omitempty"`
 	IsNewCondition		*bool	 `json:"isNewCondition,omitempty"` 
     Parameters          json.RawMessage `json:"parameters"`
@@ -72,7 +72,7 @@ type HouseDetailsDTO struct {
     LivingSpaceArea   *float64 `json:"livingSpaceArea,omitempty"`
     BuildingFloors    *int8    `json:"buildingFloors,omitempty"`
     RoomsAmount       *int8    `json:"roomsAmount,omitempty"`
-    KitchenArea       *float64 `json:"kitchenArea,omitempty"` // Обратите внимание на имя
+    KitchenArea       *float64 `json:"kitchenArea,omitempty"`
     Electricity       *string  `json:"electricity,omitempty"`
     Water             *string  `json:"water,omitempty"`
     Heating           *string  `json:"heating,omitempty"`

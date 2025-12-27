@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	"fmt"
-	// "log"
 	"storage-service/internal/contextkeys"
 	"storage-service/internal/core/domain"
 	"storage-service/internal/core/port"
@@ -13,7 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// FindWithFilters ищет объекты по набору фильтров с пагинацией.
+// FindWithFilters ищет объекты по набору фильтров с пагинацией
 func (a *PostgresStorageAdapter) FindWithFilters(ctx context.Context, filters domain.FindObjectsFilters, limit, offset int) (*domain.PaginatedResult, error) {
 	logger := contextkeys.LoggerFromContext(ctx)
 	repoLogger := logger.WithFields(port.Fields{
@@ -24,69 +23,20 @@ func (a *PostgresStorageAdapter) FindWithFilters(ctx context.Context, filters do
 		"offset":    offset,
 	})
 
-	// // --- Шаг 1: Динамическое построение WHERE clause ---
-	// repoLogger.Info("Finding objects with filters.", nil)
-	// // Используем sqlbuilder или просто срезы для аргументов и условий
-	// args := make([]interface{}, 0)
-	// conditions := []string{"gp.is_source_duplicate = false", "gp.status = 'active'"}
-	// argId := 1 // Счетчик для плейсхолдеров ($1, $2, ...)
-
-	// // Добавляем фильтры, если они заданы
-	// if filters.Category != "" {
-	// 	conditions = append(conditions, fmt.Sprintf("gp.category = $%d", argId))
-	// 	args = append(args, filters.Category)
-	// 	argId++
-	// }
-	// if filters.Region != "" {
-	// 	// Используем ILIKE для регистронезависимого поиска по региону
-	// 	conditions = append(conditions, fmt.Sprintf("gp.region ILIKE $%d", argId))
-	// 	args = append(args, "%"+filters.Region+"%")
-	// 	argId++
-	// }
-	// if filters.DealType != "" {
-	// 	if filters.DealType == "sale" || filters.DealType == "rent" {
-	// 		conditions = append(conditions, fmt.Sprintf("gp.deal_type = $%d", argId))
-	// 		args = append(args, filters.DealType)
-	// 		argId++
-	// 	}
-	// }
-	// if filters.PriceMin != nil {
-	// 	conditions = append(conditions, fmt.Sprintf("gp.price_byn >= $%d", argId))
-	// 	args = append(args, *filters.PriceMin)
-	// 	argId++
-	// }
-	// if filters.PriceMax != nil {
-	// 	conditions = append(conditions, fmt.Sprintf("gp.price_byn <= $%d", argId))
-	// 	args = append(args, *filters.PriceMax)
-	// 	argId++
-	// }
-
-	// // Специальная обработка для фильтра по комнатам (rooms = ANY($N))
-	// if len(filters.Rooms) > 0 {
-	// 	conditions = append(conditions, fmt.Sprintf("EXISTS (SELECT 1 FROM apartments ap WHERE ap.property_id = gp.id AND ap.rooms_amount = ANY($%d))", argId))
-	// 	args = append(args, filters.Rooms)
-	// 	argId++
-	// }
-
-	// whereClause := ""
-	// if len(conditions) > 0 {
-	// 	whereClause = "WHERE " + strings.Join(conditions, " AND ")
-	// }
-
-	// --- Шаг 1: Получаем части запроса от нашего билдера ---
+	
+	// Получаем части запроса от билдера
 	joinClause, whereClause, args := applyFilters(filters)
 
-	// --- Шаг 2: Выполняем два запроса (один для COUNT, другой для данных) в транзакции ---
+	// Выполняем два запроса (один для COUNT, другой для данных) в транзакции
 	tx, err := a.pool.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback(ctx) // Откатится, если не будет Commit
+	defer tx.Rollback(ctx)
 
-	// Запрос для подсчета общего количества
-	// countQuery := fmt.Sprintf("SELECT COUNT(DISTINCT gp.master_object_id) FROM general_properties gp %s", whereClause)
+	// Запрос для подсчета общего количества с фильтрами
 	countQuery := fmt.Sprintf("SELECT COUNT(DISTINCT gp.master_object_id) FROM general_properties gp %s %s", joinClause, whereClause)
-	var totalCount int64 // Используем int64 для COUNT
+	var totalCount int64 
 	if err := tx.QueryRow(ctx, countQuery, args...).Scan(&totalCount); err != nil {
 		repoLogger.Error("Failed to count objects with filters", err, port.Fields{"query": countQuery})
 		return nil, fmt.Errorf("failed to count objects with filters: %w", err)
@@ -99,8 +49,8 @@ func (a *PostgresStorageAdapter) FindWithFilters(ctx context.Context, filters do
 		return &domain.PaginatedResult{
 			Objects:      []domain.GeneralPropertyInfo{},
 			TotalCount:   0,
-			CurrentPage:  offset/limit + 1, // Показываем, на какой странице мы находимся
-			ItemsPerPage: limit,            // И с какими параметрами
+			CurrentPage:  offset/limit + 1, // на какой странице находимся
+			ItemsPerPage: limit,            // с какими параметрами
 		}, nil
 	}
 
@@ -112,9 +62,9 @@ func (a *PostgresStorageAdapter) FindWithFilters(ctx context.Context, filters do
 				gp.title, gp.address, gp.price_byn, gp.price_usd, gp.price_eur, gp.currency, gp.images, gp.status, gp.master_object_id,
 				ROW_NUMBER() OVER(PARTITION BY gp.master_object_id ORDER BY gp.updated_at DESC) as rn
 			FROM general_properties gp `)
-	dataQuery.WriteString(joinClause) // <-- Добавляем JOIN
+	dataQuery.WriteString(joinClause) // Добавляем JOIN
 	dataQuery.WriteString(" ")
-	dataQuery.WriteString(whereClause) // <-- Добавляем WHERE
+	dataQuery.WriteString(whereClause) // Добавляем WHERE
 	dataQuery.WriteString(`)
 		SELECT id, source, source_ad_id, updated_at, category, deal_type, ad_link, 
 			   title, address, price_byn, price_usd, price_eur, currency, images, status, master_object_id
@@ -125,9 +75,6 @@ func (a *PostgresStorageAdapter) FindWithFilters(ctx context.Context, filters do
 
 	limitOffsetArgs := append(args, limit, offset)
 	limitOffsetQuery := fmt.Sprintf("%s LIMIT $%d OFFSET $%d", dataQuery.String(), len(args)+1, len(args)+2)
-
-	// dataQuery.WriteString(fmt.Sprintf(" LIMIT $%d OFFSET $%d", argId, argId+1))
-	// args = append(args, limit, offset)
 
 	rows, err := tx.Query(ctx, limitOffsetQuery, limitOffsetArgs...)
 	if err != nil {
@@ -155,7 +102,7 @@ func (a *PostgresStorageAdapter) FindWithFilters(ctx context.Context, filters do
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	// --- Шаг 3: Формируем и возвращаем результат ---
+	// Формируем и возвращаем результат
 	result := &domain.PaginatedResult{
 		Objects:      objects,
 		TotalCount:   int(totalCount),
@@ -246,17 +193,15 @@ func (a *PostgresStorageAdapter) GetPropertyDetails(ctx context.Context, propert
 	repoLogger.Debug("Starting to get full property details.", nil)
 
 	result := &domain.PropertyDetailsView{}
-	// var masterID uuid.UUID
-	// var category string
 
-	// --- Шаг 1: Получаем основное объявление и его master_id --- AND status = 'active'
+	// Получаем основное объявление
 	repoLogger.Debug("Querying for main property.", nil)
 	mainQuery := `SELECT master_object_id, id, source, source_ad_id, updated_at, created_at, category, ad_link, sale_type, currency, images, list_time,
 						 description, title, deal_type, city_or_district, region, price_byn, price_usd, price_eur, address, is_agency, seller_name, seller_details,
 	                     status
 	              FROM general_properties WHERE id = $1`
 
-	// Сканируем в нашу полную структуру
+	// Сканируем в структуру
 	err := a.pool.QueryRow(ctx, mainQuery, propertyID).Scan(
 		&result.MainProperty.MasterObjectID, &result.MainProperty.ID, &result.MainProperty.Source, &result.MainProperty.SourceAdID, &result.MainProperty.UpdatedAt,
 		&result.MainProperty.CreatedAt, &result.MainProperty.Category, &result.MainProperty.AdLink, &result.MainProperty.SaleType, &result.MainProperty.Currency,
@@ -274,8 +219,7 @@ func (a *PostgresStorageAdapter) GetPropertyDetails(ctx context.Context, propert
 	}
 	repoLogger.Info("Successfully found main property.", port.Fields{"category": result.MainProperty.Category})
 
-	// --- Шаг 2: Получаем детали в зависимости от категории ---
-	// (Для краткости реализуем только для квартир)
+	// Получаем детали в зависимости от категории 
 	switch result.MainProperty.Category {
 	case "apartment":
 		var details domain.Apartment
@@ -326,17 +270,16 @@ func (a *PostgresStorageAdapter) GetPropertyDetails(ctx context.Context, propert
 		result.Details = &details
 	default:
 		repoLogger.Warn("No details handler for category", port.Fields{"category": result.MainProperty.Category})
-		// ... другие case "Коммерческая" и т.д. ...
 	}
 
-	// --- Шаг 3: Получаем все связанные предложения (дубликаты) --- AND deal_type = $3
+	// Получаем все связанные предложения (дубликаты)
 	repoLogger.Debug("Querying for related duplicate offers.", port.Fields{"master_object_id": result.MainProperty.MasterObjectID})
 	relatedQuery := `SELECT id, source, ad_link, is_source_duplicate, deal_type
 	                 FROM general_properties
 	                 WHERE master_object_id = $1 AND id != $2 AND status = 'active' 
 					 ORDER BY is_source_duplicate ASC`
 
-	rows, err := a.pool.Query(ctx, relatedQuery, result.MainProperty.MasterObjectID, propertyID) //result.MainProperty.DealType
+	rows, err := a.pool.Query(ctx, relatedQuery, result.MainProperty.MasterObjectID, propertyID)
 	if err != nil {
 		repoLogger.Error("Failed to get related offers", err, port.Fields{"query": relatedQuery})
 		return nil, fmt.Errorf("failed to get related offers: %w", err)

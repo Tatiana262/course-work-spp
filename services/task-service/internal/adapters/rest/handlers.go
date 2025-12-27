@@ -218,9 +218,6 @@ func (h *TaskHandler) GetTaskByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Здесь можно добавить проверку прав: имеет ли текущий пользователь
-	// (ID которого в контексте) право смотреть эту задачу.
-	// Пока что опускаем для простоты.
 
 	handlerLogger := logger.WithFields(port.Fields{
 		"task_id": taskID.String(),
@@ -268,11 +265,11 @@ func (h *TaskHandler) SubscribeToTasks(w http.ResponseWriter, r *http.Request) {
 	clientChan := h.notifier.AddClient(userID.String())
 	defer h.notifier.RemoveClient(userID.String(), clientChan)
 
-	// Отправляем "ping" для подтверждения установки соединения
+	// Отправляем ping для подтверждения установки соединения
 	fmt.Fprintf(w, "event: connected\ndata: {}\n\n")
 	if f, ok := w.(http.Flusher); ok { f.Flush() }
 
-	// Отправляем пустой комментарий каждые 30 секунд
+	// Отправляем пустой комментарий каждые 15 секунд
 	ticker := time.NewTicker(15 * time.Second)
     defer ticker.Stop()
 
@@ -289,9 +286,8 @@ func (h *TaskHandler) SubscribeToTasks(w http.ResponseWriter, r *http.Request) {
 			handlerLogger.Info("Sent SSE event to client", nil)
 
 		case <-ticker.C:
-            // PING
-            // В спецификации SSE строки, начинающиеся с двоеточия (:), считаются комментариями.
-            // Браузер их получает, канал остается активным, но JS-код (onmessage) их игнорирует.
+            // В спецификации SSE строки, начинающиеся с двоеточия (:), считаются комментариями
+            // Браузер их получает, канал остается активным, но JS-код (onmessage) их игнорирует
             if _, err := fmt.Fprintf(w, ": keep-alive\n\n"); err != nil {
                 return
             }

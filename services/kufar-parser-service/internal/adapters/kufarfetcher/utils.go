@@ -14,20 +14,14 @@ func NormalizeStringPtr(s *string) *string {
     return &normalized
 }
 
-// NormalizeFilterValue очищает и стандартизирует строковое значение для фильтров.
-// Пример: "  Хороший РЕМОНТ  " -> "Хороший ремонт"
+// NormalizeFilterValue очищает и стандартизирует строковое значение для фильтров
 func NormalizeFilterValue(s string) string {
 	if s == "" {
 		return ""
 	}
 
-	// 1. Убираем пробелы по краям и приводим всё к нижнему регистру
-	// "  Хороший РЕМОНТ  " -> "хороший ремонт"
 	lowerTrimmed := strings.ToLower(strings.TrimSpace(s))
 
-	// 2. Делаем первую букву заглавной для единообразия
-	// "хороший ремонт" -> "Хороший ремонт"
-	// Мы используем Rune для корректной работы с кириллицей
 	runes := []rune(lowerTrimmed)
 	caser := cases.Upper(language.Russian) // Используем правила для русского/белорусского
 	
@@ -38,7 +32,7 @@ func NormalizeFilterValue(s string) string {
 	return string(runes)
 }
 
-// NormalizeStringSlice применяет NormalizeFilterValue к каждому элементу среза.
+// NormalizeStringSlice применяет NormalizeFilterValue к каждому элементу среза
 func NormalizeStringSlice(slice []string) []string {
     if slice == nil {
         return nil
@@ -53,7 +47,7 @@ func NormalizeStringSlice(slice []string) []string {
 
 
 func NormalizeRegion(rawRegion string) string {
-	// 1. Убираем лишние пробелы в начале и в конце
+	// Убираем лишние пробелы в начале и в конце
 	cleanRegion := strings.TrimSpace(rawRegion)
 	
 	// Убираем точки
